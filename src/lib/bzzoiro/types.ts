@@ -62,7 +62,8 @@ export interface PredictionMarkets {
   btts: BttsMarket;
   score: ScoreMarket;
   draw_no_bet: DnbMarket;
-  corners: unknown | null;
+  // Corners schema varies / can be null; keep loose but serializable.
+  corners: Record<string, number | string | null> | null;
 }
 
 export interface PredictionModel {
@@ -77,7 +78,7 @@ export interface Prediction {
   event: PredictionEventEmbed;
   markets: PredictionMarkets;
   model: PredictionModel;
-  recommendations: unknown;
+  recommendations: Record<string, boolean | number | string | null>;
 }
 
 // -------- Common list wrappers --------

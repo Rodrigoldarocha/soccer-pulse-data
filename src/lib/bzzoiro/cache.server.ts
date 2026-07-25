@@ -45,10 +45,11 @@ export async function bzzoiroCachedFetch<T>(
   const expiresAt = new Date(Date.now() + opts.ttlSeconds * 1000).toISOString();
   await admin
     .from("bzzoiro_cache")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .upsert(
       {
         cache_key: opts.key,
-        payload: value as unknown as Record<string, unknown>,
+        payload: value as any,
         fetched_at: nowIso,
         expires_at: expiresAt,
       },
