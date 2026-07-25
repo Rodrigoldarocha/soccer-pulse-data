@@ -1,0 +1,17 @@
+{
+  "name": "Zagueiro — Previsões ML de Futebol",
+  "short_name": "Zagueiro",
+  "description": "Previsões CatBoost para partidas de futebol: 1X2, Over/Under, BTTS e placar mais provável.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d3b1a",
+  "theme_color": "#1a5c2a",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

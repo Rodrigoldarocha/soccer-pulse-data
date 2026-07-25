@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a5c2a"/>
+      <stop offset="100%" stop-color="#0d3b1a"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="180" height="180" rx="36" ry="36" fill="url(#bg)"/>
+  <!-- Soccer ball pentagon pattern (subtle) -->
+  <g opacity="0.12">
+    <polygon points="90,25 110,40 105,65 75,65 70,40" fill="none" stroke="white" stroke-width="2"/>
+    <polygon points="140,55 155,75 145,100 125,95 125,70" fill="none" stroke="white" stroke-width="2"/>
+    <polygon points="40,55 55,75 45,100 25,95 25,70" fill="none" stroke="white" stroke-width="2"/>
+    <polygon points="65,120 90,110 115,120 110,145 65,145" fill="none" stroke="white" stroke-width="2"/>
+  </g>
+  <!-- Shield shape -->
+  <path d="M90 35 L135 55 L135 95 C135 125 115 145 90 155 C65 145 45 125 45 95 L45 55 Z" 
+        fill="none" stroke="white" stroke-width="3" opacity="0.3"/>
+  <!-- Z letter -->
+  <text x="90" y="112" font-family="'SF Pro Display','Helvetica Neue',Arial,sans-serif" 
+        font-size="80" font-weight="800" fill="white" text-anchor="middle" 
+        letter-spacing="-4">Z</text>
+</svg>
