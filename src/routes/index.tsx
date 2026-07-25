@@ -1,15 +1,9 @@
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { Suspense } from "react";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { Suspense, useState, useCallback } from "react";
 
 import { PredictionCard } from "@/components/PredictionCard";
 import { listUpcomingPredictions } from "@/lib/predictions.functions";
-
-const upcomingPredictionsQuery = queryOptions({
-  queryKey: ["predictions", "upcoming", { limit: 30 }],
-  queryFn: () => listUpcomingPredictions({ data: { limit: 30 } }),
-  staleTime: 60_000,
-});
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,12 +24,46 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(upcomingPredictionsQuery),
+  validateSearch: (search: Record<string, unknown>) => ({
+    leagueId: search.leagueId as number | undefined,
+  }),
+  loaderDeps: ({ search }) => ({ leagueId: search.leagueId }),
+  loader: ({ context, deps }) => {
+    const query = buildQueryOptions(deps.leagueId);
+    context.queryClient.ensureQueryData(query);
+  },
   component: PredictionsPage,
 });
 
+function buildQueryOptions(leagueId?: number) {
+  return queryOptions({
+    queryKey: ["predictions", "upcoming", { limit: 30, leagueId }],
+    queryFn: () =>
+      listUpcomingPredictions({ data: { limit: 30, leagueId } }),
+    staleTime: 60_000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10_000),
+  });
+}
+
 function PredictionsPage() {
+  const router = useRouter();
+  const { leagueId } = Route.useSearch();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await router.invalidate();
+    setRefreshing(false);
+  }, [router]);
+
+  const handleLeagueFilter = useCallback(
+    (id: number | undefined) => {
+      router.navigate({ to: "/", search: { leagueId: id } });
+    },
+    [router],
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/40 backdrop-blur">
@@ -66,40 +94,83 @@ function PredictionsPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-6 flex items-baseline justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-2xl font-bold">Próximas partidas</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Probabilidades 0–100% por mercado. Confiança = probabilidade do resultado mais provável.
+              Probabilidades 0–100% por mercado. Confiança = probabilidade do
+              resultado mais provável.
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleLeagueFilter(undefined)}
+              className={
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors " +
+                (leagueId == null
+                  ? "bg-primary/15 text-primary"
+                  : "bg-secondary/50 text-muted-foreground hover:text-foreground")
+              }
+            >
+              Todas
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="rounded-md bg-primary/15 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
+            >
+              {refreshing ? "Atualizando…" : "Atualizar"}
+            </button>
           </div>
         </div>
 
         <Suspense fallback={<GridSkeleton />}>
-          <PredictionsGrid />
+          <PredictionsGrid leagueId={leagueId} />
         </Suspense>
       </main>
     </div>
   );
 }
 
-function PredictionsGrid() {
-  const { data: predictions } = useSuspenseQuery(upcomingPredictionsQuery);
+function PredictionsGrid({ leagueId }: { leagueId?: number }) {
+  const query = buildQueryOptions(leagueId);
+  const { data: predictions, isFetching } = useSuspenseQuery(query);
 
   if (predictions.length === 0) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-10 text-center text-muted-foreground">
-        Nenhuma previsão disponível no momento.
+      <div
+        role="status"
+        className="rounded-2xl border border-border bg-card p-10 text-center"
+      >
+        <p className="text-muted-foreground">
+          Nenhuma previsão disponível no momento.
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Tente selecionar outra liga ou volte mais tarde.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Tentar novamente
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {predictions.map((p) => (
-        <PredictionCard key={p.id} prediction={p} />
-      ))}
-    </div>
+    <>
+      {isFetching && (
+        <div className="mb-3 text-right text-xs text-muted-foreground">
+          Atualizando…
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {predictions.map((p) => (
+          <PredictionCard key={p.id} prediction={p} />
+        ))}
+      </div>
+    </>
   );
 }
 
