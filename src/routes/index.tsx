@@ -136,7 +136,11 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
   const query = buildQueryOptions(leagueId);
   const { data: predictions, isFetching } = useSuspenseQuery(query);
 
-  if (predictions.length === 0) {
+  const active = predictions.filter(
+    (p) => p.event.status === "notstarted" || p.event.status === "inprogress",
+  );
+
+  if (active.length === 0) {
     return (
       <div
         role="status"
@@ -166,7 +170,7 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
         </div>
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {predictions.map((p) => (
+        {active.map((p) => (
           <PredictionCard key={p.id} prediction={p} />
         ))}
       </div>

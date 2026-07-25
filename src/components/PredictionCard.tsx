@@ -1,4 +1,4 @@
-import type { Prediction } from "@/lib/bzzoiro/types";
+import type { Prediction, OverUnderMarket } from "@/lib/bzzoiro/types";
 import { TeamLogo } from "./TeamLogo";
 
 interface Props {
@@ -42,12 +42,32 @@ function outcomeLabel(
   return "Sem favorito";
 }
 
+function bestOuLine(ou: OverUnderMarket): { line: string; over: number; under: number } | null {
+  const lines: { line: string; prob: number | null }[] = [
+    { line: "1.5", prob: ou.prob_over_15 },
+    { line: "2.5", prob: ou.prob_over_25 },
+    { line: "3.5", prob: ou.prob_over_35 },
+  ];
+  let best: { line: string; over: number; under: number } | null = null;
+  for (const l of lines) {
+    if (l.prob == null) continue;
+    const over = Math.round(l.prob);
+    const under = Math.round(100 - l.prob);
+    if (!best || Math.max(over, under) > Math.max(best.over, best.under)) {
+      best = { line: l.line, over, under };
+    }
+  }
+  return best;
+}
+
 export function PredictionCard({ prediction }: Props) {
   const { event, markets, model, created_at } = prediction;
   const mr = markets.match_result;
   const confidencePct = Math.round(model.confidence * 100);
   const isHighConfidence = confidencePct >= 60;
   const isLive = event.status === "inprogress";
+  const bestOu = bestOuLine(markets.over_under);
+  const bttsYes = markets.btts.prob_yes != null ? Math.round(markets.btts.prob_yes) : null;
 
   return (
     <article className="group rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:border-primary/50 hover:shadow-md">
@@ -134,27 +154,35 @@ export function PredictionCard({ prediction }: Props) {
         />
       </div>
 
-      {/* Market pills: Over/Under + BTTS + Expected Goals */}
-      <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-        <MetricPill
-          label="Over 2.5"
-          value={fmtPct(markets.over_under.prob_over_25)}
-        />
-        <MetricPill
-          label="BTTS"
-          value={fmtPct(markets.btts.prob_yes)}
-        />
-        {markets.expected_goals.home != null && (
-          <MetricPill
-            label="xG Casa"
-            value={markets.expected_goals.home.toFixed(2)}
-          />
+      {/* Melhores mercados para jogar */}
+      <div className="mt-4 space-y-2">
+        {bestOu && (
+          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              Total de gols
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium">Over {bestOu.line}</span>
+              <span className="font-mono font-semibold text-primary">{bestOu.over}%</span>
+              <span className="text-muted-foreground mx-1">|</span>
+              <span className="font-medium">Under {bestOu.line}</span>
+              <span className="font-mono font-semibold">{bestOu.under}%</span>
+            </div>
+          </div>
         )}
-        {markets.expected_goals.away != null && (
-          <MetricPill
-            label="xG Fora"
-            value={markets.expected_goals.away.toFixed(2)}
-          />
+        {bttsYes != null && (
+          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              Ambos marcam
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium">Sim</span>
+              <span className="font-mono font-semibold text-primary">{bttsYes}%</span>
+              <span className="text-muted-foreground mx-1">|</span>
+              <span className="font-medium">Não</span>
+              <span className="font-mono font-semibold">{100 - bttsYes}%</span>
+            </div>
+          </div>
         )}
       </div>
 
@@ -237,11 +265,4 @@ function ProbBar({
   );
 }
 
-function MetricPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-3 py-2">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-mono font-semibold">{value}</span>
-    </div>
-  );
-}
+
