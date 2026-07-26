@@ -40,7 +40,7 @@ export async function bzzoiroFetch<T>(
       Authorization: `Token ${token}`,
       Accept: "application/json",
     },
-    signal: opts.signal,
+    signal: opts.signal ?? AbortSignal.timeout(10_000),
   });
 
   if (!res.ok) {

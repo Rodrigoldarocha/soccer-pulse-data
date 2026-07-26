@@ -4,6 +4,16 @@
 
 import { bzzoiroFetch, type FetchOptions } from "./client.server";
 
+// Hash-based cache key to keep index size small.
+export async function hashKey(prefix: string, params: Record<string, unknown>): Promise<string> {
+  const json = JSON.stringify(params);
+  const encoder = new TextEncoder();
+  const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", encoder.encode(json));
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${prefix}:${hashHex}`;
+}
+
 // Load service-role client lazily to keep this module cheap.
 async function getAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -43,18 +53,22 @@ export async function bzzoiroCachedFetch<T>(
 
   // 3. Upsert into cache. Ignore write errors — cache miss is not fatal.
   const expiresAt = new Date(Date.now() + opts.ttlSeconds * 1000).toISOString();
-  await admin
-    .from("bzzoiro_cache")
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .upsert(
-      {
-        cache_key: opts.key,
-        payload: value as any,
-        fetched_at: nowIso,
-        expires_at: expiresAt,
-      },
-      { onConflict: "cache_key" },
-    );
+  try {
+    await admin
+      .from("bzzoiro_cache")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .upsert(
+        {
+          cache_key: opts.key,
+          payload: value as any,
+          fetched_at: nowIso,
+          expires_at: expiresAt,
+        },
+        { onConflict: "cache_key" },
+      );
+  } catch (err) {
+    console.warn("[bzzoiro] Cache upsert failed (non-fatal):", err);
+  }
 
   return value;
 }
