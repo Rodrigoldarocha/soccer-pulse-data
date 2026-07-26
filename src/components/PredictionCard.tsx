@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { Prediction, OverUnderMarket } from "@/lib/bzzoiro/types";
 import { TeamLogo } from "./TeamLogo";
 
@@ -66,7 +67,11 @@ export function PredictionCard({ prediction }: Props) {
   const bttsYes = markets.btts.prob_yes != null ? Math.round(markets.btts.prob_yes) : null;
 
   return (
-    <article className="group rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:border-primary/50 hover:shadow-md">
+    <Link
+      to="/events/$eventId"
+      params={{ eventId: String(event.id) }}
+      className="block rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:border-primary/50 hover:shadow-md"
+    >
       <header className="mb-4 flex items-center justify-between text-xs">
         <span className="uppercase tracking-wide text-muted-foreground">
           {event.league_name ?? "—"}
@@ -230,7 +235,7 @@ export function PredictionCard({ prediction }: Props) {
           </span>
         </div>
       </footer>
-    </article>
+    </Link>
   );
 }
 

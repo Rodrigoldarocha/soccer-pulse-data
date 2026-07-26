@@ -90,6 +90,45 @@ export interface League {
   logo?: string | null;
 }
 
+// -------- Events (v2) --------
+
+export interface EventScore {
+  home: number | null;
+  away: number | null;
+}
+
+export interface EventDetail {
+  id: number;
+  event_date: string;
+  status: MatchStatus;
+  home_team: string;
+  away_team: string;
+  home_team_id: number | null;
+  away_team_id: number | null;
+  league_id: number | null;
+  league_name: string | null;
+  home_score?: EventScore | null;
+  away_score?: EventScore | null;
+  venue?: string | null;
+  referee?: string | null;
+}
+
+// -------- Odds Comparison (v2) --------
+
+export interface BookmakerOdds {
+  bookmaker: string;
+  odds_home: number | null;
+  odds_draw: number | null;
+  odds_away: number | null;
+}
+
+export interface OddsComparison {
+  event_id: number;
+  home_team: string;
+  away_team: string;
+  bookmakers: BookmakerOdds[];
+}
+
 // -------- Common list wrappers --------
 
 export interface Paginated<T> {

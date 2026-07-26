@@ -55,18 +55,15 @@ export async function bzzoiroCachedFetch<T>(path: string, opts: CachedFetchOptio
   // 3. Upsert into cache. Ignore write errors — cache miss is not fatal.
   const expiresAt = new Date(Date.now() + opts.ttlSeconds * 1000).toISOString();
   try {
-    await admin
-      .from("bzzoiro_cache")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .upsert(
-        {
-          cache_key: opts.key,
-          payload: value as any,
-          fetched_at: nowIso,
-          expires_at: expiresAt,
-        },
-        { onConflict: "cache_key" },
-      );
+    await admin.from("bzzoiro_cache").upsert(
+      {
+        cache_key: opts.key,
+        payload: value as unknown as Record<string, unknown>,
+        fetched_at: nowIso,
+        expires_at: expiresAt,
+      },
+      { onConflict: "cache_key" },
+    );
   } catch (err) {
     console.warn("[bzzoiro] Cache upsert failed (non-fatal):", err);
   }
