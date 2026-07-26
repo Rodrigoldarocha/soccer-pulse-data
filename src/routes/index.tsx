@@ -38,8 +38,7 @@ export const Route = createFileRoute("/")({
 function buildQueryOptions(leagueId?: number) {
   return queryOptions({
     queryKey: ["predictions", "upcoming", { limit: 30, leagueId }],
-    queryFn: () =>
-      listUpcomingPredictions({ data: { limit: 30, leagueId } }),
+    queryFn: () => listUpcomingPredictions({ data: { limit: 30, leagueId } }),
     staleTime: 30_000,
     retry: 2,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10_000),
@@ -74,9 +73,7 @@ function PredictionsPage() {
             </div>
             <div>
               <h1 className="text-lg font-bold leading-tight">Zagueiro</h1>
-              <p className="text-xs text-muted-foreground">
-                Previsões de futebol via CatBoost
-              </p>
+              <p className="text-xs text-muted-foreground">Previsões de futebol via CatBoost</p>
             </div>
           </div>
         </div>
@@ -87,8 +84,8 @@ function PredictionsPage() {
           <div>
             <h2 className="text-2xl font-bold">Próximas partidas</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Probabilidades 0–100% por mercado. Confiança = probabilidade do
-              resultado mais provável.
+              Probabilidades 0–100% por mercado. Confiança = probabilidade do resultado mais
+              provável.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -131,13 +128,8 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
 
   if (active.length === 0) {
     return (
-      <div
-        role="status"
-        className="rounded-2xl border border-border bg-card p-10 text-center"
-      >
-        <p className="text-muted-foreground">
-          Nenhuma previsão disponível no momento.
-        </p>
+      <div role="status" className="rounded-2xl border border-border bg-card p-10 text-center">
+        <p className="text-muted-foreground">Nenhuma previsão disponível no momento.</p>
         <p className="mt-2 text-xs text-muted-foreground">
           Tente selecionar outra liga ou volte mais tarde.
         </p>
@@ -154,9 +146,7 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
   return (
     <>
       {isFetching && (
-        <div className="mb-3 text-right text-xs text-muted-foreground">
-          Atualizando…
-        </div>
+        <div className="mb-3 text-right text-xs text-muted-foreground">Atualizando…</div>
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {active.map((p) => (
@@ -171,10 +161,7 @@ function GridSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-64 animate-pulse rounded-2xl border border-border bg-card"
-        />
+        <div key={i} className="h-64 animate-pulse rounded-2xl border border-border bg-card" />
       ))}
     </div>
   );

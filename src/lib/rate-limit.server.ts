@@ -27,10 +27,7 @@ export interface RateLimitOptions {
   windowMs?: number;
 }
 
-export function checkRateLimit(
-  identifier: string,
-  opts: RateLimitOptions = {},
-): void {
+export function checkRateLimit(identifier: string, opts: RateLimitOptions = {}): void {
   const { max = 30, windowMs = 60_000 } = opts;
   const now = Date.now();
   cleanup();

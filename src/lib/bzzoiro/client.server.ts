@@ -35,15 +35,10 @@ function buildUrl(path: string, params?: FetchOptions["params"]): string {
   return url.toString();
 }
 
-export async function bzzoiroFetch<T>(
-  path: string,
-  opts: FetchOptions = {},
-): Promise<T> {
+export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   const token = process.env.BZZOIRO_TOKEN;
   if (!token) {
-    throw new Error(
-      "BZZOIRO_TOKEN is not configured. Add it via the secrets manager.",
-    );
+    throw new Error("BZZOIRO_TOKEN is not configured. Add it via the secrets manager.");
   }
 
   const url = buildUrl(path, opts.params);

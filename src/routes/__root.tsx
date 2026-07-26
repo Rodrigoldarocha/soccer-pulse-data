@@ -78,10 +78,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Zagueiro — Previsões ML de Futebol" },
-      { name: "description", content: "Previsões CatBoost para partidas de futebol: 1X2, Over/Under, BTTS e placar mais provável." },
+      {
+        name: "description",
+        content:
+          "Previsões CatBoost para partidas de futebol: 1X2, Over/Under, BTTS e placar mais provável.",
+      },
       { name: "author", content: "Zagueiro" },
       { property: "og:title", content: "Zagueiro — Previsões ML de Futebol" },
-      { property: "og:description", content: "Previsões CatBoost para partidas de futebol com probabilidades 1X2, Over/Under, BTTS e confiança do modelo." },
+      {
+        property: "og:description",
+        content:
+          "Previsões CatBoost para partidas de futebol com probabilidades 1X2, Over/Under, BTTS e confiança do modelo.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

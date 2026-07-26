@@ -31,11 +31,7 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d atrás`;
 }
 
-function outcomeLabel(
-  o: "H" | "D" | "A" | null,
-  home: string,
-  away: string,
-): string {
+function outcomeLabel(o: "H" | "D" | "A" | null, home: string, away: string): string {
   if (o === "H") return `${home} vence`;
   if (o === "A") return `${away} vence`;
   if (o === "D") return "Empate";
@@ -81,10 +77,7 @@ export function PredictionCard({ prediction }: Props) {
               AO VIVO
             </span>
           )}
-          <time
-            dateTime={event.event_date}
-            className="text-muted-foreground"
-          >
+          <time dateTime={event.event_date} className="text-muted-foreground">
             {fmtKickoff(event.event_date)}
           </time>
         </div>
@@ -92,15 +85,8 @@ export function PredictionCard({ prediction }: Props) {
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div className="flex flex-col items-center gap-2 text-center">
-          <TeamLogo
-            teamId={event.home_team_id}
-            teamName={event.home_team}
-            size={56}
-          />
-          <span
-            className="line-clamp-2 text-sm font-medium"
-            title={event.home_team}
-          >
+          <TeamLogo teamId={event.home_team_id} teamName={event.home_team} size={56} />
+          <span className="line-clamp-2 text-sm font-medium" title={event.home_team}>
             {event.home_team}
           </span>
         </div>
@@ -118,15 +104,8 @@ export function PredictionCard({ prediction }: Props) {
         </div>
 
         <div className="flex flex-col items-center gap-2 text-center">
-          <TeamLogo
-            teamId={event.away_team_id}
-            teamName={event.away_team}
-            size={56}
-          />
-          <span
-            className="line-clamp-2 text-sm font-medium"
-            title={event.away_team}
-          >
+          <TeamLogo teamId={event.away_team_id} teamName={event.away_team} size={56} />
+          <span className="line-clamp-2 text-sm font-medium" title={event.away_team}>
             {event.away_team}
           </span>
         </div>
@@ -188,11 +167,7 @@ export function PredictionCard({ prediction }: Props) {
         <span className="text-muted-foreground">
           Palpite:{" "}
           <span className="text-foreground">
-            {outcomeLabel(
-              mr.predicted,
-              event.home_team,
-              event.away_team,
-            )}
+            {outcomeLabel(mr.predicted, event.home_team, event.away_team)}
           </span>
         </span>
         <div className="flex items-center gap-2">
@@ -202,11 +177,7 @@ export function PredictionCard({ prediction }: Props) {
             </span>
           )}
           <span
-            title={
-              isHighConfidence
-                ? "Confiança alta (≥60%)"
-                : "Confiança baixa (<60%)"
-            }
+            title={isHighConfidence ? "Confiança alta (≥60%)" : "Confiança baixa (<60%)"}
             className={
               "rounded-full px-2.5 py-1 font-semibold " +
               (isHighConfidence
@@ -253,11 +224,7 @@ function ProbBar({
       <div className="relative z-10 text-[10px] uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
-      <div className="relative z-10 mt-0.5 font-mono text-sm font-semibold">
-        {fmtPct(value)}
-      </div>
+      <div className="relative z-10 mt-0.5 font-mono text-sm font-semibold">{fmtPct(value)}</div>
     </div>
   );
 }
-
-

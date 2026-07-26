@@ -21,7 +21,7 @@ export const listUpcomingPredictions = createServerFn({ method: "GET" })
     const { bzzoiroCachedFetch, hashKey } = await import("./bzzoiro/cache.server");
 
     const params: Record<string, string | number | undefined> = {
-      status: "notstarted",
+      status: "upcoming",
       limit: data.limit,
       min_confidence: data.minConfidence,
       league_id: data.leagueId,
@@ -38,16 +38,24 @@ export const listUpcomingPredictions = createServerFn({ method: "GET" })
     let results: Prediction[];
     if (Array.isArray(raw)) {
       results = raw as Prediction[];
-    } else if (raw && typeof raw === "object" && "results" in raw && Array.isArray((raw as { results: unknown }).results)) {
+    } else if (
+      raw &&
+      typeof raw === "object" &&
+      "results" in raw &&
+      Array.isArray((raw as { results: unknown }).results)
+    ) {
       results = (raw as { results: Prediction[] }).results;
-    } else if (raw && typeof raw === "object" && "predictions" in raw && Array.isArray((raw as { predictions: unknown }).predictions)) {
+    } else if (
+      raw &&
+      typeof raw === "object" &&
+      "predictions" in raw &&
+      Array.isArray((raw as { predictions: unknown }).predictions)
+    ) {
       results = (raw as { predictions: Prediction[] }).predictions;
     } else {
       console.warn("[bzzoiro] Unexpected /api/v2/predictions/ shape:", raw);
       results = [];
     }
 
-    return [...results].sort(
-      (a, b) => a.event.event_date.localeCompare(b.event.event_date),
-    );
+    return [...results].sort((a, b) => a.event.event_date.localeCompare(b.event.event_date));
   });

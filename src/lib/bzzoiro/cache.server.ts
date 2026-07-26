@@ -32,10 +32,7 @@ export interface CachedFetchOptions<T> extends FetchOptions {
   schema?: z.ZodType<T>;
 }
 
-export async function bzzoiroCachedFetch<T>(
-  path: string,
-  opts: CachedFetchOptions<T>,
-): Promise<T> {
+export async function bzzoiroCachedFetch<T>(path: string, opts: CachedFetchOptions<T>): Promise<T> {
   const admin = await getAdmin();
   const nowIso = new Date().toISOString();
 

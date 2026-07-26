@@ -31,14 +31,14 @@ cp .env.example .env
 
 ## Variáveis de Ambiente
 
-| Variável | Obrigatória | Descrição |
-|---|---|---|
-| `SUPABASE_URL` | Sim | URL do projeto Supabase |
-| `SUPABASE_PUBLISHABLE_KEY` | Sim | Chave pública anônima do Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side | Chave service_role (cache Postgres) |
-| `BZZOIRO_TOKEN` | Sim | Token da API Bzzoiro |
-| `VITE_SUPABASE_URL` | Sim | Mesmo valor de SUPABASE_URL (Vite) |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Sim | Mesmo valor de SUPABASE_PUBLISHABLE_KEY |
+| Variável                        | Obrigatória | Descrição                               |
+| ------------------------------- | ----------- | --------------------------------------- |
+| `SUPABASE_URL`                  | Sim         | URL do projeto Supabase                 |
+| `SUPABASE_PUBLISHABLE_KEY`      | Sim         | Chave pública anônima do Supabase       |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Server-side | Chave service_role (cache Postgres)     |
+| `BZZOIRO_TOKEN`                 | Sim         | Token da API Bzzoiro                    |
+| `VITE_SUPABASE_URL`             | Sim         | Mesmo valor de SUPABASE_URL (Vite)      |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Sim         | Mesmo valor de SUPABASE_PUBLISHABLE_KEY |
 
 > **⚠️ Segurança**: Nunca commite o arquivo `.env`. Use `.env.example` como template.
 
@@ -84,6 +84,7 @@ src/
 Server function (GET). Retorna previsões ordenadas por data.
 
 **Parâmetros:**
+
 - `limit` (1-100, default 30)
 - `leagueId` (opcional, inteiro positivo)
 - `minConfidence` (opcional, 0-1)
@@ -91,6 +92,7 @@ Server function (GET). Retorna previsões ordenadas por data.
 ## Cache
 
 Respostas da API Bzzoiro armazenadas em Postgres (`bzzoiro_cache`):
+
 - TTL: 5 minutos
 - Chave: SHA-256 dos parâmetros
 - Apenas service_role acessa (RLS habilitado)
@@ -99,4 +101,5 @@ Respostas da API Bzzoiro armazenadas em Postgres (`bzzoiro_cache`):
 ## CI/CD
 
 GitHub Actions configurado (`.github/workflows/ci.yml`):
+
 - Lint + type check + build em push/PR para main
