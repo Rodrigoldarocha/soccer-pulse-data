@@ -3,6 +3,34 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
+function secureHeaders(headers: Headers): void {
+  if (!headers.has("content-security-policy")) {
+    headers.set(
+      "content-security-policy",
+      [
+        "default-src 'self'",
+        "img-src 'self' https://sports.bzzoiro.com data:",
+        "style-src 'self' 'unsafe-inline'",
+        "script-src 'self'",
+        "font-src 'self'",
+        "connect-src 'self' https://*.supabase.co https://sports.bzzoiro.com",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+      ].join("; "),
+    );
+  }
+  if (!headers.has("x-content-type-options")) {
+    headers.set("x-content-type-options", "nosniff");
+  }
+  if (!headers.has("x-frame-options")) {
+    headers.set("x-frame-options", "DENY");
+  }
+  if (!headers.has("referrer-policy")) {
+    headers.set("referrer-policy", "strict-origin-when-cross-origin");
+  }
+}
+
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
@@ -29,10 +57,12 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
   if (!isH3SwallowedErrorBody(body)) return response;
 
   console.error(consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`));
-  return new Response(renderErrorPage(), {
+  const errResp = new Response(renderErrorPage(), {
     status: 500,
     headers: { "content-type": "text/html; charset=utf-8" },
   });
+  secureHeaders(errResp.headers);
+  return errResp;
 }
 
 function isH3SwallowedErrorBody(body: string): boolean {
@@ -49,13 +79,16 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
+      secureHeaders(response.headers);
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
       console.error(error);
-      return new Response(renderErrorPage(), {
+      const errResp = new Response(renderErrorPage(), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },
       });
+      secureHeaders(errResp.headers);
+      return errResp;
     }
   },
 };

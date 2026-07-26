@@ -2,6 +2,7 @@
 // bypasses RLS on the `bzzoiro_cache` table (which has no policies — the
 // table is intentionally server-only).
 
+import { z } from "zod";
 import { bzzoiroFetch, type FetchOptions } from "./client.server";
 
 // Hash-based cache key to keep index size small.
@@ -27,6 +28,8 @@ export interface CachedFetchOptions<T> extends FetchOptions {
   ttlSeconds: number;
   /** Optional post-processor before caching. */
   transform?: (raw: unknown) => T;
+  /** Optional Zod schema to validate cached payload at runtime. */
+  schema?: z.ZodType<T>;
 }
 
 export async function bzzoiroCachedFetch<T>(
@@ -44,6 +47,7 @@ export async function bzzoiroCachedFetch<T>(
     .maybeSingle();
 
   if (cached && cached.expires_at > nowIso) {
+    if (opts.schema) return opts.schema.parse(cached.payload);
     return cached.payload as T;
   }
 

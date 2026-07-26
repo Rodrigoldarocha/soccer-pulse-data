@@ -40,7 +40,7 @@ function buildQueryOptions(leagueId?: number) {
     queryKey: ["predictions", "upcoming", { limit: 30, leagueId }],
     queryFn: () =>
       listUpcomingPredictions({ data: { limit: 30, leagueId } }),
-    staleTime: 60_000,
+    staleTime: 30_000,
     retry: 2,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10_000),
   });
@@ -79,17 +79,6 @@ function PredictionsPage() {
               </p>
             </div>
           </div>
-          <nav className="flex items-center gap-1 text-sm">
-            <span className="rounded-md bg-primary/15 px-3 py-1.5 font-medium text-primary">
-              Previsões
-            </span>
-            <span className="rounded-md px-3 py-1.5 text-muted-foreground">
-              Partidas
-            </span>
-            <span className="rounded-md px-3 py-1.5 text-muted-foreground">
-              Jogadores
-            </span>
-          </nav>
         </div>
       </header>
 

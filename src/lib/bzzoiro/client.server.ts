@@ -5,6 +5,18 @@
 
 const BASE_URL = "https://sports.bzzoiro.com";
 
+export class BzzoiroApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly statusText: string,
+    public readonly path: string,
+    public readonly body: string,
+  ) {
+    super(`Bzzoiro API ${status} ${statusText} on ${path}`);
+    this.name = "BzzoiroApiError";
+  }
+}
+
 export interface FetchOptions {
   /** Query-string params. `undefined` values are stripped. */
   params?: Record<string, string | number | boolean | undefined>;
@@ -45,9 +57,7 @@ export async function bzzoiroFetch<T>(
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(
-      `Bzzoiro API ${res.status} ${res.statusText} on ${path}: ${body.slice(0, 200)}`,
-    );
+    throw new BzzoiroApiError(res.status, res.statusText, path, body.slice(0, 200));
   }
   return (await res.json()) as T;
 }

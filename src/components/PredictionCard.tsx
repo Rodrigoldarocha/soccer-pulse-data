@@ -132,7 +132,6 @@ export function PredictionCard({ prediction }: Props) {
         </div>
       </div>
 
-      {/* 1X2 probabilities with visual bars */}
       <div className="mt-5 grid grid-cols-3 gap-2">
         <ProbBar
           label="Casa"
@@ -154,7 +153,6 @@ export function PredictionCard({ prediction }: Props) {
         />
       </div>
 
-      {/* Melhores mercados para jogar */}
       <div className="mt-4 space-y-2">
         {bestOu && (
           <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
@@ -186,7 +184,6 @@ export function PredictionCard({ prediction }: Props) {
         )}
       </div>
 
-      {/* Footer: palpite + confiança + atualizado */}
       <footer className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs">
         <span className="text-muted-foreground">
           Palpite:{" "}
@@ -225,7 +222,6 @@ export function PredictionCard({ prediction }: Props) {
   );
 }
 
-/** Probability cell with inline bar. */
 function ProbBar({
   label,
   value,
@@ -247,7 +243,6 @@ function ProbBar({
           : "border-border bg-secondary/40 text-foreground")
       }
     >
-      {/* Barra de progresso de fundo */}
       <span
         className="absolute bottom-0 left-0 top-0 opacity-15 transition-all"
         style={{
