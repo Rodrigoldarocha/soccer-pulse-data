@@ -52,6 +52,11 @@ export async function bzzoiroCachedFetch<T>(path: string, opts: CachedFetchOptio
   const raw = await bzzoiroFetch<unknown>(path, opts);
   const value = (opts.transform ? opts.transform(raw) : raw) as T;
 
+  // 2b. Validate fresh value before caching (same check as cache-hit path).
+  if (opts.schema) {
+    opts.schema.parse(value);
+  }
+
   // 3. Upsert into cache. Ignore write errors — cache miss is not fatal.
   const expiresAt = new Date(Date.now() + opts.ttlSeconds * 1000).toISOString();
   try {

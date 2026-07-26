@@ -14,9 +14,10 @@ const upcomingInput = z.object({
 
 export const listUpcomingPredictions = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => upcomingInput.parse(input ?? {}))
-  .handler(async ({ data }): Promise<Prediction[]> => {
+  .handler(async ({ data, request }): Promise<Prediction[]> => {
     const { checkRateLimit } = await import("./rate-limit.server");
-    checkRateLimit("predictions:upcoming", { max: 30, windowMs: 60_000 });
+    const { getRequestIP } = await import("./request-ip");
+    checkRateLimit(`predictions:upcoming:${getRequestIP(request)}`, { max: 30, windowMs: 60_000 });
 
     const { bzzoiroCachedFetch, hashKey } = await import("./bzzoiro/cache.server");
 

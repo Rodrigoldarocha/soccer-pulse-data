@@ -2,9 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import type { League } from "./bzzoiro/types";
 
 export const listLeagues = createServerFn({ method: "GET" }).handler(
-  async (): Promise<League[]> => {
+  async ({ request }: { request: Request }): Promise<League[]> => {
     const { checkRateLimit } = await import("./rate-limit.server");
-    checkRateLimit("leagues:list", { max: 10, windowMs: 60_000 });
+    const { getRequestIP } = await import("./request-ip");
+    checkRateLimit(`leagues:list:${getRequestIP(request)}`, { max: 10, windowMs: 60_000 });
 
     const { bzzoiroCachedFetch } = await import("./bzzoiro/cache.server");
 
