@@ -4,6 +4,7 @@ import { Suspense, useState, useCallback } from "react";
 
 import { PredictionCard } from "@/components/PredictionCard";
 import { listUpcomingPredictions } from "@/lib/predictions.functions";
+import { listLeagues } from "@/lib/leagues.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -80,26 +81,15 @@ function PredictionsPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-bold">Próximas partidas</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Probabilidades 0–100% por mercado. Confiança = probabilidade do resultado mais
-              provável.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleLeagueFilter(undefined)}
-              className={
-                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors " +
-                (leagueId == null
-                  ? "bg-primary/15 text-primary"
-                  : "bg-secondary/50 text-muted-foreground hover:text-foreground")
-              }
-            >
-              Todas
-            </button>
+        <div className="mb-6 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-2xl font-bold">Próximas partidas</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Probabilidades 0–100% por mercado. Confiança = probabilidade do resultado mais
+                provável.
+              </p>
+            </div>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -108,6 +98,7 @@ function PredictionsPage() {
               {refreshing ? "Atualizando…" : "Atualizar"}
             </button>
           </div>
+          <LeagueFilterBar selected={leagueId} onSelect={handleLeagueFilter} />
         </div>
 
         <Suspense fallback={<GridSkeleton />}>
@@ -154,6 +145,51 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
         ))}
       </div>
     </>
+  );
+}
+
+function LeagueFilterBar({
+  selected,
+  onSelect,
+}: {
+  selected: number | undefined;
+  onSelect: (id: number | undefined) => void;
+}) {
+  const leaguesQuery = queryOptions({
+    queryKey: ["leagues", "active"],
+    queryFn: () => listLeagues(),
+    staleTime: 10 * 60_000,
+  });
+  const { data: leagues } = useSuspenseQuery(leaguesQuery);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        onClick={() => onSelect(undefined)}
+        className={
+          "rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap " +
+          (selected == null
+            ? "bg-primary/15 text-primary"
+            : "bg-secondary/50 text-muted-foreground hover:text-foreground")
+        }
+      >
+        Todas
+      </button>
+      {leagues.map((l) => (
+        <button
+          key={l.id}
+          onClick={() => onSelect(l.id)}
+          className={
+            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap " +
+            (selected === l.id
+              ? "bg-primary/15 text-primary"
+              : "bg-secondary/50 text-muted-foreground hover:text-foreground")
+          }
+        >
+          {l.name}
+        </button>
+      ))}
+    </div>
   );
 }
 

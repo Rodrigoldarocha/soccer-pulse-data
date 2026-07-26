@@ -81,6 +81,15 @@ export interface Prediction {
   recommendations: Record<string, boolean | number | string | null>;
 }
 
+// -------- Leagues (v2) --------
+
+export interface League {
+  id: number;
+  name: string;
+  country: string;
+  logo?: string | null;
+}
+
 // -------- Common list wrappers --------
 
 export interface Paginated<T> {

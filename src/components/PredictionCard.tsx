@@ -161,6 +161,42 @@ export function PredictionCard({ prediction }: Props) {
             </div>
           </div>
         )}
+        {markets.draw_no_bet.prob_home != null && (
+          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              Draw No Bet
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium">{event.home_team}</span>
+              <span className="font-mono font-semibold text-primary">
+                {Math.round(markets.draw_no_bet.prob_home)}%
+              </span>
+              <span className="text-muted-foreground mx-1">|</span>
+              <span className="font-medium">{event.away_team}</span>
+              <span className="font-mono font-semibold">
+                {Math.round(100 - markets.draw_no_bet.prob_home)}%
+              </span>
+            </div>
+          </div>
+        )}
+        {markets.expected_goals.home != null && markets.expected_goals.away != null && (
+          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              Gols esperados (xG)
+            </div>
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium">{event.home_team}</span>
+              <span className="font-mono font-semibold text-primary">
+                {markets.expected_goals.home.toFixed(2)}
+              </span>
+              <span className="text-muted-foreground mx-1">×</span>
+              <span className="font-medium">{event.away_team}</span>
+              <span className="font-mono font-semibold">
+                {markets.expected_goals.away.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <footer className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs">
@@ -174,6 +210,11 @@ export function PredictionCard({ prediction }: Props) {
           {created_at && (
             <span className="text-muted-foreground" title={created_at}>
               {timeAgo(created_at)}
+            </span>
+          )}
+          {model.version && (
+            <span className="text-muted-foreground" title={`Modelo: ${model.version}`}>
+              {model.version}
             </span>
           )}
           <span
