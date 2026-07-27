@@ -23,7 +23,7 @@ export async function hashKey(prefix: string, params: Record<string, unknown>): 
 }
 
 // Lazy Supabase admin client (only loaded when needed).
-let _admin: Awaited<ReturnType<typeof getSupabaseAdmin>> | null = null;
+let _admin: any = null;
 
 async function getSupabaseAdmin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -48,7 +48,7 @@ function defaultStore(): CacheStore {
       await _admin.from("bzzoiro_cache").upsert(
         {
           cache_key: key,
-          payload: entry.payload as never,
+          payload: entry.payload as any,
           fetched_at: new Date().toISOString(),
           expires_at: entry.expiresAt,
         },
@@ -76,29 +76,56 @@ export async function bzzoiroCachedFetch<T>(path: string, opts: CachedFetchOptio
   const store = opts.store ?? defaultStore();
   const nowIso = new Date().toISOString();
 
-  // 1. Try cache.
+  // 1. Try cache (válido).
   const cached = await store.get(opts.key);
   if (cached && cached.expiresAt > nowIso) {
     if (opts.schema) return opts.schema.parse(cached.payload);
     return cached.payload as T;
   }
 
-  // 2. Fetch fresh.
-  const raw = await bzzoiroFetch<unknown>(path, opts);
-  const value = (opts.transform ? opts.transform(raw) : raw) as T;
+  // Guarda cache expirado como fallback para caso de falha da API
+  const staleCache = cached;
 
-  // 2b. Validate fresh value before caching (same check as cache-hit path).
-  if (opts.schema) {
-    opts.schema.parse(value);
-  }
-
-  // 3. Upsert into cache. Ignore write errors — cache miss is not fatal.
-  const expiresAt = new Date(Date.now() + opts.ttlSeconds * 1000).toISOString();
   try {
-    await store.set(opts.key, { payload: value, expiresAt });
-  } catch (err) {
-    console.warn("[bzzoiro] Cache upsert failed (non-fatal):", err);
-  }
+    // 2. Fetch fresh.
+    const raw = await bzzoiroFetch<unknown>(path, opts);
+    const value = (opts.transform ? opts.transform(raw) : raw) as T;
 
-  return value;
+    // 2b. Validate fresh value before caching.
+    if (opts.schema) {
+      opts.schema.parse(value);
+    }
+
+    // 3. Upsert into cache. Ignore write errors.
+    const expiresAt = new Date(Date.now() + opts.ttlSeconds * 1000).toISOString();
+    try {
+      await store.set(opts.key, { payload: value, expiresAt });
+    } catch (err) {
+      console.warn("[bzzoiro] Cache upsert failed (non-fatal):", err);
+    }
+
+    // 3b. Purga probabilística: 10% das chamadas limpam cache expirado.
+    if (Math.random() < 0.1) {
+      try {
+        if (!_admin) _admin = await getSupabaseAdmin();
+        await _admin.rpc("purge_expired_cache");
+      } catch {
+        // non-fatal
+      }
+    }
+
+    return value;
+  } catch (fetchError) {
+    // 4. FALLBACK: se API falhou e temos cache expirado, serve mesmo assim
+    if (staleCache) {
+      console.warn(
+        `[cache] API failed for ${path}, serving stale cache (expired at ${staleCache.expiresAt})`,
+      );
+      if (opts.schema) return opts.schema.parse(staleCache.payload);
+      return staleCache.payload as T;
+    }
+
+    // 5. Sem cache algum — propaga erro original.
+    throw fetchError;
+  }
 }

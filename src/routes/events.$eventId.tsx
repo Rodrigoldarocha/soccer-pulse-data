@@ -1,8 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { getEventDetail } from "../lib/events.functions";
 import { getOddsComparison } from "../lib/odds.functions";
+import { getEventLineups } from "../lib/lineups.functions";
+import { getEventStats } from "../lib/stats.functions";
 import type { EventDetail, OddsComparison } from "../lib/bzzoiro/types";
+import { LineupsDisplay } from "@/components/LineupsDisplay";
+import { StatsDisplay } from "@/components/StatsDisplay";
 
 function eventQuery(eventId: number) {
   return queryOptions({
@@ -20,6 +25,24 @@ function oddsQuery(eventId: number) {
   });
 }
 
+function lineupsQuery(eventId: number) {
+  return queryOptions({
+    queryKey: ["lineups", eventId],
+    queryFn: () => getEventLineups({ data: { eventId } }),
+    staleTime: 5 * 60_000,
+  });
+}
+
+function statsQuery(eventId: number) {
+  return queryOptions({
+    queryKey: ["stats", eventId],
+    queryFn: () => getEventStats({ data: { eventId } }),
+    staleTime: 2 * 60_000,
+  });
+}
+
+type TabId = "details" | "lineups" | "stats";
+
 function MatchHeader({ event }: { event: EventDetail }) {
   const statusLabel: Record<string, string> = {
     notstarted: "Não Iniciado",
@@ -30,7 +53,7 @@ function MatchHeader({ event }: { event: EventDetail }) {
   };
 
   return (
-    <div className="clay p-6 text-center">
+    <div className="rounded-2xl border border-border bg-card p-6 text-center">
       <p className="mb-1 text-xs text-muted-foreground">
         {event.league_name ?? "Liga não informada"}
       </p>
@@ -49,15 +72,14 @@ function MatchHeader({ event }: { event: EventDetail }) {
         <span className="text-lg font-bold sm:text-2xl">{event.home_team}</span>
 
         {event.status === "finished" ? (
-          <span className="clay-inset min-w-[4rem] px-3 py-1 text-xl font-black tabular-nums">
+          <span className="min-w-[4rem] rounded-lg bg-muted px-3 py-1 text-xl font-black tabular-nums">
             {event.home_score?.home ?? "?"} – {event.home_score?.away ?? "?"}
           </span>
         ) : (
-          <span className="clay-inset min-w-[4rem] px-3 py-1 text-xs font-semibold uppercase">
+          <span className="min-w-[4rem] rounded-lg bg-muted px-3 py-1 text-xs font-semibold uppercase">
             {statusLabel[event.status] ?? event.status}
           </span>
         )}
-
 
         <span className="text-lg font-bold sm:text-2xl">{event.away_team}</span>
       </div>
@@ -74,7 +96,7 @@ function MatchHeader({ event }: { event: EventDetail }) {
 
 function OddsTable({ data }: { data: OddsComparison }) {
   return (
-    <div className="clay p-5">
+    <div className="rounded-2xl border border-border bg-card p-4">
       <h2 className="mb-3 text-sm font-semibold">Comparativo de Odds</h2>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
@@ -127,6 +149,16 @@ function EventSkeleton() {
 function EventPage({ eventId }: { eventId: number }) {
   const event = useSuspenseQuery(eventQuery(eventId));
   const odds = useSuspenseQuery(oddsQuery(eventId));
+  const lineups = useSuspenseQuery(lineupsQuery(eventId));
+  const stats = useSuspenseQuery(statsQuery(eventId));
+
+  const [tab, setTab] = useState<TabId>("details");
+
+  const tabs: { id: TabId; label: string }[] = [
+    { id: "details", label: "📋 Detalhes" },
+    { id: "lineups", label: "👥 Escalações" },
+    { id: "stats", label: "📊 Estatísticas" },
+  ];
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4">
@@ -139,7 +171,27 @@ function EventPage({ eventId }: { eventId: number }) {
 
       <MatchHeader event={event.data} />
 
-      <OddsTable data={odds.data} />
+      {/* Tabs */}
+      <div className="flex gap-1 rounded-lg bg-secondary/50 p-1">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={
+              "flex-1 rounded-md px-3 py-2 text-xs font-medium transition-colors " +
+              (tab === t.id
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground")
+            }
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "details" && <OddsTable data={odds.data} />}
+      {tab === "lineups" && <LineupsDisplay lineups={lineups.data} />}
+      {tab === "stats" && <StatsDisplay stats={stats.data} />}
     </div>
   );
 }

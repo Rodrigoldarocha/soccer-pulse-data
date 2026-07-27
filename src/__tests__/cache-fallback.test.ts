@@ -79,9 +79,10 @@ describe("Cache fallback — stale cache when API fails", () => {
     // Primeiro popula o cache com TTL 0 (expirado imediatamente)
     mockFetch.mockResolvedValueOnce({ stale: "data" });
     await bzzoiroCachedFetch("/test4/", { key: "test:stale-fallback", ttlSeconds: 0, store });
+    mockFetch.mockReset();
 
-    // Agora API falha
-    mockFetch.mockRejectedValueOnce(new Error("Network failure"));
+    // Agora API falha — mockImplementationOnce lança síncrono
+    mockFetch.mockImplementationOnce(() => { throw new Error("Network failure"); });
 
     const result = await bzzoiroCachedFetch("/test4/", {
       key: "test:stale-fallback",
@@ -91,7 +92,7 @@ describe("Cache fallback — stale cache when API fails", () => {
 
     // Deve retornar o cache expirado como fallback
     expect(result).toEqual({ stale: "data" });
-    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it("throws when no cache exists and API fails", async () => {

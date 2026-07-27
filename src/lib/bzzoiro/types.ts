@@ -129,6 +129,37 @@ export interface OddsComparison {
   bookmakers: BookmakerOdds[];
 }
 
+// -------- Lineups (v2) --------
+
+export interface LineupPlayer {
+  number: number;
+  name: string;
+  position: string; // GK, DF, MF, FW
+}
+
+export interface LineupTeam {
+  team: string;
+  formation: string;
+  players: LineupPlayer[];
+}
+
+export interface Lineups {
+  home: LineupTeam;
+  away: LineupTeam;
+}
+
+// -------- Event Stats (v2) --------
+
+export interface EventStats {
+  possession: { home: number; away: number };
+  shots: { home: number; away: number };
+  shots_on_target: { home: number; away: number };
+  corners: { home: number; away: number };
+  fouls: { home: number; away: number };
+  yellow_cards: { home: number; away: number };
+  red_cards: { home: number; away: number };
+}
+
 // -------- Common list wrappers --------
 
 export interface Paginated<T> {
