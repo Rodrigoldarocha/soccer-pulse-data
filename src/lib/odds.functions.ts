@@ -8,10 +8,11 @@ const eventIdInput = z.object({
 
 export const getOddsComparison = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => eventIdInput.parse(input ?? {}))
-  .handler(async ({ data, request }): Promise<OddsComparison> => {
+  .handler(async ({ data }): Promise<OddsComparison> => {
+    const { getRequest } = await import("@tanstack/react-start/server");
     const { checkRateLimit } = await import("./rate-limit.server");
     const { getRequestIP } = await import("./request-ip");
-    checkRateLimit(`odds:comparison:${getRequestIP(request)}`, { max: 60, windowMs: 60_000 });
+    checkRateLimit(`odds:comparison:${getRequestIP(getRequest())}`, { max: 60, windowMs: 60_000 });
 
     const { bzzoiroCachedFetch } = await import("./bzzoiro/cache.server");
 
