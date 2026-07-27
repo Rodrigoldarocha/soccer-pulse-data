@@ -30,7 +30,7 @@ function MatchHeader({ event }: { event: EventDetail }) {
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 text-center">
+    <div className="clay p-6 text-center">
       <p className="mb-1 text-xs text-muted-foreground">
         {event.league_name ?? "Liga não informada"}
       </p>
