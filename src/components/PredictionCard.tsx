@@ -256,23 +256,22 @@ function ProbBar({
   return (
     <div
       className={
-        "relative overflow-hidden rounded-lg border px-2 py-2 text-center " +
-        (highlighted
-          ? "border-primary/60 bg-primary/10 text-primary"
-          : "border-border bg-secondary/40 text-foreground")
+        "relative overflow-hidden rounded-2xl px-2 py-2 text-center " +
+        (highlighted ? "clay-primary" : "clay-inset")
       }
     >
       <span
-        className="absolute bottom-0 left-0 top-0 opacity-15 transition-all"
+        className="absolute bottom-0 left-0 top-0 opacity-20 transition-all"
         style={{
           width: `${pct}%`,
           backgroundColor: highlighted ? "var(--color-primary)" : color,
         }}
       />
-      <div className="relative z-10 text-[10px] uppercase tracking-wide text-muted-foreground">
+      <div className="relative z-10 text-[10px] uppercase tracking-wide opacity-80">
         {label}
       </div>
       <div className="relative z-10 mt-0.5 font-mono text-sm font-semibold">{fmtPct(value)}</div>
     </div>
+
   );
 }
