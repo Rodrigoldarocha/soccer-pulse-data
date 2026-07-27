@@ -120,18 +120,19 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
 
   if (active.length === 0) {
     return (
-      <div role="status" className="rounded-2xl border border-border bg-card p-10 text-center">
+      <div role="status" className="clay p-10 text-center">
         <p className="text-muted-foreground">Nenhuma previsão disponível no momento.</p>
         <p className="mt-2 text-xs text-muted-foreground">
           Tente selecionar outra liga ou volte mais tarde.
         </p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          className="clay-primary mt-4 px-4 py-2 text-sm font-semibold transition active:translate-y-0.5"
         >
           Tentar novamente
         </button>
       </div>
+
     );
   }
 
