@@ -66,10 +66,10 @@ function PredictionsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/40 backdrop-blur">
+      <header className="bg-background/60 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
           <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground">
+            <div className="clay-primary grid h-11 w-11 place-items-center">
               <span className="font-black">Z</span>
             </div>
             <div>
@@ -93,11 +93,12 @@ function PredictionsPage() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="rounded-md bg-primary/15 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
+              className="clay-primary px-4 py-2 text-xs font-semibold transition active:translate-y-0.5 disabled:opacity-50"
             >
               {refreshing ? "Atualizando…" : "Atualizar"}
             </button>
           </div>
+
           <LeagueFilterBar selected={leagueId} onSelect={handleLeagueFilter} />
         </div>
 
