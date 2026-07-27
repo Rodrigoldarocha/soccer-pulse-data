@@ -49,14 +49,15 @@ function MatchHeader({ event }: { event: EventDetail }) {
         <span className="text-lg font-bold sm:text-2xl">{event.home_team}</span>
 
         {event.status === "finished" ? (
-          <span className="min-w-[4rem] rounded-lg bg-muted px-3 py-1 text-xl font-black tabular-nums">
+          <span className="clay-inset min-w-[4rem] px-3 py-1 text-xl font-black tabular-nums">
             {event.home_score?.home ?? "?"} – {event.home_score?.away ?? "?"}
           </span>
         ) : (
-          <span className="min-w-[4rem] rounded-lg bg-muted px-3 py-1 text-xs font-semibold uppercase">
+          <span className="clay-inset min-w-[4rem] px-3 py-1 text-xs font-semibold uppercase">
             {statusLabel[event.status] ?? event.status}
           </span>
         )}
+
 
         <span className="text-lg font-bold sm:text-2xl">{event.away_team}</span>
       </div>
