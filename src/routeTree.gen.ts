@@ -18,13 +18,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-
 const LiveRoute = LiveRouteImport.update({
   id: '/live',
   path: '/live',
   getParentRoute: () => rootRouteImport,
 } as any)
-
 const EventsEventIdRoute = EventsEventIdRouteImport.update({
   id: '/events/$eventId',
   path: '/events/$eventId',
