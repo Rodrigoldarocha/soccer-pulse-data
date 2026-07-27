@@ -101,12 +101,13 @@ export function PredictionCard({ prediction }: Props) {
           <span className="text-xs text-muted-foreground">vs</span>
           {markets.score.most_likely && (
             <span
-              className="rounded-md bg-secondary px-2.5 py-1 font-mono text-sm font-semibold"
+              className="clay-inset px-2.5 py-1 font-mono text-sm font-semibold"
               title="Placar mais provável"
             >
               {markets.score.most_likely}
             </span>
           )}
+
         </div>
 
         <div className="flex flex-col items-center gap-2 text-center">
