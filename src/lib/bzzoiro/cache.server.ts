@@ -48,7 +48,7 @@ function defaultStore(): CacheStore {
       await _admin.from("bzzoiro_cache").upsert(
         {
           cache_key: key,
-          payload: entry.payload as unknown as Record<string, unknown>,
+          payload: entry.payload as never,
           fetched_at: new Date().toISOString(),
           expires_at: entry.expiresAt,
         },
