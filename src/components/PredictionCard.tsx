@@ -70,8 +70,9 @@ export function PredictionCard({ prediction }: Props) {
     <Link
       to="/events/$eventId"
       params={{ eventId: String(event.id) }}
-      className="block rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:border-primary/50 hover:shadow-md"
+      className="clay block p-5 transition hover:-translate-y-0.5 hover:shadow-lg"
     >
+
       <header className="mb-4 flex items-center justify-between text-xs">
         <span className="uppercase tracking-wide text-muted-foreground">
           {event.league_name ?? "—"}
@@ -100,12 +101,13 @@ export function PredictionCard({ prediction }: Props) {
           <span className="text-xs text-muted-foreground">vs</span>
           {markets.score.most_likely && (
             <span
-              className="rounded-md bg-secondary px-2.5 py-1 font-mono text-sm font-semibold"
+              className="clay-inset px-2.5 py-1 font-mono text-sm font-semibold"
               title="Placar mais provável"
             >
               {markets.score.most_likely}
             </span>
           )}
+
         </div>
 
         <div className="flex flex-col items-center gap-2 text-center">
@@ -139,7 +141,7 @@ export function PredictionCard({ prediction }: Props) {
 
       <div className="mt-4 space-y-2">
         {bestOu && (
-          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+          <div className="clay-inset px-3 py-2.5">
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Total de gols
             </div>
@@ -153,7 +155,7 @@ export function PredictionCard({ prediction }: Props) {
           </div>
         )}
         {bttsYes != null && (
-          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+          <div className="clay-inset px-3 py-2.5">
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Ambos marcam
             </div>
@@ -167,7 +169,7 @@ export function PredictionCard({ prediction }: Props) {
           </div>
         )}
         {markets.draw_no_bet.prob_home != null && (
-          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+          <div className="clay-inset px-3 py-2.5">
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Draw No Bet
             </div>
@@ -185,7 +187,7 @@ export function PredictionCard({ prediction }: Props) {
           </div>
         )}
         {markets.expected_goals.home != null && markets.expected_goals.away != null && (
-          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+          <div className="clay-inset px-3 py-2.5">
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Gols esperados (xG)
             </div>
@@ -203,6 +205,7 @@ export function PredictionCard({ prediction }: Props) {
           </div>
         )}
       </div>
+
 
       <footer className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs">
         <span className="text-muted-foreground">
@@ -254,23 +257,22 @@ function ProbBar({
   return (
     <div
       className={
-        "relative overflow-hidden rounded-lg border px-2 py-2 text-center " +
-        (highlighted
-          ? "border-primary/60 bg-primary/10 text-primary"
-          : "border-border bg-secondary/40 text-foreground")
+        "relative overflow-hidden rounded-2xl px-2 py-2 text-center " +
+        (highlighted ? "clay-primary" : "clay-inset")
       }
     >
       <span
-        className="absolute bottom-0 left-0 top-0 opacity-15 transition-all"
+        className="absolute bottom-0 left-0 top-0 opacity-20 transition-all"
         style={{
           width: `${pct}%`,
           backgroundColor: highlighted ? "var(--color-primary)" : color,
         }}
       />
-      <div className="relative z-10 text-[10px] uppercase tracking-wide text-muted-foreground">
+      <div className="relative z-10 text-[10px] uppercase tracking-wide opacity-80">
         {label}
       </div>
       <div className="relative z-10 mt-0.5 font-mono text-sm font-semibold">{fmtPct(value)}</div>
     </div>
+
   );
 }

@@ -66,10 +66,10 @@ function PredictionsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/40 backdrop-blur">
+      <header className="bg-background/60 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
           <div className="flex items-center gap-3">
-            <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground">
+            <div className="clay-primary grid h-11 w-11 place-items-center">
               <span className="font-black">Z</span>
             </div>
             <div>
@@ -93,11 +93,12 @@ function PredictionsPage() {
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="rounded-md bg-primary/15 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/25 disabled:opacity-50"
+              className="clay-primary px-4 py-2 text-xs font-semibold transition active:translate-y-0.5 disabled:opacity-50"
             >
               {refreshing ? "Atualizando…" : "Atualizar"}
             </button>
           </div>
+
           <LeagueFilterBar selected={leagueId} onSelect={handleLeagueFilter} />
         </div>
 
@@ -119,18 +120,19 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
 
   if (active.length === 0) {
     return (
-      <div role="status" className="rounded-2xl border border-border bg-card p-10 text-center">
+      <div role="status" className="clay p-10 text-center">
         <p className="text-muted-foreground">Nenhuma previsão disponível no momento.</p>
         <p className="mt-2 text-xs text-muted-foreground">
           Tente selecionar outra liga ou volte mais tarde.
         </p>
         <button
           onClick={() => window.location.reload()}
-          className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          className="clay-primary mt-4 px-4 py-2 text-sm font-semibold transition active:translate-y-0.5"
         >
           Tentar novamente
         </button>
       </div>
+
     );
   }
 
@@ -163,14 +165,12 @@ function LeagueFilterBar({
   const { data: leagues } = useSuspenseQuery(leaguesQuery);
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-2">
       <button
         onClick={() => onSelect(undefined)}
         className={
-          "rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap " +
-          (selected == null
-            ? "bg-primary/15 text-primary"
-            : "bg-secondary/50 text-muted-foreground hover:text-foreground")
+          "px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition active:translate-y-0.5 " +
+          (selected == null ? "clay-primary" : "clay-sm text-muted-foreground hover:text-foreground")
         }
       >
         Todas
@@ -180,16 +180,15 @@ function LeagueFilterBar({
           key={l.id}
           onClick={() => onSelect(l.id)}
           className={
-            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap " +
-            (selected === l.id
-              ? "bg-primary/15 text-primary"
-              : "bg-secondary/50 text-muted-foreground hover:text-foreground")
+            "px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition active:translate-y-0.5 " +
+            (selected === l.id ? "clay-primary" : "clay-sm text-muted-foreground hover:text-foreground")
           }
         >
           {l.name}
         </button>
       ))}
     </div>
+
   );
 }
 
@@ -197,7 +196,7 @@ function GridSkeleton() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-64 animate-pulse rounded-2xl border border-border bg-card" />
+        <div key={i} className="clay h-64 animate-pulse" />
       ))}
     </div>
   );

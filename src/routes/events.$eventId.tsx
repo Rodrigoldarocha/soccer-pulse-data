@@ -30,7 +30,7 @@ function MatchHeader({ event }: { event: EventDetail }) {
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 text-center">
+    <div className="clay p-6 text-center">
       <p className="mb-1 text-xs text-muted-foreground">
         {event.league_name ?? "Liga não informada"}
       </p>
@@ -49,14 +49,15 @@ function MatchHeader({ event }: { event: EventDetail }) {
         <span className="text-lg font-bold sm:text-2xl">{event.home_team}</span>
 
         {event.status === "finished" ? (
-          <span className="min-w-[4rem] rounded-lg bg-muted px-3 py-1 text-xl font-black tabular-nums">
+          <span className="clay-inset min-w-[4rem] px-3 py-1 text-xl font-black tabular-nums">
             {event.home_score?.home ?? "?"} – {event.home_score?.away ?? "?"}
           </span>
         ) : (
-          <span className="min-w-[4rem] rounded-lg bg-muted px-3 py-1 text-xs font-semibold uppercase">
+          <span className="clay-inset min-w-[4rem] px-3 py-1 text-xs font-semibold uppercase">
             {statusLabel[event.status] ?? event.status}
           </span>
         )}
+
 
         <span className="text-lg font-bold sm:text-2xl">{event.away_team}</span>
       </div>
@@ -73,7 +74,7 @@ function MatchHeader({ event }: { event: EventDetail }) {
 
 function OddsTable({ data }: { data: OddsComparison }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div className="clay p-5">
       <h2 className="mb-3 text-sm font-semibold">Comparativo de Odds</h2>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
