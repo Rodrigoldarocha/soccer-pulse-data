@@ -1,7 +1,6 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -18,17 +17,14 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
   }
 });
 
-// Start installs this automatically when src/start.ts is absent; defining the
-// file opts out, so re-add it explicitly to keep server functions protected
-// from cross-site requests.
 const csrfMiddleware = createCsrfMiddleware({
   filter: (ctx) => ctx.handlerType === "serverFn",
 });
 
-// No server function uses requireSupabaseAuth in this project, so we
-// intentionally omit attachSupabaseAuth to avoid initializing the Supabase
-// client in the browser bundle for public server fn calls.
+// No server function uses requireSupabaseAuth, so attachSupabaseAuth is
+// intentionally omitted to prevent the Supabase client from being pulled into
+// the browser bundle (where VITE_SUPABASE_* env vars aren't set in publish).
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
   requestMiddleware: [errorMiddleware, csrfMiddleware],
 }));
+
