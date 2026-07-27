@@ -70,8 +70,9 @@ export function PredictionCard({ prediction }: Props) {
     <Link
       to="/events/$eventId"
       params={{ eventId: String(event.id) }}
-      className="block rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:border-primary/50 hover:shadow-md"
+      className="clay block p-5 transition hover:-translate-y-0.5 hover:shadow-lg"
     >
+
       <header className="mb-4 flex items-center justify-between text-xs">
         <span className="uppercase tracking-wide text-muted-foreground">
           {event.league_name ?? "—"}
