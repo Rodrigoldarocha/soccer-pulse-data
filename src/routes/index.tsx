@@ -165,14 +165,12 @@ function LeagueFilterBar({
   const { data: leagues } = useSuspenseQuery(leaguesQuery);
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-2">
       <button
         onClick={() => onSelect(undefined)}
         className={
-          "rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap " +
-          (selected == null
-            ? "bg-primary/15 text-primary"
-            : "bg-secondary/50 text-muted-foreground hover:text-foreground")
+          "px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition active:translate-y-0.5 " +
+          (selected == null ? "clay-primary" : "clay-sm text-muted-foreground hover:text-foreground")
         }
       >
         Todas
@@ -182,16 +180,15 @@ function LeagueFilterBar({
           key={l.id}
           onClick={() => onSelect(l.id)}
           className={
-            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap " +
-            (selected === l.id
-              ? "bg-primary/15 text-primary"
-              : "bg-secondary/50 text-muted-foreground hover:text-foreground")
+            "px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition active:translate-y-0.5 " +
+            (selected === l.id ? "clay-primary" : "clay-sm text-muted-foreground hover:text-foreground")
           }
         >
           {l.name}
         </button>
       ))}
     </div>
+
   );
 }
 
