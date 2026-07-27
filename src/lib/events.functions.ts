@@ -8,10 +8,11 @@ const eventIdInput = z.object({
 
 export const getEventDetail = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => eventIdInput.parse(input ?? {}))
-  .handler(async ({ data, request }): Promise<EventDetail> => {
+  .handler(async ({ data }): Promise<EventDetail> => {
+    const { getRequest } = await import("@tanstack/react-start/server");
     const { checkRateLimit } = await import("./rate-limit.server");
     const { getRequestIP } = await import("./request-ip");
-    checkRateLimit(`events:detail:${getRequestIP(request)}`, { max: 60, windowMs: 60_000 });
+    checkRateLimit(`events:detail:${getRequestIP(getRequest())}`, { max: 60, windowMs: 60_000 });
 
     const { bzzoiroCachedFetch } = await import("./bzzoiro/cache.server");
 
