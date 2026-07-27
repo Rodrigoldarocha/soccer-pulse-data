@@ -74,7 +74,7 @@ function MatchHeader({ event }: { event: EventDetail }) {
 
 function OddsTable({ data }: { data: OddsComparison }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div className="clay p-5">
       <h2 className="mb-3 text-sm font-semibold">Comparativo de Odds</h2>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
