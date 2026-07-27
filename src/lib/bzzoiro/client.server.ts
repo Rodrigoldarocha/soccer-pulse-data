@@ -5,26 +5,140 @@
 
 const BASE_URL = "https://sports.bzzoiro.com";
 
+// ============================================================
+// 1. HIERARQUIA DE ERROS
+// ============================================================
+
+/**
+ * Classe base para erros da API Bzzoiro
+ */
 export class BzzoiroApiError extends Error {
   constructor(
-    public readonly status: number,
-    public readonly statusText: string,
-    public readonly path: string,
-    public readonly body: string,
+    public statusCode: number,
+    public statusText: string,
+    public path: string,
+    public responseBody?: string,
   ) {
-    super(`Bzzoiro API ${status} ${statusText} on ${path}`);
+    super(`Bzzoiro API error: ${statusCode} ${statusText} - ${path}`);
     this.name = "BzzoiroApiError";
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, BzzoiroApiError);
+    }
+  }
+
+  /**
+   * Verifica se o erro é retryável (pode tentar novamente)
+   * - 429: Rate limit - pode tentar após esperar
+   * - 5xx: Erro interno do servidor - pode ser transitório
+   */
+  isRetryable(): boolean {
+    return this.statusCode === 429 || this.statusCode >= 500;
+  }
+
+  /**
+   * Verifica se é erro de autenticação
+   * - 401: Token inválido
+   * - 403: Acesso negado (plano Pro necessário)
+   */
+  isAuthError(): boolean {
+    return this.statusCode === 401 || this.statusCode === 403;
+  }
+
+  /**
+   * Verifica se é rate limit
+   */
+  isRateLimit(): boolean {
+    return this.statusCode === 429;
+  }
+
+  /**
+   * Retorna mensagem amigável para o usuário
+   */
+  getUserMessage(): string {
+    switch (this.statusCode) {
+      case 401:
+        return "Credenciais da API inválidas. Contate o suporte.";
+      case 403:
+        return "Acesso negado. Este recurso requer um plano Pro.";
+      case 404:
+        return "Recurso não encontrado.";
+      case 429:
+        return "Muitas requisições. Aguarde um momento e tente novamente.";
+      case 500:
+      case 502:
+      case 503:
+      case 504:
+        return "O servidor da API está temporariamente indisponível. Tente novamente em alguns instantes.";
+      default:
+        return `Erro ${this.statusCode}: ${this.statusText}`;
+    }
   }
 }
 
-export interface FetchOptions {
-  /** Query-string params. `undefined` values are stripped. */
-  params?: Record<string, string | number | boolean | undefined>;
-  /** AbortSignal for cancellation. */
-  signal?: AbortSignal;
+/**
+ * Erro específico para timeout
+ */
+export class BzzoiroTimeoutError extends Error {
+  constructor(
+    public path: string,
+    public timeoutMs: number,
+  ) {
+    super(`Request timeout for ${path} after ${timeoutMs}ms`);
+    this.name = "BzzoiroTimeoutError";
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, BzzoiroTimeoutError);
+    }
+  }
 }
 
-function buildUrl(path: string, params?: FetchOptions["params"]): string {
+/**
+ * Erro específico para token não configurado
+ */
+export class BzzoiroTokenError extends Error {
+  constructor() {
+    super("BZZOIRO_TOKEN is not configured. Add it via the secrets manager.");
+    this.name = "BzzoiroTokenError";
+
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, BzzoiroTokenError);
+    }
+  }
+}
+
+// ============================================================
+// 2. TOKEN VALIDATION NO STARTUP
+// ============================================================
+
+if (!process.env.BZZOIRO_TOKEN) {
+  console.error("[bzzoiro] BZZOIRO_TOKEN is not configured in environment variables");
+
+  if (process.env.NODE_ENV === "production") {
+    throw new BzzoiroTokenError();
+  }
+
+  console.warn("[bzzoiro] Running without BZZOIRO_TOKEN — API calls will fail.");
+}
+
+// ============================================================
+// 3. FetchOptions interface
+// ============================================================
+
+export interface FetchOptions {
+  /** Query-string params. `undefined` values are stripped. */
+  params?: Record<string, string | number | undefined>;
+  /** AbortSignal for cancellation. */
+  signal?: AbortSignal;
+  /** Timeout in ms (default 10_000). */
+  timeoutMs?: number;
+}
+
+// ============================================================
+// 4. Função auxiliar buildUrl
+// ============================================================
+
+function buildUrl(path: string, params?: Record<string, string | number | undefined>): string {
   const url = new URL(path.startsWith("/") ? path : `/${path}`, BASE_URL);
   if (params) {
     for (const [k, v] of Object.entries(params)) {
@@ -35,24 +149,136 @@ function buildUrl(path: string, params?: FetchOptions["params"]): string {
   return url.toString();
 }
 
+// ============================================================
+// 5. Função principal bzzoiroFetch
+// ============================================================
+
 export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   const token = process.env.BZZOIRO_TOKEN;
   if (!token) {
-    throw new Error("BZZOIRO_TOKEN is not configured. Add it via the secrets manager.");
+    throw new BzzoiroTokenError();
   }
 
   const url = buildUrl(path, opts.params);
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Token ${token}`,
-      Accept: "application/json",
-    },
-    signal: opts.signal ?? AbortSignal.timeout(10_000),
-  });
+  const timeoutMs = opts.timeoutMs ?? 10_000;
 
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new BzzoiroApiError(res.status, res.statusText, path, body.slice(0, 200));
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  const signal = opts.signal
+    ? AbortSignal.any([opts.signal, controller.signal])
+    : controller.signal;
+
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Token ${token}`,
+        Accept: "application/json",
+      },
+      signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      let body = "";
+      try {
+        body = await res.text();
+      } catch {
+        // ignore body read error
+      }
+
+      if (res.status === 429) {
+        const retryAfter = res.headers.get("Retry-After");
+        const retrySeconds = retryAfter ? parseInt(retryAfter, 10) : 60;
+
+        (globalThis as Record<string, unknown>).__BZZOIRO_RATE_LIMIT = {
+          path,
+          retryAfter: retrySeconds,
+          timestamp: Date.now(),
+        };
+
+        console.warn(`[bzzoiro] Rate limited on ${path}. Retry-After: ${retrySeconds}s`);
+      }
+
+      throw new BzzoiroApiError(
+        res.status,
+        res.statusText,
+        path,
+        body.slice(0, 500),
+      );
+    }
+
+    if (res.status === 204) {
+      return undefined as T;
+    }
+
+    try {
+      return (await res.json()) as T;
+    } catch {
+      const text = await res.text();
+      throw new Error(`Failed to parse API response as JSON: ${text.slice(0, 200)}`);
+    }
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new BzzoiroTimeoutError(path, timeoutMs);
+    }
+
+    if (
+      error instanceof BzzoiroApiError ||
+      error instanceof BzzoiroTimeoutError ||
+      error instanceof BzzoiroTokenError
+    ) {
+      throw error;
+    }
+
+    throw new Error(
+      `Unexpected error calling ${path}: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
-  return (await res.json()) as T;
+}
+
+// ============================================================
+// 6. Função getRetryDelay
+// ============================================================
+
+/**
+ * Calcula o delay para retry baseado no erro.
+ * Retorna undefined se não deve aplicar delay especial.
+ */
+export function getRetryDelay(error: unknown): number | undefined {
+  if (error instanceof BzzoiroApiError && error.isRateLimit()) {
+    const rateLimit = (globalThis as Record<string, unknown>).__BZZOIRO_RATE_LIMIT as
+      | { retryAfter: number }
+      | undefined;
+    if (rateLimit) {
+      return rateLimit.retryAfter * 1000 + 1000;
+    }
+    return 60_000;
+  }
+  return undefined;
+}
+
+// ============================================================
+// 7. Função de diagnóstico
+// ============================================================
+
+/**
+ * Testa a conexão com a API Bzzoiro (apenas para diagnóstico).
+ */
+export async function testBzzoiroConnection(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await bzzoiroFetch("/api/v2/leagues/", { timeoutMs: 5000 });
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof BzzoiroTokenError) {
+      return { ok: false, error: "Token não configurado" };
+    }
+    if (error instanceof BzzoiroApiError) {
+      return { ok: false, error: error.getUserMessage() };
+    }
+    return { ok: false, error: error instanceof Error ? error.message : "Erro desconhecido" };
+  }
 }

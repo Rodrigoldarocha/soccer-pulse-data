@@ -7,15 +7,20 @@ import { bzzoiroCachedFetch, hashKey } from "../lib/bzzoiro/cache.server";
 vi.mock("../lib/bzzoiro/client.server", () => ({
   bzzoiroFetch: vi.fn(),
   BzzoiroApiError: class extends Error {
-    status = 500;
+    statusCode = 500;
     statusText = "Internal Server Error";
     path = "/mock";
-    body = null;
+    responseBody = null;
   },
+  BzzoiroTokenError: class extends Error {},
+  BzzoiroTimeoutError: class extends Error {},
+  getRetryDelay: vi.fn(),
+  testBzzoiroConnection: vi.fn(),
 }));
 
+import type { Mock } from "vitest";
 import { bzzoiroFetch } from "../lib/bzzoiro/client.server";
-const mockFetch = vi.mocked(bzzoiroFetch);
+const mockFetch = bzzoiroFetch as unknown as Mock;
 
 const store = new InMemoryCacheStore();
 

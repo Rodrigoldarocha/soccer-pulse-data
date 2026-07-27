@@ -5,6 +5,7 @@ import { Suspense, useState, useCallback } from "react";
 import { PredictionCard } from "@/components/PredictionCard";
 import { listUpcomingPredictions } from "@/lib/predictions.functions";
 import { listLeagues } from "@/lib/leagues.functions";
+import { getRetryDelay, BzzoiroApiError } from "@/lib/bzzoiro/client.server";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -41,8 +42,28 @@ function buildQueryOptions(leagueId?: number) {
     queryKey: ["predictions", "upcoming", { limit: 30, leagueId }],
     queryFn: () => listUpcomingPredictions({ data: { limit: 30, leagueId } }),
     staleTime: 30_000,
-    retry: 2,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10_000),
+    // Polling automático a cada 30s enquanto houver jogos ativos
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (!data) return 30_000;
+      const hasActive = data.some(
+        (p) => p.event.status === "notstarted" || p.event.status === "inprogress",
+      );
+      return hasActive ? 30_000 : false;
+    },
+    retry: (failureCount, error) => {
+      // Não retenta erros de auth
+      if (error instanceof BzzoiroApiError && error.isAuthError()) return false;
+      // Retenta até 3x em rate limit
+      if (error instanceof BzzoiroApiError && error.isRateLimit()) return failureCount < 3;
+      // Retenta até 2x em outros erros
+      return failureCount < 2;
+    },
+    retryDelay: (attempt, error) => {
+      const delay = getRetryDelay(error);
+      if (delay !== undefined) return delay;
+      return Math.min(1000 * 2 ** attempt, 30_000);
+    },
   });
 }
 
@@ -76,6 +97,14 @@ function PredictionsPage() {
               <h1 className="text-lg font-bold leading-tight">Zagueiro</h1>
               <p className="text-xs text-muted-foreground">Previsões de futebol via CatBoost</p>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="/live"
+              className="rounded-md bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
+            >
+              🔴 Ao Vivo
+            </a>
           </div>
         </div>
       </header>
@@ -112,11 +141,15 @@ function PredictionsPage() {
 
 function PredictionsGrid({ leagueId }: { leagueId?: number }) {
   const query = buildQueryOptions(leagueId);
-  const { data: predictions, isFetching } = useSuspenseQuery(query);
+  const { data: predictions, isFetching, dataUpdatedAt } = useSuspenseQuery(query);
 
   const active = predictions.filter(
     (p) => p.event.status === "notstarted" || p.event.status === "inprogress",
   );
+
+  const lastUpdate = dataUpdatedAt
+    ? new Date(dataUpdatedAt).toLocaleTimeString("pt-BR")
+    : null;
 
   if (active.length === 0) {
     return (
@@ -138,9 +171,22 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
 
   return (
     <>
-      {isFetching && (
-        <div className="mb-3 text-right text-xs text-muted-foreground">Atualizando…</div>
-      )}
+      <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+        <span>
+          {isFetching ? (
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" />
+              Atualizando…
+            </span>
+          ) : (
+            lastUpdate && `Atualizado às ${lastUpdate}`
+          )}
+        </span>
+        <span>
+          🟢 {active.filter((p) => p.event.status === "inprogress").length} ao vivo,{" "}
+          {active.filter((p) => p.event.status === "notstarted").length} futuras
+        </span>
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {active.map((p) => (
           <PredictionCard key={p.id} prediction={p} />

@@ -1,0 +1,122 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { InMemoryCacheStore } from "../lib/bzzoiro/cache-store";
+import { bzzoiroCachedFetch } from "../lib/bzzoiro/cache.server";
+
+// Mock the HTTP client so we never hit the real API.
+vi.mock("../lib/bzzoiro/client.server", () => ({
+  bzzoiroFetch: vi.fn(),
+  BzzoiroApiError: class extends Error {
+    statusCode = 500;
+    statusText = "Internal Server Error";
+    path = "/mock";
+    responseBody = null;
+    isRetryable() { return this.statusCode === 429 || this.statusCode >= 500; }
+    isAuthError() { return this.statusCode === 401 || this.statusCode === 403; }
+    isRateLimit() { return this.statusCode === 429; }
+    getUserMessage() { return "Erro"; }
+  },
+  BzzoiroTokenError: class extends Error {},
+  BzzoiroTimeoutError: class extends Error {},
+  getRetryDelay: vi.fn(),
+  testBzzoiroConnection: vi.fn(),
+}));
+
+import type { Mock } from "vitest";
+import { bzzoiroFetch } from "../lib/bzzoiro/client.server";
+const mockFetch = bzzoiroFetch as unknown as Mock;
+
+const store = new InMemoryCacheStore();
+
+beforeEach(() => {
+  store.clear();
+  mockFetch.mockReset();
+});
+
+describe("Cache fallback — stale cache when API fails", () => {
+  it("returns fresh data when cache is empty and API works", async () => {
+    mockFetch.mockResolvedValue({ foo: "bar" });
+
+    const result = await bzzoiroCachedFetch("/test/", {
+      key: "test:empty",
+      ttlSeconds: 60,
+      store,
+    });
+
+    expect(result).toEqual({ foo: "bar" });
+    expect(mockFetch).toHaveBeenCalledOnce();
+  });
+
+  it("serves cached data on second call (valid cache)", async () => {
+    mockFetch.mockResolvedValue({ cached: true });
+
+    await bzzoiroCachedFetch("/test2/", { key: "test:hit", ttlSeconds: 60, store });
+    mockFetch.mockReset();
+
+    const result = await bzzoiroCachedFetch("/test2/", { key: "test:hit", ttlSeconds: 60, store });
+
+    expect(result).toEqual({ cached: true });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it("refreshes expired cache when API succeeds", async () => {
+    mockFetch
+      .mockResolvedValueOnce({ expired: true })
+      .mockResolvedValueOnce({ fresh: true });
+
+    // Store with TTL 0 → immediately expired.
+    await bzzoiroCachedFetch("/test3/", { key: "test:expired", ttlSeconds: 0, store });
+    const result = await bzzoiroCachedFetch("/test3/", {
+      key: "test:expired",
+      ttlSeconds: 60,
+      store,
+    });
+
+    expect(result).toEqual({ fresh: true });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("serves stale cache when API fails and expired cache exists", async () => {
+    // Primeiro popula o cache com TTL 0 (expirado imediatamente)
+    mockFetch.mockResolvedValueOnce({ stale: "data" });
+    await bzzoiroCachedFetch("/test4/", { key: "test:stale-fallback", ttlSeconds: 0, store });
+
+    // Agora API falha
+    mockFetch.mockRejectedValueOnce(new Error("Network failure"));
+
+    const result = await bzzoiroCachedFetch("/test4/", {
+      key: "test:stale-fallback",
+      ttlSeconds: 60,
+      store,
+    });
+
+    // Deve retornar o cache expirado como fallback
+    expect(result).toEqual({ stale: "data" });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws when no cache exists and API fails", async () => {
+    mockFetch.mockRejectedValue(new Error("Network failure"));
+
+    await expect(
+      bzzoiroCachedFetch("/test5/", { key: "test:nocache", ttlSeconds: 60, store }),
+    ).rejects.toThrow("Network failure");
+  });
+
+  it("validates cached data with Zod schema", async () => {
+    const { z } = await import("zod");
+    const schema = z.object({ name: z.string() });
+
+    mockFetch.mockResolvedValue({ name: "valid" });
+
+    // Populate cache
+    await bzzoiroCachedFetch("/test6/", { key: "test:schema-cache", ttlSeconds: 60, store, schema });
+
+    const result = await bzzoiroCachedFetch("/test6/", {
+      key: "test:schema-cache",
+      ttlSeconds: 60,
+      store,
+      schema,
+    });
+    expect(result).toEqual({ name: "valid" });
+  });
+});
