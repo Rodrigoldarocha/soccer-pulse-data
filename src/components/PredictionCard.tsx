@@ -140,7 +140,7 @@ export function PredictionCard({ prediction }: Props) {
 
       <div className="mt-4 space-y-2">
         {bestOu && (
-          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+          <div className="clay-inset px-3 py-2.5">
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Total de gols
             </div>
@@ -154,7 +154,7 @@ export function PredictionCard({ prediction }: Props) {
           </div>
         )}
         {bttsYes != null && (
-          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+          <div className="clay-inset px-3 py-2.5">
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Ambos marcam
             </div>
@@ -168,7 +168,7 @@ export function PredictionCard({ prediction }: Props) {
           </div>
         )}
         {markets.draw_no_bet.prob_home != null && (
-          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+          <div className="clay-inset px-3 py-2.5">
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Draw No Bet
             </div>
@@ -186,7 +186,7 @@ export function PredictionCard({ prediction }: Props) {
           </div>
         )}
         {markets.expected_goals.home != null && markets.expected_goals.away != null && (
-          <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5">
+          <div className="clay-inset px-3 py-2.5">
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Gols esperados (xG)
             </div>
@@ -204,6 +204,7 @@ export function PredictionCard({ prediction }: Props) {
           </div>
         )}
       </div>
+
 
       <footer className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs">
         <span className="text-muted-foreground">
