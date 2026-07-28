@@ -143,6 +143,11 @@ function PredictionsPage() {
 function PredictionsGrid({ leagueId }: { leagueId?: number }) {
   const query = buildQueryOptions(leagueId);
   const { data: predictions, isFetching, dataUpdatedAt } = useSuspenseQuery(query);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const active = predictions.filter(
     (p) => p.event.status === "notstarted" || p.event.status === "inprogress",
@@ -166,7 +171,6 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
           Tentar novamente
         </button>
       </div>
-
     );
   }
 
@@ -188,13 +192,77 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
           {active.filter((p) => p.event.status === "notstarted").length} futuras
         </span>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {active.map((p) => (
-          <PredictionCard key={p.id} prediction={p} />
-        ))}
-      </div>
+
+      {!mounted ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {active.map((p) => (
+            <PredictionCard key={p.id} prediction={p} />
+          ))}
+        </div>
+      ) : (
+        <GroupedPredictions predictions={active} />
+      )}
     </>
   );
+}
+
+function GroupedPredictions({ predictions }: { predictions: Prediction[] }) {
+  const groups = groupByDate(predictions);
+
+  return (
+    <div className="space-y-8">
+      {groups.map((group) => (
+        <section key={group.key}>
+          <h3 className="mb-3 text-lg font-bold">{group.label}</h3>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {group.predictions.map((p) => (
+              <PredictionCard key={p.id} prediction={p} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function startOfDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function groupByDate(predictions: Prediction[]) {
+  const today = startOfDay(new Date());
+  const tomorrow = startOfDay(new Date());
+  tomorrow.setDate(today.getDate() + 1);
+
+  const map = new Map<
+    string,
+    { key: string; label: string; date: Date; predictions: Prediction[] }
+  >();
+
+  for (const p of predictions) {
+    const d = new Date(p.event.event_date);
+    const dayStart = startOfDay(d);
+    const key = dayStart.toISOString();
+
+    let label: string;
+    if (dayStart.getTime() === today.getTime()) {
+      label = "Hoje";
+    } else if (dayStart.getTime() === tomorrow.getTime()) {
+      label = "Amanhã";
+    } else {
+      const raw = d.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "short" });
+      label = raw.charAt(0).toUpperCase() + raw.slice(1);
+    }
+
+    if (!map.has(key)) {
+      map.set(key, { key, label, date: dayStart, predictions: [] });
+    }
+    map.get(key)!.predictions.push(p);
+  }
+
+  return Array.from(map.values())
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .map((g) => ({ key: g.key, label: g.label, predictions: g.predictions }));
 }
 
 function LeagueFilterBar({
