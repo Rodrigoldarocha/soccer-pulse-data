@@ -210,31 +210,40 @@ function LeagueFilterBar({
   });
   const { data: leagues } = useSuspenseQuery(leaguesQuery);
 
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <button
-        onClick={() => onSelect(undefined)}
-        className={
-          "px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition active:translate-y-0.5 " +
-          (selected == null ? "clay-primary" : "clay-sm text-muted-foreground hover:text-foreground")
-        }
-      >
-        Todas
-      </button>
-      {leagues.map((l) => (
-        <button
-          key={l.id}
-          onClick={() => onSelect(l.id)}
-          className={
-            "px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition active:translate-y-0.5 " +
-            (selected === l.id ? "clay-primary" : "clay-sm text-muted-foreground hover:text-foreground")
-          }
-        >
-          {l.name}
-        </button>
-      ))}
-    </div>
+  const selectedName = leagues.find((l) => l.id === selected)?.name ?? "Todas as ligas";
 
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative flex-1">
+        <select
+          aria-label="Filtrar por liga"
+          value={selected ?? ""}
+          onChange={(e) => onSelect(e.target.value ? Number(e.target.value) : undefined)}
+          className="clay-sm w-full appearance-none rounded-xl px-4 py-2.5 pr-10 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+        >
+          <option value="">Todas as ligas</option>
+          {leagues.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </select>
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted-foreground">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </span>
+      </div>
+      {selected != null && (
+        <button
+          onClick={() => onSelect(undefined)}
+          className="clay-sm px-3 py-2.5 text-sm font-semibold text-muted-foreground transition active:translate-y-0.5 hover:text-foreground"
+          aria-label="Limpar filtro"
+        >
+          Limpar
+        </button>
+      )}
+    </div>
   );
 }
 
