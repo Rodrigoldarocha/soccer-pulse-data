@@ -1,11 +1,12 @@
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { Suspense, useState, useCallback } from "react";
+import { Suspense, useState, useCallback, useEffect } from "react";
 
 import { PredictionCard } from "@/components/PredictionCard";
 import { listUpcomingPredictions } from "@/lib/predictions.functions";
 import { listLeagues } from "@/lib/leagues.functions";
 import { getRetryDelay, BzzoiroApiError } from "@/lib/bzzoiro/client.server";
+import type { Prediction } from "@/lib/bzzoiro/types";
 
 export const Route = createFileRoute("/")({
   head: () => ({
