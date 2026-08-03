@@ -1,51 +1,76 @@
-import type { Lineups } from "@/lib/bzzoiro/types";
+import type { Lineups, LineupTeam } from "@/lib/bzzoiro/types";
 
 interface Props {
   lineups: Lineups | null;
 }
 
 export function LineupsDisplay({ lineups }: Props) {
-  if (!lineups) {
+  const home = lineups?.home ?? null;
+  const away = lineups?.away ?? null;
+
+  if (!home && !away) {
     return (
-      <div className="rounded-2xl border border-border bg-card p-8 text-center">
+      <div className="clay p-8 text-center">
         <p className="text-muted-foreground">Escalações não disponíveis para esta partida.</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-      <LineupSide team={lineups.home} side="Casa" />
-      <LineupSide team={lineups.away} side="Fora" />
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      {home && <LineupSide team={home} />}
+      {away && <LineupSide team={away} />}
     </div>
   );
 }
 
-function LineupSide({ team, side }: { team: Lineups["home"]; side: string }) {
+function LineupSide({ team }: { team: LineupTeam }) {
+  const players = team.players ?? [];
+
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-bold">{team.team}</h3>
-        <span className="rounded-md bg-secondary px-2 py-0.5 text-xs font-mono">{team.formation}</span>
+    <div className="clay p-5">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <h3 className="font-bold">{team.team_name}</h3>
+        {team.formation && (
+          <span className="clay-sm px-2 py-0.5 font-mono text-xs">{team.formation}</span>
+        )}
       </div>
-      <div className="space-y-1">
-        {team.players.map((player) => (
-          <div key={player.number} className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm hover:bg-secondary/40 transition-colors">
-            <span className="w-7 text-right font-mono text-xs text-muted-foreground">{player.number}</span>
-            <span className="font-medium">{player.name}</span>
-            <span className="ml-auto text-xs text-muted-foreground">{positionLabel(player.position)}</span>
-          </div>
-        ))}
-      </div>
+      {players.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Escalação ainda não divulgada.</p>
+      ) : (
+        <div className="space-y-1">
+          {players.map((player, i) => (
+            <div
+              key={player.id ?? i}
+              className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-sm"
+            >
+              <span className="w-7 text-right font-mono text-xs text-muted-foreground">
+                {player.jersey_number ?? "–"}
+              </span>
+              <span className="font-medium">
+                {player.name}
+                {player.captain && <span className="ml-1 text-xs text-primary">(C)</span>}
+              </span>
+              <span className="ml-auto text-xs text-muted-foreground">
+                {positionLabel(player.position)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 function positionLabel(pos: string): string {
   const map: Record<string, string> = {
+    G: "Goleiro",
     GK: "Goleiro",
-    DF: "Zagueiro",
+    D: "Defensor",
+    DF: "Defensor",
+    M: "Meio-campo",
     MF: "Meio-campo",
+    F: "Atacante",
     FW: "Atacante",
   };
   return map[pos] ?? pos;

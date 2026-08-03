@@ -153,7 +153,7 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
     (p) => p.event.status === "notstarted" || p.event.status === "inprogress",
   );
 
-  const lastUpdate = dataUpdatedAt
+  const lastUpdate = mounted && dataUpdatedAt
     ? new Date(dataUpdatedAt).toLocaleTimeString("pt-BR")
     : null;
 
