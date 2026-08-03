@@ -208,19 +208,43 @@ function PredictionsGrid({ leagueId }: { leagueId?: number }) {
 
 function GroupedPredictions({ predictions }: { predictions: Prediction[] }) {
   const groups = groupByDate(predictions);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const currentKey = activeKey && groups.some((g) => g.key === activeKey) ? activeKey : groups[0]?.key;
+  const current = groups.find((g) => g.key === currentKey);
+
+  if (groups.length === 0) return null;
 
   return (
-    <div className="space-y-8">
-      {groups.map((group) => (
-        <section key={group.key}>
-          <h3 className="mb-3 text-lg font-bold">{group.label}</h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {group.predictions.map((p) => (
-              <PredictionCard key={p.id} prediction={p} />
-            ))}
-          </div>
-        </section>
-      ))}
+    <div className="space-y-5">
+      <div role="tablist" aria-label="Filtrar por dia" className="flex flex-wrap gap-2">
+        {groups.map((group) => {
+          const isActive = group.key === currentKey;
+          return (
+            <button
+              key={group.key}
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveKey(group.key)}
+              className={
+                isActive
+                  ? "clay-primary px-4 py-2 text-xs font-bold transition active:translate-y-0.5"
+                  : "clay-sm px-4 py-2 text-xs font-semibold text-muted-foreground transition active:translate-y-0.5 hover:text-foreground"
+              }
+            >
+              {group.label}
+              <span className="ml-2 opacity-70">{group.predictions.length}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {current && (
+        <div role="tabpanel" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {current.predictions.map((p) => (
+            <PredictionCard key={p.id} prediction={p} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
