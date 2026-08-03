@@ -92,11 +92,6 @@ export interface League {
 
 // -------- Events (v2) --------
 
-export interface EventScore {
-  home: number | null;
-  away: number | null;
-}
-
 export interface EventDetail {
   id: number;
   event_date: string;
@@ -106,58 +101,78 @@ export interface EventDetail {
   home_team_id: number | null;
   away_team_id: number | null;
   league_id: number | null;
-  league_name: string | null;
-  home_score?: EventScore | null;
-  away_score?: EventScore | null;
+  league_name?: string | null;
+  home_score?: number | null;
+  away_score?: number | null;
+  round_name?: string | null;
+  current_minute?: number | null;
   venue?: string | null;
+  venue_id?: number | null;
   referee?: string | null;
 }
 
 // -------- Odds Comparison (v2) --------
 
-export interface BookmakerOdds {
-  bookmaker: string;
-  odds_home: number | null;
-  odds_draw: number | null;
-  odds_away: number | null;
+export interface OddsBookmakerQuote {
+  decimal_odds: number | null;
+  movement?: string | null;
+  updated_at?: string | null;
+}
+
+export interface OddsOutcome {
+  outcome: string;
+  outcome_name?: string | null;
+  line?: number | null;
+  best_odds: number | null;
+  best_bookmaker_name?: string | null;
+  best_bookmaker_slug?: string | null;
+  bookmakers?: Record<string, OddsBookmakerQuote>;
 }
 
 export interface OddsComparison {
   event_id: number;
   home_team: string;
   away_team: string;
-  bookmakers: BookmakerOdds[];
+  league_name?: string | null;
+  bookmakers_count?: number;
+  total_odds?: number;
+  markets?: Record<string, Record<string, OddsOutcome>> | null;
 }
 
 // -------- Lineups (v2) --------
 
 export interface LineupPlayer {
-  number: number;
+  id: number;
   name: string;
-  position: string; // GK, DF, MF, FW
+  short_name?: string | null;
+  position: string; // G, D, M, F
+  jersey_number: number | null;
+  captain?: boolean;
 }
 
 export interface LineupTeam {
-  team: string;
-  formation: string;
-  players: LineupPlayer[];
+  team_id: number;
+  team_name: string;
+  formation: string | null;
+  players: LineupPlayer[] | null;
 }
 
 export interface Lineups {
-  home: LineupTeam;
-  away: LineupTeam;
+  lineup_status?: string | null;
+  home: LineupTeam | null;
+  away: LineupTeam | null;
 }
 
 // -------- Event Stats (v2) --------
 
+export type StatValue =
+  | number
+  | null
+  | { value?: number | null; total?: number | null; pct?: number | null; actual?: number | null };
+
 export interface EventStats {
-  possession: { home: number; away: number };
-  shots: { home: number; away: number };
-  shots_on_target: { home: number; away: number };
-  corners: { home: number; away: number };
-  fouls: { home: number; away: number };
-  yellow_cards: { home: number; away: number };
-  red_cards: { home: number; away: number };
+  home: Record<string, StatValue>;
+  away: Record<string, StatValue>;
 }
 
 // -------- Common list wrappers --------
