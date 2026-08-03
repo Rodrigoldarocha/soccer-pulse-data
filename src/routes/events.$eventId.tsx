@@ -43,7 +43,7 @@ function statsQuery(eventId: number) {
 
 type TabId = "details" | "lineups" | "stats";
 
-function MatchHeader({ event }: { event: EventDetail }) {
+function MatchHeader({ event, leagueName }: { event: EventDetail; leagueName?: string | null }) {
   const statusLabel: Record<string, string> = {
     notstarted: "Não Iniciado",
     inprogress: "Ao Vivo",
@@ -55,7 +55,7 @@ function MatchHeader({ event }: { event: EventDetail }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-6 text-center">
       <p className="mb-1 text-xs text-muted-foreground">
-        {event.league_name ?? "Liga não informada"}
+        {event.league_name ?? leagueName ?? "Liga não informada"}
       </p>
       <p className="text-xs text-muted-foreground">
         {new Date(event.event_date).toLocaleDateString("pt-BR", {
@@ -178,7 +178,7 @@ function EventPage({ eventId }: { eventId: number }) {
         ← Voltar
       </Link>
 
-      <MatchHeader event={event.data} />
+      <MatchHeader event={event.data} leagueName={odds.data?.league_name} />
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-secondary/50 p-1">
