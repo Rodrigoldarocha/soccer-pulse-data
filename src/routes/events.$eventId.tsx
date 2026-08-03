@@ -71,12 +71,12 @@ function MatchHeader({ event }: { event: EventDetail }) {
       <div className="mx-auto mt-6 flex max-w-md items-center justify-center gap-4 sm:gap-8">
         <span className="text-lg font-bold sm:text-2xl">{event.home_team}</span>
 
-        {event.status === "finished" ? (
-          <span className="min-w-[4rem] rounded-lg bg-muted px-3 py-1 text-xl font-black tabular-nums">
-            {event.home_score?.home ?? "?"} – {event.home_score?.away ?? "?"}
+        {event.home_score != null || event.away_score != null ? (
+          <span className="clay-inset min-w-[4rem] px-3 py-1 text-xl font-black tabular-nums">
+            {event.home_score ?? "?"} – {event.away_score ?? "?"}
           </span>
         ) : (
-          <span className="min-w-[4rem] rounded-lg bg-muted px-3 py-1 text-xs font-semibold uppercase">
+          <span className="clay-inset min-w-[4rem] px-3 py-1 text-xs font-semibold uppercase">
             {statusLabel[event.status] ?? event.status}
           </span>
         )}
@@ -94,45 +94,54 @@ function MatchHeader({ event }: { event: EventDetail }) {
   );
 }
 
+const MARKET_LABELS: Record<string, string> = {
+  "1x2": "Resultado (1X2)",
+  btts: "Ambas Marcam",
+  over_under: "Over / Under",
+  double_chance: "Dupla Chance",
+  handicap: "Handicap",
+};
+
 function OddsTable({ data }: { data: OddsComparison }) {
-  return (
-    <div className="rounded-2xl border border-border bg-card p-4">
-      <h2 className="mb-3 text-sm font-semibold">Comparativo de Odds</h2>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="border-b border-border text-muted-foreground">
-              <th className="pb-2 pr-4">Casa</th>
-              <th className="pb-2 pr-4 text-right tabular-nums">1</th>
-              <th className="pb-2 pr-4 text-right tabular-nums">X</th>
-              <th className="pb-2 text-right tabular-nums">2</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.bookmakers.map((b) => (
-              <tr key={b.bookmaker} className="border-b border-border/50 last:border-0">
-                <td className="py-2 pr-4 font-medium">{b.bookmaker}</td>
-                <td className="py-2 pr-4 text-right tabular-nums">
-                  {b.odds_home != null ? b.odds_home.toFixed(2) : "–"}
-                </td>
-                <td className="py-2 pr-4 text-right tabular-nums">
-                  {b.odds_draw != null ? b.odds_draw.toFixed(2) : "–"}
-                </td>
-                <td className="py-2 text-right tabular-nums">
-                  {b.odds_away != null ? b.odds_away.toFixed(2) : "–"}
-                </td>
-              </tr>
-            ))}
-            {data.bookmakers.length === 0 && (
-              <tr>
-                <td colSpan={4} className="py-4 text-center text-muted-foreground">
-                  Nenhuma odd disponível
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+  const markets = Object.entries(data.markets ?? {}).filter(
+    ([, outcomes]) => outcomes && Object.keys(outcomes).length > 0,
+  );
+
+  if (markets.length === 0) {
+    return (
+      <div className="clay p-8 text-center">
+        <p className="text-muted-foreground">Nenhuma odd disponível para esta partida.</p>
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {markets.map(([market, outcomes]) => (
+        <div key={market} className="clay p-4">
+          <h2 className="mb-3 text-sm font-bold">
+            {MARKET_LABELS[market] ?? market.replaceAll("_", " ")}
+          </h2>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {Object.entries(outcomes).map(([key, o]) => (
+              <div key={key} className="clay-inset p-3">
+                <p className="truncate text-xs text-muted-foreground">
+                  {o.outcome_name ?? o.outcome ?? key}
+                  {o.line != null ? ` ${o.line}` : ""}
+                </p>
+                <p className="text-lg font-black tabular-nums">
+                  {o.best_odds != null ? o.best_odds.toFixed(2) : "–"}
+                </p>
+                {o.best_bookmaker_name && (
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {o.best_bookmaker_name}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
