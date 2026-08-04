@@ -20,8 +20,8 @@ export const Route = createFileRoute("/proximos")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>) => ({
-    leagueId: search.leagueId as number | undefined,
+  validateSearch: (search: Record<string, unknown>): { leagueId?: number } => ({
+    leagueId: typeof search.leagueId === "number" ? search.leagueId : undefined,
   }),
   loaderDeps: ({ search }) => ({ leagueId: search.leagueId }),
   loader: ({ context, deps }) => {
