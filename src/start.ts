@@ -26,7 +26,7 @@ const csrfMiddleware = createCsrfMiddleware({
 // intentionally omitted to prevent the Supabase client from being pulled into
 // the browser bundle (where VITE_SUPABASE_* env vars aren't set in publish).
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
+
   requestMiddleware: [errorMiddleware, csrfMiddleware],
 }));
 
