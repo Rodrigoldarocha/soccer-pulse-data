@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LiveRouteImport } from './routes/live'
+import { Route as AmanhaRouteImport } from './routes/amanha'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
 
 const LiveRoute = LiveRouteImport.update({
   id: '/live',
   path: '/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AmanhaRoute = AmanhaRouteImport.update({
+  id: '/amanha',
+  path: '/amanha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -31,30 +37,34 @@ const EventsEventIdRoute = EventsEventIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/amanha': typeof AmanhaRoute
   '/live': typeof LiveRoute
   '/events/$eventId': typeof EventsEventIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/amanha': typeof AmanhaRoute
   '/live': typeof LiveRoute
   '/events/$eventId': typeof EventsEventIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/amanha': typeof AmanhaRoute
   '/live': typeof LiveRoute
   '/events/$eventId': typeof EventsEventIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/live' | '/events/$eventId'
+  fullPaths: '/' | '/amanha' | '/live' | '/events/$eventId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/live' | '/events/$eventId'
-  id: '__root__' | '/' | '/live' | '/events/$eventId'
+  to: '/' | '/amanha' | '/live' | '/events/$eventId'
+  id: '__root__' | '/' | '/amanha' | '/live' | '/events/$eventId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AmanhaRoute: typeof AmanhaRoute
   LiveRoute: typeof LiveRoute
   EventsEventIdRoute: typeof EventsEventIdRoute
 }
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/live'
       fullPath: '/live'
       preLoaderRoute: typeof LiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/amanha': {
+      id: '/amanha'
+      path: '/amanha'
+      fullPath: '/amanha'
+      preLoaderRoute: typeof AmanhaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AmanhaRoute: AmanhaRoute,
   LiveRoute: LiveRoute,
   EventsEventIdRoute: EventsEventIdRoute,
 }
