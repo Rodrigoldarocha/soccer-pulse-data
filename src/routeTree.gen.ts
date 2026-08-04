@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProximosRouteImport } from './routes/proximos'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as AmanhaRouteImport } from './routes/amanha'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
 
+const ProximosRoute = ProximosRouteImport.update({
+  id: '/proximos',
+  path: '/proximos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LiveRoute = LiveRouteImport.update({
   id: '/live',
   path: '/live',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/amanha': typeof AmanhaRoute
   '/live': typeof LiveRoute
+  '/proximos': typeof ProximosRoute
   '/events/$eventId': typeof EventsEventIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/amanha': typeof AmanhaRoute
   '/live': typeof LiveRoute
+  '/proximos': typeof ProximosRoute
   '/events/$eventId': typeof EventsEventIdRoute
 }
 export interface FileRoutesById {
@@ -52,25 +60,34 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/amanha': typeof AmanhaRoute
   '/live': typeof LiveRoute
+  '/proximos': typeof ProximosRoute
   '/events/$eventId': typeof EventsEventIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/amanha' | '/live' | '/events/$eventId'
+  fullPaths: '/' | '/amanha' | '/live' | '/proximos' | '/events/$eventId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/amanha' | '/live' | '/events/$eventId'
-  id: '__root__' | '/' | '/amanha' | '/live' | '/events/$eventId'
+  to: '/' | '/amanha' | '/live' | '/proximos' | '/events/$eventId'
+  id: '__root__' | '/' | '/amanha' | '/live' | '/proximos' | '/events/$eventId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AmanhaRoute: typeof AmanhaRoute
   LiveRoute: typeof LiveRoute
+  ProximosRoute: typeof ProximosRoute
   EventsEventIdRoute: typeof EventsEventIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/proximos': {
+      id: '/proximos'
+      path: '/proximos'
+      fullPath: '/proximos'
+      preLoaderRoute: typeof ProximosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/live': {
       id: '/live'
       path: '/live'
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AmanhaRoute: AmanhaRoute,
   LiveRoute: LiveRoute,
+  ProximosRoute: ProximosRoute,
   EventsEventIdRoute: EventsEventIdRoute,
 }
 export const routeTree = rootRouteImport
