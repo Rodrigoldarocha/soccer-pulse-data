@@ -128,15 +128,51 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <nav className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-2 text-xs text-muted-foreground">
-        <Link to="/" className="font-medium text-foreground hover:text-primary transition-colors">
-          🏠 Início
-        </Link>
-        <Link to="/live" className="font-medium text-destructive hover:text-destructive/80 transition-colors">
-          🔴 Ao Vivo
-        </Link>
-      </nav>
+      <header className="mx-auto max-w-6xl px-4 py-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link to="/" className="flex items-center gap-3">
+            <span className="clay-primary grid h-11 w-11 place-items-center">
+              <span className="font-black">Z</span>
+            </span>
+            <span>
+              <span className="block text-lg font-bold leading-tight">Zagueiro</span>
+              <span className="block text-xs text-muted-foreground">
+                Previsões de futebol via CatBoost
+              </span>
+            </span>
+          </Link>
+          <nav className="flex flex-wrap items-center gap-2 text-xs">
+            {[
+              { to: "/", label: "Hoje" },
+              { to: "/amanha", label: "Amanhã" },
+              { to: "/proximos", label: "Próximos" },
+            ].map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                activeOptions={{ exact: true }}
+                activeProps={{ className: "clay-primary px-4 py-2 font-bold" }}
+                inactiveProps={{
+                  className: "clay-sm px-4 py-2 font-semibold text-muted-foreground",
+                }}
+                className="transition active:translate-y-0.5"
+              >
+                {item.label}
+              </Link>
+            ))}
+            <Link
+              to="/live"
+              activeProps={{ className: "clay-primary px-4 py-2 font-bold" }}
+              inactiveProps={{ className: "clay-sm px-4 py-2 font-semibold text-destructive" }}
+              className="transition active:translate-y-0.5"
+            >
+              🔴 Ao Vivo
+            </Link>
+          </nav>
+        </div>
+      </header>
       <Outlet />
     </QueryClientProvider>
   );
 }
+
