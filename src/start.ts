@@ -2,7 +2,6 @@ import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/r
 
 import { renderErrorPage } from "./lib/error-page";
 
-
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
     return await next();
@@ -26,7 +25,6 @@ const csrfMiddleware = createCsrfMiddleware({
 // intentionally omitted to prevent the Supabase client from being pulled into
 // the browser bundle (where VITE_SUPABASE_* env vars aren't set in publish).
 export const startInstance = createStart(() => ({
-
   requestMiddleware: [errorMiddleware, csrfMiddleware],
 }));
 
