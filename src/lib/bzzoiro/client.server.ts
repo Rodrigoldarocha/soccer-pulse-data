@@ -5,107 +5,17 @@
 
 const BASE_URL = "https://sports.bzzoiro.com";
 
-// ============================================================
-// 1. HIERARQUIA DE ERROS
-// ============================================================
+// Error types live in a client-safe module so routes/components can import
+// them without pulling this server-only file into the browser bundle.
+export {
+  BzzoiroApiError,
+  BzzoiroTimeoutError,
+  BzzoiroTokenError,
+  getRetryDelay,
+} from "./errors";
 
-/**
- * Classe base para erros da API Bzzoiro
- */
-export class BzzoiroApiError extends Error {
-  constructor(
-    public statusCode: number,
-    public statusText: string,
-    public path: string,
-    public responseBody?: string,
-  ) {
-    super(`Bzzoiro API error: ${statusCode} ${statusText} - ${path}`);
-    this.name = "BzzoiroApiError";
+import { BzzoiroApiError, BzzoiroTimeoutError, BzzoiroTokenError } from "./errors";
 
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, BzzoiroApiError);
-    }
-  }
-
-  /**
-   * Verifica se o erro é retryável (pode tentar novamente)
-   * - 429: Rate limit - pode tentar após esperar
-   * - 5xx: Erro interno do servidor - pode ser transitório
-   */
-  isRetryable(): boolean {
-    return this.statusCode === 429 || this.statusCode >= 500;
-  }
-
-  /**
-   * Verifica se é erro de autenticação
-   * - 401: Token inválido
-   * - 403: Acesso negado (plano Pro necessário)
-   */
-  isAuthError(): boolean {
-    return this.statusCode === 401 || this.statusCode === 403;
-  }
-
-  /**
-   * Verifica se é rate limit
-   */
-  isRateLimit(): boolean {
-    return this.statusCode === 429;
-  }
-
-  /**
-   * Retorna mensagem amigável para o usuário
-   */
-  getUserMessage(): string {
-    switch (this.statusCode) {
-      case 401:
-        return "Credenciais da API inválidas. Contate o suporte.";
-      case 403:
-        return "Acesso negado. Este recurso requer um plano Pro.";
-      case 404:
-        return "Recurso não encontrado.";
-      case 429:
-        return "Muitas requisições. Aguarde um momento e tente novamente.";
-      case 500:
-      case 502:
-      case 503:
-      case 504:
-        return "O servidor da API está temporariamente indisponível. Tente novamente em alguns instantes.";
-      default:
-        return `Erro ${this.statusCode}: ${this.statusText}`;
-    }
-  }
-}
-
-/**
- * Erro específico para timeout
- */
-export class BzzoiroTimeoutError extends Error {
-  constructor(
-    public path: string,
-    public timeoutMs: number,
-  ) {
-    super(`Request timeout for ${path} after ${timeoutMs}ms`);
-    this.name = "BzzoiroTimeoutError";
-
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, BzzoiroTimeoutError);
-    }
-  }
-}
-
-/**
- * Erro específico para token não configurado
- */
-export class BzzoiroTokenError extends Error {
-  constructor() {
-    super("BZZOIRO_TOKEN is not configured. Add it via the secrets manager.");
-    this.name = "BzzoiroTokenError";
-
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, BzzoiroTokenError);
-    }
-  }
-}
 
 // ============================================================
 // 2. TOKEN VALIDATION NO STARTUP
