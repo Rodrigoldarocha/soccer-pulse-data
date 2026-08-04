@@ -150,26 +150,8 @@ export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Pr
   }
 }
 
-// ============================================================
-// 6. Função getRetryDelay
-// ============================================================
+// getRetryDelay is re-exported from ./errors above.
 
-/**
- * Calcula o delay para retry baseado no erro.
- * Retorna undefined se não deve aplicar delay especial.
- */
-export function getRetryDelay(error: unknown): number | undefined {
-  if (error instanceof BzzoiroApiError && error.isRateLimit()) {
-    const rateLimit = (globalThis as Record<string, unknown>).__BZZOIRO_RATE_LIMIT as
-      | { retryAfter: number }
-      | undefined;
-    if (rateLimit) {
-      return rateLimit.retryAfter * 1000 + 1000;
-    }
-    return 60_000;
-  }
-  return undefined;
-}
 
 // ============================================================
 // 7. Função de diagnóstico
