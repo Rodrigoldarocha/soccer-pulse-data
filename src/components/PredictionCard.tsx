@@ -218,7 +218,7 @@ export function PredictionCard({ prediction }: Props) {
         </span>
         <div className="flex items-center gap-2">
           {created_at && (
-            <span className="text-muted-foreground" title={created_at}>
+            <span className="text-muted-foreground" title={created_at} suppressHydrationWarning>
               {timeAgo(created_at)}
             </span>
           )}
