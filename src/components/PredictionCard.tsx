@@ -11,14 +11,16 @@ function fmtPct(p: number | null): string {
   return `${Math.round(p)}%`;
 }
 
+// Locale and timezone are pinned so the SSR markup matches client hydration.
 function fmtKickoff(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString("pt-BR", {
     weekday: "short",
     day: "2-digit",
-    month: "short",
+    month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
   });
 }
 
@@ -216,7 +218,7 @@ export function PredictionCard({ prediction }: Props) {
         </span>
         <div className="flex items-center gap-2">
           {created_at && (
-            <span className="text-muted-foreground" title={created_at}>
+            <span className="text-muted-foreground" title={created_at} suppressHydrationWarning>
               {timeAgo(created_at)}
             </span>
           )}
