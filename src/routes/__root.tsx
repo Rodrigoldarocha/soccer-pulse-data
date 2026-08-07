@@ -144,6 +144,7 @@ function RootComponent() {
           <nav className="flex flex-wrap items-center gap-2 text-xs">
             {[
               { to: "/", label: "Hoje" },
+              { to: "/melhor-aposta", label: "⭐ Melhor aposta" },
               { to: "/amanha", label: "Amanhã" },
               { to: "/proximos", label: "Próximos" },
             ].map((item) => (
