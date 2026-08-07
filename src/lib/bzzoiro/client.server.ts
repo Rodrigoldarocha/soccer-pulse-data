@@ -61,7 +61,6 @@ function buildUrl(path: string, params?: Record<string, string | number | undefi
 // ============================================================
 
 export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
-export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   const attempts = Math.max(0, opts.retries ?? 2) + 1;
   let lastError: unknown;
 
