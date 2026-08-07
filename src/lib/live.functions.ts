@@ -67,12 +67,15 @@ export const listLiveEvents = createServerFn({ method: "GET" })
 
       return results;
     } catch (error) {
+    } catch (error) {
       if (error instanceof BzzoiroApiError) {
         console.error(`[live] API error:`, error.statusCode, error.message, `path:`, error.path);
         if (error.isAuthError()) {
           throw new Error("Credenciais da API inválidas. Contate o suporte.");
         }
       }
-      throw error;
+      // Upstream instabilidade (timeout/5xx): degrade para lista vazia em vez de tela branca.
+      console.error("[live] falha ao carregar eventos ao vivo:", error);
+      return [];
     }
   });
