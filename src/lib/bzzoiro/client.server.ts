@@ -99,8 +99,6 @@ async function bzzoiroFetchOnce<T>(path: string, opts: FetchOptions = {}): Promi
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
   const signal = opts.signal
     ? AbortSignal.any([opts.signal, controller.signal])
     : controller.signal;
