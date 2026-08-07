@@ -35,12 +35,48 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          count: number
+          created_at: string
+          identifier: string
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          identifier: string
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          identifier?: string
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_rate_limit: {
+        Args: {
+          p_identifier: string
+          p_max: number
+          p_window_ms: number
+          p_window_start: string
+        }
+        Returns: {
+          current_count: number
+          exceeded: boolean
+        }[]
+      }
+      purge_expired_cache: { Args: never; Returns: number }
     }
     Enums: {
       [_ in never]: never
