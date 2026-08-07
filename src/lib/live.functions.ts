@@ -45,6 +45,8 @@ export const listLiveEvents = createServerFn({ method: "GET" })
         key: `live:v2:events:${data.leagueId ?? "all"}`,
         ttlSeconds: 30,
         params,
+        timeoutMs: 20_000,
+        retries: 2,
       });
 
       // Normalize response (array or paginated wrapper)
