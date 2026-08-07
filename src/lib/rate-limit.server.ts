@@ -35,9 +35,13 @@ async function memCheck(identifier: string, max: number, windowMs: number): Prom
 }
 
 // Lazy Supabase admin client
-let _admin: any = null;
+type SupabaseAdmin = Awaited<
+  typeof import("@/integrations/supabase/client.server")
+>["supabaseAdmin"];
 
-async function getSupabaseAdmin() {
+let _admin: SupabaseAdmin | null = null;
+
+async function getSupabaseAdmin(): Promise<SupabaseAdmin> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
 }
