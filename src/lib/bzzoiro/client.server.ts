@@ -73,7 +73,8 @@ export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Pr
       // Only transient failures are worth retrying.
       const transient =
         error instanceof BzzoiroTimeoutError ||
-        (error instanceof BzzoiroApiError && (error.status >= 500 || error.status === 429));
+        (error instanceof BzzoiroApiError && error.isRetryable());
+
       if (!transient || attempt === attempts - 1 || opts.signal?.aborted) throw error;
 
       const delay = 400 * 2 ** attempt;
