@@ -67,7 +67,6 @@ export const listLiveEvents = createServerFn({ method: "GET" })
 
       return results;
     } catch (error) {
-    } catch (error) {
       if (error instanceof BzzoiroApiError) {
         console.error(`[live] API error:`, error.statusCode, error.message, `path:`, error.path);
         if (error.isAuthError()) {
