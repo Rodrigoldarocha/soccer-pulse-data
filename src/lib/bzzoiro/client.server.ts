@@ -34,9 +34,12 @@ export interface FetchOptions {
   params?: Record<string, string | number | undefined>;
   /** AbortSignal for cancellation. */
   signal?: AbortSignal;
-  /** Timeout in ms (default 10_000). */
+  /** Timeout per attempt in ms (default 10_000). */
   timeoutMs?: number;
+  /** Extra attempts after a timeout / 5xx (default 2). */
+  retries?: number;
 }
+
 
 // ============================================================
 // 4. Função auxiliar buildUrl
@@ -58,6 +61,34 @@ function buildUrl(path: string, params?: Record<string, string | number | undefi
 // ============================================================
 
 export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+  const attempts = Math.max(0, opts.retries ?? 2) + 1;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await bzzoiroFetchOnce<T>(path, opts);
+    } catch (error) {
+      lastError = error;
+
+      // Only transient failures are worth retrying.
+      const transient =
+        error instanceof BzzoiroTimeoutError ||
+        (error instanceof BzzoiroApiError && error.isRetryable());
+
+      if (!transient || attempt === attempts - 1 || opts.signal?.aborted) throw error;
+
+      const delay = 400 * 2 ** attempt;
+      console.warn(
+        `[bzzoiro] ${path} failed (attempt ${attempt + 1}/${attempts}), retrying in ${delay}ms`,
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+
+  throw lastError;
+}
+
+async function bzzoiroFetchOnce<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   const token = process.env.BZZOIRO_TOKEN;
   if (!token) {
     throw new BzzoiroTokenError();
