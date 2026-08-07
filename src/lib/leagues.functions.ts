@@ -6,7 +6,10 @@ export const listLeagues = createServerFn({ method: "GET" }).handler(
     const { getRequest } = await import("@tanstack/react-start/server");
     const { checkRateLimit } = await import("./rate-limit.server");
     const { getRequestIP } = await import("./request-ip");
-    checkRateLimit(`leagues:list:${getRequestIP(getRequest())}`, { max: 10, windowMs: 60_000 });
+    await checkRateLimit(`leagues:list:${getRequestIP(getRequest())}`, {
+      max: 10,
+      windowMs: 60_000,
+    });
 
     const { bzzoiroCachedFetch } = await import("./bzzoiro/cache.server");
 

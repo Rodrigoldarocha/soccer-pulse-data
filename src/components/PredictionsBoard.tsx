@@ -97,16 +97,12 @@ export function PredictionsBoard({
   );
 }
 
-function PredictionsGrid({
-  leagueId,
-  dayFilter,
-}: {
-  leagueId?: number;
-  dayFilter: DayFilter;
-}) {
-  const { data: predictions, isFetching, dataUpdatedAt } = useSuspenseQuery(
-    buildPredictionsQuery(leagueId),
-  );
+function PredictionsGrid({ leagueId, dayFilter }: { leagueId?: number; dayFilter: DayFilter }) {
+  const {
+    data: predictions,
+    isFetching,
+    dataUpdatedAt,
+  } = useSuspenseQuery(buildPredictionsQuery(leagueId));
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

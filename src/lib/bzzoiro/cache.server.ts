@@ -23,9 +23,13 @@ export async function hashKey(prefix: string, params: Record<string, unknown>): 
 }
 
 // Lazy Supabase admin client (only loaded when needed).
-let _admin: any = null;
+type SupabaseAdmin = Awaited<
+  typeof import("@/integrations/supabase/client.server")
+>["supabaseAdmin"];
 
-async function getSupabaseAdmin() {
+let _admin: SupabaseAdmin | null = null;
+
+async function getSupabaseAdmin(): Promise<SupabaseAdmin> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
 }
@@ -48,7 +52,7 @@ function defaultStore(): CacheStore {
       await _admin.from("bzzoiro_cache").upsert(
         {
           cache_key: key,
-          payload: entry.payload as any,
+          payload: entry.payload as never,
           fetched_at: new Date().toISOString(),
           expires_at: entry.expiresAt,
         },

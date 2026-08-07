@@ -14,6 +14,7 @@ import { Route as LiveRouteImport } from './routes/live'
 import { Route as AmanhaRouteImport } from './routes/amanha'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
+import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
 
 const ProximosRoute = ProximosRouteImport.update({
   id: '/proximos',
@@ -40,6 +41,11 @@ const EventsEventIdRoute = EventsEventIdRouteImport.update({
   path: '/events/$eventId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHealthRoute = ApiPublicHealthRouteImport.update({
+  id: '/api/public/health',
+  path: '/api/public/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/live': typeof LiveRoute
   '/proximos': typeof ProximosRoute
   '/events/$eventId': typeof EventsEventIdRoute
+  '/api/public/health': typeof ApiPublicHealthRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/live': typeof LiveRoute
   '/proximos': typeof ProximosRoute
   '/events/$eventId': typeof EventsEventIdRoute
+  '/api/public/health': typeof ApiPublicHealthRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,33 @@ export interface FileRoutesById {
   '/live': typeof LiveRoute
   '/proximos': typeof ProximosRoute
   '/events/$eventId': typeof EventsEventIdRoute
+  '/api/public/health': typeof ApiPublicHealthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/amanha' | '/live' | '/proximos' | '/events/$eventId'
+  fullPaths:
+    | '/'
+    | '/amanha'
+    | '/live'
+    | '/proximos'
+    | '/events/$eventId'
+    | '/api/public/health'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/amanha' | '/live' | '/proximos' | '/events/$eventId'
-  id: '__root__' | '/' | '/amanha' | '/live' | '/proximos' | '/events/$eventId'
+  to:
+    | '/'
+    | '/amanha'
+    | '/live'
+    | '/proximos'
+    | '/events/$eventId'
+    | '/api/public/health'
+  id:
+    | '__root__'
+    | '/'
+    | '/amanha'
+    | '/live'
+    | '/proximos'
+    | '/events/$eventId'
+    | '/api/public/health'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,6 +105,7 @@ export interface RootRouteChildren {
   LiveRoute: typeof LiveRoute
   ProximosRoute: typeof ProximosRoute
   EventsEventIdRoute: typeof EventsEventIdRoute
+  ApiPublicHealthRoute: typeof ApiPublicHealthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -116,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EventsEventIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/health': {
+      id: '/api/public/health'
+      path: '/api/public/health'
+      fullPath: '/api/public/health'
+      preLoaderRoute: typeof ApiPublicHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -125,17 +161,8 @@ const rootRouteChildren: RootRouteChildren = {
   LiveRoute: LiveRoute,
   ProximosRoute: ProximosRoute,
   EventsEventIdRoute: EventsEventIdRoute,
+  ApiPublicHealthRoute: ApiPublicHealthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

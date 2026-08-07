@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { BzzoiroApiError, BzzoiroTokenError, BzzoiroTimeoutError } from "../lib/bzzoiro/client.server";
+import {
+  BzzoiroApiError,
+  BzzoiroTokenError,
+  BzzoiroTimeoutError,
+} from "../lib/bzzoiro/client.server";
 
 describe("BzzoiroApiError", () => {
   it("creates error with correct name and message", () => {
@@ -37,7 +41,9 @@ describe("BzzoiroApiError", () => {
   });
 
   it("getUserMessage returns friendly message per status", () => {
-    expect(new BzzoiroApiError(401, "Unauthorized", "/p").getUserMessage()).toContain("Credenciais");
+    expect(new BzzoiroApiError(401, "Unauthorized", "/p").getUserMessage()).toContain(
+      "Credenciais",
+    );
     expect(new BzzoiroApiError(403, "Forbidden", "/p").getUserMessage()).toContain("Pro");
     expect(new BzzoiroApiError(429, "", "/p").getUserMessage()).toContain("Muitas");
     expect(new BzzoiroApiError(503, "", "/p").getUserMessage()).toContain("indisponível");

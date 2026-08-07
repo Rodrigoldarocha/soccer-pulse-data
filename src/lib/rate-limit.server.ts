@@ -35,9 +35,13 @@ async function memCheck(identifier: string, max: number, windowMs: number): Prom
 }
 
 // Lazy Supabase admin client
-let _admin: any = null;
+type SupabaseAdmin = Awaited<
+  typeof import("@/integrations/supabase/client.server")
+>["supabaseAdmin"];
 
-async function getSupabaseAdmin() {
+let _admin: SupabaseAdmin | null = null;
+
+async function getSupabaseAdmin(): Promise<SupabaseAdmin> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
 }
@@ -74,10 +78,12 @@ async function supabaseCheck(identifier: string, max: number, windowMs: number):
 
   const now = new Date();
   if (!existing || new Date(existing.window_start) < new Date(Date.now() - windowMs)) {
-    await _admin.from("rate_limits").upsert(
-      { identifier, count: 1, window_start: now.toISOString() },
-      { onConflict: "identifier" },
-    );
+    await _admin
+      .from("rate_limits")
+      .upsert(
+        { identifier, count: 1, window_start: now.toISOString() },
+        { onConflict: "identifier" },
+      );
   } else {
     const newCount = (existing.count as number) + 1;
     if (newCount > max) throw new Error("Too Many Requests");
@@ -99,7 +105,9 @@ export async function checkRateLimit(
   const { max = 30, windowMs = 60_000 } = opts;
 
   const isDev =
-    process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test" || !process.env.NODE_ENV;
+    process.env.NODE_ENV === "development" ||
+    process.env.NODE_ENV === "test" ||
+    !process.env.NODE_ENV;
 
   if (isDev) {
     return memCheck(identifier, max, windowMs);

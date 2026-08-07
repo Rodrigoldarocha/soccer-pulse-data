@@ -175,4 +175,3 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
-

@@ -7,15 +7,9 @@ const BASE_URL = "https://sports.bzzoiro.com";
 
 // Error types live in a client-safe module so routes/components can import
 // them without pulling this server-only file into the browser bundle.
-export {
-  BzzoiroApiError,
-  BzzoiroTimeoutError,
-  BzzoiroTokenError,
-  getRetryDelay,
-} from "./errors";
+export { BzzoiroApiError, BzzoiroTimeoutError, BzzoiroTokenError, getRetryDelay } from "./errors";
 
 import { BzzoiroApiError, BzzoiroTimeoutError, BzzoiroTokenError } from "./errors";
-
 
 // ============================================================
 // 2. TOKEN VALIDATION NO STARTUP
@@ -111,12 +105,7 @@ export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Pr
         console.warn(`[bzzoiro] Rate limited on ${path}. Retry-After: ${retrySeconds}s`);
       }
 
-      throw new BzzoiroApiError(
-        res.status,
-        res.statusText,
-        path,
-        body.slice(0, 500),
-      );
+      throw new BzzoiroApiError(res.status, res.statusText, path, body.slice(0, 500));
     }
 
     if (res.status === 204) {
@@ -152,7 +141,6 @@ export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Pr
 
 // getRetryDelay is re-exported from ./errors above.
 
-
 // ============================================================
 // 7. Função de diagnóstico
 // ============================================================
@@ -162,7 +150,7 @@ export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Pr
  */
 export async function testBzzoiroConnection(): Promise<{ ok: boolean; error?: string }> {
   try {
-    await bzzoiroFetch("/api/v2/leagues/", { timeoutMs: 5000 });
+    await bzzoiroFetch("/api/v2/leagues/", { timeoutMs: 12000 });
     return { ok: true };
   } catch (error) {
     if (error instanceof BzzoiroTokenError) {

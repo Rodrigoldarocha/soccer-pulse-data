@@ -18,7 +18,10 @@ export const listUpcomingPredictions = createServerFn({ method: "GET" })
     const { getRequest } = await import("@tanstack/react-start/server");
     const { checkRateLimit } = await import("./rate-limit.server");
     const { getRequestIP } = await import("./request-ip");
-    checkRateLimit(`predictions:upcoming:${getRequestIP(getRequest())}`, { max: 30, windowMs: 60_000 });
+    await checkRateLimit(`predictions:upcoming:${getRequestIP(getRequest())}`, {
+      max: 30,
+      windowMs: 60_000,
+    });
 
     const { bzzoiroCachedFetch, hashKey } = await import("./bzzoiro/cache.server");
 
