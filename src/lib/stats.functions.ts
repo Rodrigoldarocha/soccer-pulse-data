@@ -12,7 +12,7 @@ export const getEventStats = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<EventStats | null> => {
     const { getRequest } = await import("@tanstack/react-start/server");
     const { checkRateLimit, getRateLimitIdentifier } = await import("./rate-limit.server");
-    checkRateLimit(`stats:${getRateLimitIdentifier(getRequest())}`, { max: 30, windowMs: 60_000 });
+    await checkRateLimit(`stats:${getRateLimitIdentifier(getRequest())}`, { max: 30, windowMs: 60_000 });
 
     const { bzzoiroCachedFetch } = await import("./bzzoiro/cache.server");
 

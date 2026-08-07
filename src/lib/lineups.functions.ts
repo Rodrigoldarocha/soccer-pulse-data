@@ -12,7 +12,7 @@ export const getEventLineups = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<Lineups | null> => {
     const { getRequest } = await import("@tanstack/react-start/server");
     const { checkRateLimit, getRateLimitIdentifier } = await import("./rate-limit.server");
-    checkRateLimit(`lineups:${getRateLimitIdentifier(getRequest())}`, {
+    await checkRateLimit(`lineups:${getRateLimitIdentifier(getRequest())}`, {
       max: 30,
       windowMs: 60_000,
     });
