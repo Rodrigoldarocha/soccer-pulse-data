@@ -34,9 +34,12 @@ export interface FetchOptions {
   params?: Record<string, string | number | undefined>;
   /** AbortSignal for cancellation. */
   signal?: AbortSignal;
-  /** Timeout in ms (default 10_000). */
+  /** Timeout per attempt in ms (default 10_000). */
   timeoutMs?: number;
+  /** Extra attempts after a timeout / 5xx (default 2). */
+  retries?: number;
 }
+
 
 // ============================================================
 // 4. Função auxiliar buildUrl
