@@ -74,7 +74,6 @@ export function PredictionCard({ prediction }: Props) {
       params={{ eventId: String(event.id) }}
       className="clay block p-5 transition hover:-translate-y-0.5 hover:shadow-lg"
     >
-
       <header className="mb-4 flex items-center justify-between text-xs">
         <span className="uppercase tracking-wide text-muted-foreground">
           {event.league_name ?? "—"}
@@ -109,7 +108,6 @@ export function PredictionCard({ prediction }: Props) {
               {markets.score.most_likely}
             </span>
           )}
-
         </div>
 
         <div className="flex flex-col items-center gap-2 text-center">
@@ -208,7 +206,6 @@ export function PredictionCard({ prediction }: Props) {
         )}
       </div>
 
-
       <footer className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs">
         <span className="text-muted-foreground">
           Palpite:{" "}
@@ -270,11 +267,8 @@ function ProbBar({
           backgroundColor: highlighted ? "var(--color-primary)" : color,
         }}
       />
-      <div className="relative z-10 text-[10px] uppercase tracking-wide opacity-80">
-        {label}
-      </div>
+      <div className="relative z-10 text-[10px] uppercase tracking-wide opacity-80">{label}</div>
       <div className="relative z-10 mt-0.5 font-mono text-sm font-semibold">{fmtPct(value)}</div>
     </div>
-
   );
 }

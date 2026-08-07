@@ -10,10 +10,18 @@ vi.mock("../lib/bzzoiro/client.server", () => ({
     statusText = "Internal Server Error";
     path = "/mock";
     responseBody = null;
-    isRetryable() { return this.statusCode === 429 || this.statusCode >= 500; }
-    isAuthError() { return this.statusCode === 401 || this.statusCode === 403; }
-    isRateLimit() { return this.statusCode === 429; }
-    getUserMessage() { return "Erro"; }
+    isRetryable() {
+      return this.statusCode === 429 || this.statusCode >= 500;
+    }
+    isAuthError() {
+      return this.statusCode === 401 || this.statusCode === 403;
+    }
+    isRateLimit() {
+      return this.statusCode === 429;
+    }
+    getUserMessage() {
+      return "Erro";
+    }
   },
   BzzoiroTokenError: class extends Error {},
   BzzoiroTimeoutError: class extends Error {},
@@ -59,9 +67,7 @@ describe("Cache fallback — stale cache when API fails", () => {
   });
 
   it("refreshes expired cache when API succeeds", async () => {
-    mockFetch
-      .mockResolvedValueOnce({ expired: true })
-      .mockResolvedValueOnce({ fresh: true });
+    mockFetch.mockResolvedValueOnce({ expired: true }).mockResolvedValueOnce({ fresh: true });
 
     // Store with TTL 0 → immediately expired.
     await bzzoiroCachedFetch("/test3/", { key: "test:expired", ttlSeconds: 0, store });
@@ -82,7 +88,9 @@ describe("Cache fallback — stale cache when API fails", () => {
     mockFetch.mockReset();
 
     // Agora API falha — mockImplementationOnce lança síncrono
-    mockFetch.mockImplementationOnce(() => { throw new Error("Network failure"); });
+    mockFetch.mockImplementationOnce(() => {
+      throw new Error("Network failure");
+    });
 
     const result = await bzzoiroCachedFetch("/test4/", {
       key: "test:stale-fallback",
@@ -110,7 +118,12 @@ describe("Cache fallback — stale cache when API fails", () => {
     mockFetch.mockResolvedValue({ name: "valid" });
 
     // Populate cache
-    await bzzoiroCachedFetch("/test6/", { key: "test:schema-cache", ttlSeconds: 60, store, schema });
+    await bzzoiroCachedFetch("/test6/", {
+      key: "test:schema-cache",
+      ttlSeconds: 60,
+      store,
+      schema,
+    });
 
     const result = await bzzoiroCachedFetch("/test6/", {
       key: "test:schema-cache",

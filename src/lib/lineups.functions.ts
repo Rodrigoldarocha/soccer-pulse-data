@@ -41,7 +41,8 @@ export const getEventLineups = createServerFn({ method: "GET" })
     } catch (error) {
       if (error instanceof BzzoiroApiError) {
         if (error.statusCode === 404) return null;
-        if (error.isAuthError()) throw new Error("Credenciais da API inválidas. Contate o suporte.");
+        if (error.isAuthError())
+          throw new Error("Credenciais da API inválidas. Contate o suporte.");
       }
       throw error;
     }

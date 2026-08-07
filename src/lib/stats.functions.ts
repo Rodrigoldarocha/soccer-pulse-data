@@ -12,7 +12,10 @@ export const getEventStats = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<EventStats | null> => {
     const { getRequest } = await import("@tanstack/react-start/server");
     const { checkRateLimit, getRateLimitIdentifier } = await import("./rate-limit.server");
-    await checkRateLimit(`stats:${getRateLimitIdentifier(getRequest())}`, { max: 30, windowMs: 60_000 });
+    await checkRateLimit(`stats:${getRateLimitIdentifier(getRequest())}`, {
+      max: 30,
+      windowMs: 60_000,
+    });
 
     const { bzzoiroCachedFetch } = await import("./bzzoiro/cache.server");
 
@@ -34,7 +37,8 @@ export const getEventStats = createServerFn({ method: "GET" })
     } catch (error) {
       if (error instanceof BzzoiroApiError) {
         if (error.statusCode === 404) return null;
-        if (error.isAuthError()) throw new Error("Credenciais da API inválidas. Contate o suporte.");
+        if (error.isAuthError())
+          throw new Error("Credenciais da API inválidas. Contate o suporte.");
       }
       throw error;
     }

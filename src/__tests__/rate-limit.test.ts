@@ -13,7 +13,9 @@ describe("checkRateLimit (in-memory dev mode)", () => {
     for (let i = 0; i < 3; i++) {
       await checkRateLimit(id, { max: 3, windowMs: 60_000 });
     }
-    await expect(checkRateLimit(id, { max: 3, windowMs: 60_000 })).rejects.toThrow("Too Many Requests");
+    await expect(checkRateLimit(id, { max: 3, windowMs: 60_000 })).rejects.toThrow(
+      "Too Many Requests",
+    );
   });
 
   it("tracks different keys independently", async () => {

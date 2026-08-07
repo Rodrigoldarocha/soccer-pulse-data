@@ -46,7 +46,10 @@ async function verifySupabaseConnection(): Promise<boolean> {
     return false;
   }
   if (!key) {
-    warn("SUPABASE_SERVICE_ROLE_KEY", "Não configurado. Cache e rate limit não funcionarão em produção.");
+    warn(
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "Não configurado. Cache e rate limit não funcionarão em produção.",
+    );
   }
 
   ok("Supabase URL", url);
@@ -62,7 +65,10 @@ async function verifySupabaseConnection(): Promise<boolean> {
         ok("Supabase conexão", "Conectado — tabela bzzoiro_cache acessível");
       }
     } catch (err) {
-      warn("Supabase conexão", "Erro ao conectar: " + (err instanceof Error ? err.message : String(err)));
+      warn(
+        "Supabase conexão",
+        "Erro ao conectar: " + (err instanceof Error ? err.message : String(err)),
+      );
     }
   }
 
@@ -106,9 +112,7 @@ async function main() {
   console.log(`\n${BOLD}${CYAN}═══════════════════════════════════${RESET}`);
   console.log(`${BOLD}Relatório: ${passed}/${total} verificações concluídas${RESET}`);
 
-  const allOk = results.every(
-    (r) => r.status === "fulfilled",
-  );
+  const allOk = results.every((r) => r.status === "fulfilled");
 
   if (allOk) {
     console.log(`\n${GREEN}${BOLD}✅ Sistema pronto para uso!${RESET}\n`);

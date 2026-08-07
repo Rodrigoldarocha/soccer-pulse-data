@@ -60,9 +60,7 @@ function LivePage() {
 function LiveGrid() {
   const { data: events, isFetching, dataUpdatedAt } = useSuspenseQuery(liveQuery);
 
-  const lastUpdate = dataUpdatedAt
-    ? new Date(dataUpdatedAt).toLocaleTimeString("pt-BR")
-    : null;
+  const lastUpdate = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString("pt-BR") : null;
 
   if (events.length === 0) {
     return (

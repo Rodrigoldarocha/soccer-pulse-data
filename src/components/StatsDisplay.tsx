@@ -47,8 +47,7 @@ export function StatsDisplay({ stats }: Props) {
           const awayVal = toNumber(away?.[key]);
           const total = homeVal + awayVal;
           const homePct = total > 0 ? (homeVal / total) * 100 : 50;
-          const fmt = (v: number) =>
-            `${Number.isInteger(v) ? v : v.toFixed(2)}${suffix ?? ""}`;
+          const fmt = (v: number) => `${Number.isInteger(v) ? v : v.toFixed(2)}${suffix ?? ""}`;
 
           return (
             <div key={key}>

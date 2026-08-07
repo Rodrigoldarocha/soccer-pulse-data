@@ -28,7 +28,10 @@ export const listLiveEvents = createServerFn({ method: "GET" })
     const request = (ctx as unknown as { request: Request }).request;
     const { data } = ctx;
     const { checkRateLimit, getRateLimitIdentifier } = await import("./rate-limit.server");
-    await checkRateLimit(`live:list:${getRateLimitIdentifier(request)}`, { max: 60, windowMs: 60_000 });
+    await checkRateLimit(`live:list:${getRateLimitIdentifier(request)}`, {
+      max: 60,
+      windowMs: 60_000,
+    });
 
     const { bzzoiroCachedFetch } = await import("./bzzoiro/cache.server");
 
