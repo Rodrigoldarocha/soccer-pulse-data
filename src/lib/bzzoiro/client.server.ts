@@ -61,6 +61,34 @@ function buildUrl(path: string, params?: Record<string, string | number | undefi
 // ============================================================
 
 export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Promise<T> {
+  const attempts = Math.max(0, opts.retries ?? 2) + 1;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await bzzoiroFetchOnce<T>(path, opts);
+    } catch (error) {
+      lastError = error;
+
+      // Only transient failures are worth retrying.
+      const transient =
+        error instanceof BzzoiroTimeoutError ||
+        (error instanceof BzzoiroApiError && (error.status >= 500 || error.status === 429));
+      if (!transient || attempt === attempts - 1 || opts.signal?.aborted) throw error;
+
+      const delay = 400 * 2 ** attempt;
+      console.warn(
+        `[bzzoiro] ${path} failed (attempt ${attempt + 1}/${attempts}), retrying in ${delay}ms`,
+      );
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+
+  throw lastError;
+}
+
+async function bzzoiroFetchOnce<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   const token = process.env.BZZOIRO_TOKEN;
   if (!token) {
     throw new BzzoiroTokenError();
@@ -70,6 +98,8 @@ export async function bzzoiroFetch<T>(path: string, opts: FetchOptions = {}): Pr
   const timeoutMs = opts.timeoutMs ?? 10_000;
 
   const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   const signal = opts.signal
