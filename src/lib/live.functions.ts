@@ -45,6 +45,8 @@ export const listLiveEvents = createServerFn({ method: "GET" })
         key: `live:v2:events:${data.leagueId ?? "all"}`,
         ttlSeconds: 30,
         params,
+        timeoutMs: 20_000,
+        retries: 2,
       });
 
       // Normalize response (array or paginated wrapper)
@@ -71,6 +73,8 @@ export const listLiveEvents = createServerFn({ method: "GET" })
           throw new Error("Credenciais da API inválidas. Contate o suporte.");
         }
       }
-      throw error;
+      // Upstream instabilidade (timeout/5xx): degrade para lista vazia em vez de tela branca.
+      console.error("[live] falha ao carregar eventos ao vivo:", error);
+      return [];
     }
   });
