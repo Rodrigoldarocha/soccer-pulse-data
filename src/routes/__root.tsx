@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -125,9 +125,25 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [booted, setBooted] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setBooted(true), 450);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
+      {!booted && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background">
+          <span className="clay-primary grid h-16 w-16 animate-bounce place-items-center rounded-2xl text-3xl font-black">
+            Z
+          </span>
+          <span className="text-sm font-semibold text-muted-foreground">
+            Carregando previsões…
+          </span>
+        </div>
+      )}
       <header className="mx-auto max-w-6xl px-4 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-3">
