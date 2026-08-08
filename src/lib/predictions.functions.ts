@@ -9,6 +9,7 @@ import type { Prediction } from "./bzzoiro/types";
 const upcomingInput = z.object({
   minConfidence: z.number().min(0).max(1).optional(),
   leagueId: z.number().int().positive().optional(),
+  recommended: z.boolean().optional(),
   limit: z.number().int().min(1).max(100).default(30),
 });
 
@@ -30,6 +31,7 @@ export const listUpcomingPredictions = createServerFn({ method: "GET" })
       limit: data.limit,
       min_confidence: data.minConfidence,
       league_id: data.leagueId,
+      recommended: data.recommended ? "true" : undefined,
     };
 
     const key = await hashKey("predictions:v2:upcoming", params as Record<string, unknown>);

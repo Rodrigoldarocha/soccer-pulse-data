@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { Prediction, OverUnderMarket } from "@/lib/bzzoiro/types";
+import type { Prediction } from "@/lib/bzzoiro/types";
 import { TeamLogo } from "./TeamLogo";
 
 interface Props {
@@ -41,22 +41,16 @@ function outcomeLabel(o: "H" | "D" | "A" | null, home: string, away: string): st
   return "Sem favorito";
 }
 
-function bestOuLine(ou: OverUnderMarket): { line: string; over: number; under: number } | null {
-  const lines: { line: string; prob: number | null }[] = [
-    { line: "1.5", prob: ou.prob_over_15 },
-    { line: "2.5", prob: ou.prob_over_25 },
-    { line: "3.5", prob: ou.prob_over_35 },
-  ];
-  let best: { line: string; over: number; under: number } | null = null;
-  for (const l of lines) {
-    if (l.prob == null) continue;
-    const over = Math.round(l.prob);
-    const under = Math.round(100 - l.prob);
-    if (!best || Math.max(over, under) > Math.max(best.over, best.under)) {
-      best = { line: l.line, over, under };
-    }
-  }
-  return best;
+function PctRow({ labelA, a, labelB, b }: { labelA: string; a: number; labelB: string; b: number }) {
+  return (
+    <div className="flex items-center justify-between text-xs">
+      <span className="font-medium">{labelA}</span>
+      <span className="font-mono font-semibold text-primary">{a}%</span>
+      <span className="text-muted-foreground mx-1">|</span>
+      <span className="font-medium">{labelB}</span>
+      <span className="font-mono font-semibold">{b}%</span>
+    </div>
+  );
 }
 
 export function PredictionCard({ prediction }: Props) {
@@ -65,7 +59,17 @@ export function PredictionCard({ prediction }: Props) {
   const confidencePct = Math.round(model.confidence * 100);
   const isHighConfidence = confidencePct >= 60;
   const isLive = event.status === "inprogress";
-  const bestOu = bestOuLine(markets.over_under);
+  const ouLines: { line: string; over: number | null }[] = [
+    { line: "1.5", over: markets.over_under.prob_over_15 },
+    { line: "2.5", over: markets.over_under.prob_over_25 },
+    { line: "3.5", over: markets.over_under.prob_over_35 },
+  ].filter((l) => l.over != null);
+  const cornerLines: { line: string; over: number }[] = Object.entries(markets.corners ?? {})
+    .filter(([k, v]) => k.startsWith("prob_over_") && typeof v === "number")
+    .map(([k, v]) => ({
+      line: (Number(k.slice("prob_over_".length)) / 10).toFixed(1),
+      over: Math.round(v as number),
+    }));
   const bttsYes = markets.btts.prob_yes != null ? Math.round(markets.btts.prob_yes) : null;
 
   return (
@@ -140,17 +144,21 @@ export function PredictionCard({ prediction }: Props) {
       </div>
 
       <div className="mt-4 space-y-2">
-        {bestOu && (
+        {ouLines.length > 0 && (
           <div className="clay-inset px-3 py-2.5">
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Total de gols
             </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-medium">Over {bestOu.line}</span>
-              <span className="font-mono font-semibold text-primary">{bestOu.over}%</span>
-              <span className="text-muted-foreground mx-1">|</span>
-              <span className="font-medium">Under {bestOu.line}</span>
-              <span className="font-mono font-semibold">{bestOu.under}%</span>
+            <div className="space-y-1.5">
+              {ouLines.map((l) => (
+                <PctRow
+                  key={l.line}
+                  labelA={`Over ${l.line}`}
+                  a={Math.round(l.over as number)}
+                  labelB={`Under ${l.line}`}
+                  b={100 - Math.round(l.over as number)}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -159,13 +167,7 @@ export function PredictionCard({ prediction }: Props) {
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Ambos marcam
             </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-medium">Sim</span>
-              <span className="font-mono font-semibold text-primary">{bttsYes}%</span>
-              <span className="text-muted-foreground mx-1">|</span>
-              <span className="font-medium">Não</span>
-              <span className="font-mono font-semibold">{100 - bttsYes}%</span>
-            </div>
+            <PctRow labelA="Sim" a={bttsYes} labelB="Não" b={100 - bttsYes} />
           </div>
         )}
         {markets.draw_no_bet.prob_home != null && (
@@ -173,16 +175,29 @@ export function PredictionCard({ prediction }: Props) {
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Draw No Bet
             </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-medium">{event.home_team}</span>
-              <span className="font-mono font-semibold text-primary">
-                {Math.round(markets.draw_no_bet.prob_home)}%
-              </span>
-              <span className="text-muted-foreground mx-1">|</span>
-              <span className="font-medium">{event.away_team}</span>
-              <span className="font-mono font-semibold">
-                {Math.round(100 - markets.draw_no_bet.prob_home)}%
-              </span>
+            <PctRow
+              labelA={event.home_team}
+              a={Math.round(markets.draw_no_bet.prob_home)}
+              labelB={event.away_team}
+              b={Math.round(100 - markets.draw_no_bet.prob_home)}
+            />
+          </div>
+        )}
+        {cornerLines.length > 0 && (
+          <div className="clay-inset px-3 py-2.5">
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              Escanteios
+            </div>
+            <div className="space-y-1.5">
+              {cornerLines.map((l) => (
+                <PctRow
+                  key={l.line}
+                  labelA={`Over ${l.line}`}
+                  a={l.over}
+                  labelB={`Under ${l.line}`}
+                  b={100 - l.over}
+                />
+              ))}
             </div>
           </div>
         )}

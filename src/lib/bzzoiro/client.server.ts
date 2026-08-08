@@ -127,11 +127,12 @@ async function bzzoiroFetchOnce<T>(path: string, opts: FetchOptions = {}): Promi
         const retryAfter = res.headers.get("Retry-After");
         const retrySeconds = retryAfter ? parseInt(retryAfter, 10) : 60;
 
-        (globalThis as Record<string, unknown>).__BZZOIRO_RATE_LIMIT = {
-          path,
-          retryAfter: retrySeconds,
-          timestamp: Date.now(),
-        };
+        const rateLimits = ((globalThis as Record<string, unknown>).__BZZOIRO_RATE_LIMITS ??=
+          new Map<string, { retryAfter: number; timestamp: number }>()) as Map<
+          string,
+          { retryAfter: number; timestamp: number }
+        >;
+        rateLimits.set(path, { retryAfter: retrySeconds, timestamp: Date.now() });
 
         console.warn(`[bzzoiro] Rate limited on ${path}. Retry-After: ${retrySeconds}s`);
       }

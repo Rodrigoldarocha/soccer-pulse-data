@@ -11,8 +11,9 @@ export const getEventLineups = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => eventIdInput.parse(input ?? {}))
   .handler(async ({ data }): Promise<Lineups | null> => {
     const { getRequest } = await import("@tanstack/react-start/server");
-    const { checkRateLimit, getRateLimitIdentifier } = await import("./rate-limit.server");
-    await checkRateLimit(`lineups:${getRateLimitIdentifier(getRequest())}`, {
+    const { checkRateLimit } = await import("./rate-limit.server");
+    const { getRequestIP } = await import("./request-ip");
+    await checkRateLimit(`lineups:${getRequestIP(getRequest())}`, {
       max: 30,
       windowMs: 60_000,
     });

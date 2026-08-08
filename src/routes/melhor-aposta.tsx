@@ -25,7 +25,7 @@ export const Route = createFileRoute("/melhor-aposta")({
     ],
   }),
   loader: ({ context }) => {
-    context.queryClient.ensureQueryData(buildPredictionsQuery(undefined));
+    context.queryClient.ensureQueryData(buildPredictionsQuery(undefined, { recommended: true }));
   },
   component: BestBetsPage,
 });
@@ -70,7 +70,9 @@ function BestBetsPage() {
 }
 
 function BestBetsGrid() {
-  const { data: predictions } = useSuspenseQuery(buildPredictionsQuery(undefined));
+  const { data: predictions } = useSuspenseQuery(
+    buildPredictionsQuery(undefined, { recommended: true }),
+  );
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

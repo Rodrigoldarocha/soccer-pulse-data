@@ -10,10 +10,14 @@ import type { Prediction } from "@/lib/bzzoiro/types";
 
 export type DayFilter = "today" | "tomorrow" | "later" | "all";
 
-export function buildPredictionsQuery(leagueId?: number) {
+export function buildPredictionsQuery(
+  leagueId?: number,
+  opts: { recommended?: boolean } = {},
+) {
   return queryOptions({
-    queryKey: ["predictions", "upcoming", { limit: 30, leagueId }],
-    queryFn: () => listUpcomingPredictions({ data: { limit: 30, leagueId } }),
+    queryKey: ["predictions", "upcoming", { limit: 30, leagueId, recommended: opts.recommended }],
+    queryFn: () =>
+      listUpcomingPredictions({ data: { limit: 30, leagueId, recommended: opts.recommended } }),
     staleTime: 30_000,
     refetchInterval: (query) => {
       const data = query.state.data;

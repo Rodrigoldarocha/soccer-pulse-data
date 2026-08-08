@@ -2,10 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { getEventDetail } from "../lib/events.functions";
+import { getEventPolymarket } from "../lib/events.functions";
 import { getOddsComparison } from "../lib/odds.functions";
 import { getEventLineups } from "../lib/lineups.functions";
 import { getEventStats } from "../lib/stats.functions";
-import type { EventDetail, OddsComparison } from "../lib/bzzoiro/types";
+import type { EventDetail, OddsComparison, PolymarketData } from "../lib/bzzoiro/types";
 import { LineupsDisplay } from "@/components/LineupsDisplay";
 import { StatsDisplay } from "@/components/StatsDisplay";
 
@@ -38,6 +39,14 @@ function statsQuery(eventId: number) {
     queryKey: ["stats", eventId],
     queryFn: () => getEventStats({ data: { eventId } }),
     staleTime: 2 * 60_000,
+  });
+}
+
+function polymarketQuery(eventId: number) {
+  return queryOptions({
+    queryKey: ["polymarket", eventId],
+    queryFn: () => getEventPolymarket({ data: { eventId } }),
+    staleTime: 10 * 60_000,
   });
 }
 
@@ -90,6 +99,21 @@ function MatchHeader({ event, leagueName }: { event: EventDetail; leagueName?: s
           {event.referee && <span>👨‍⚖️ {event.referee}</span>}
         </div>
       )}
+
+      {(event.has_xg || event.previous_leg_event_id != null) && (
+        <div className="mt-3 flex items-center justify-center gap-2 text-[10px]">
+          {event.has_xg && (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">
+              xG disponível
+            </span>
+          )}
+          {event.previous_leg_event_id != null && (
+            <span className="rounded-full bg-secondary px-2 py-0.5 font-semibold text-muted-foreground">
+              2ª mão (ida jogada)
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -101,6 +125,61 @@ const MARKET_LABELS: Record<string, string> = {
   double_chance: "Dupla Chance",
   handicap: "Handicap",
 };
+
+function PolymarketBlock({ data }: { data: PolymarketData | null }) {
+  if (!data) return null;
+  const entries = Object.entries(data.markets ?? {}).filter(
+    ([, outcomes]) => outcomes && Object.keys(outcomes).length > 0,
+  );
+  if (entries.length === 0) return null;
+
+  const outcomeLabel = (market: string, key: string): string => {
+    if (market === "1x2") return key === "home" ? "Casa" : key === "draw" ? "Empate" : "Fora";
+    if (market === "btts") return key === "yes" ? "Sim" : "Não";
+    if (market === "over_under")
+      return key === "over_25" ? "Over 2.5" : key === "under_25" ? "Under 2.5" : key;
+    return key.replaceAll("_", " ");
+  };
+
+  const marketTitle = (market: string): string => {
+    if (market === "1x2") return "Resultado (1X2)";
+    if (market === "btts") return "Ambas Marcam";
+    if (market === "over_under") return "Over / Under";
+    return market.replaceAll("_", " ");
+  };
+
+  return (
+    <div className="clay p-4">
+      <h2 className="mb-3 flex items-center justify-between text-sm font-bold">
+        <span>Mercado preditivo (Polymarket)</span>
+        {data.updated_at && (
+          <span className="text-[10px] font-normal text-muted-foreground">
+            {new Date(data.updated_at).toLocaleString("pt-BR")}
+          </span>
+        )}
+      </h2>
+      <div className="space-y-3">
+        {entries.map(([market, outcomes]) => (
+          <div key={market}>
+            <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+              {marketTitle(market)}
+            </div>
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+              {Object.entries(outcomes).map(([key, prob]) => (
+                <div key={key} className="clay-inset flex items-center justify-between px-3 py-2">
+                  <span className="text-xs">{outcomeLabel(market, key)}</span>
+                  <span className="font-mono text-sm font-semibold">
+                    {prob != null ? `${Math.round(prob * 100)}%` : "—"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function OddsTable({ data }: { data: OddsComparison }) {
   const markets = Object.entries(data.markets ?? {}).filter(
@@ -160,6 +239,7 @@ function EventPage({ eventId }: { eventId: number }) {
   const odds = useSuspenseQuery(oddsQuery(eventId));
   const lineups = useSuspenseQuery(lineupsQuery(eventId));
   const stats = useSuspenseQuery(statsQuery(eventId));
+  const polymarket = useSuspenseQuery(polymarketQuery(eventId));
 
   const [tab, setTab] = useState<TabId>("details");
 
@@ -198,7 +278,12 @@ function EventPage({ eventId }: { eventId: number }) {
         ))}
       </div>
 
-      {tab === "details" && <OddsTable data={odds.data} />}
+      {tab === "details" && (
+        <>
+          <PolymarketBlock data={polymarket.data} />
+          <OddsTable data={odds.data} />
+        </>
+      )}
       {tab === "lineups" && <LineupsDisplay lineups={lineups.data} />}
       {tab === "stats" && <StatsDisplay stats={stats.data} />}
     </div>

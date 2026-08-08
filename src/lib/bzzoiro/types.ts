@@ -109,6 +109,8 @@ export interface EventDetail {
   venue?: string | null;
   venue_id?: number | null;
   referee?: string | null;
+  has_xg?: boolean | null;
+  previous_leg_event_id?: number | null;
 }
 
 // -------- Odds Comparison (v2) --------
@@ -137,6 +139,16 @@ export interface OddsComparison {
   bookmakers_count?: number;
   total_odds?: number;
   markets?: Record<string, Record<string, OddsOutcome>> | null;
+}
+
+// -------- Polymarket (v2) --------
+
+export interface PolymarketData {
+  event_id: number;
+  markets?: Record<string, Record<string, number | null>> | null;
+  liquidity?: { volume_24hr?: number | null; open_interest?: number | null } | null;
+  pricing?: { best_bid?: number | null; best_ask?: number | null; change_1d?: number | null } | null;
+  updated_at?: string | null;
 }
 
 // -------- Lineups (v2) --------

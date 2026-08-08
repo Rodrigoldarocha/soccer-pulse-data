@@ -13,6 +13,7 @@ import { Route as ProximosRouteImport } from './routes/proximos'
 import { Route as MelhorApostaRouteImport } from './routes/melhor-aposta'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as AmanhaRouteImport } from './routes/amanha'
+import { Route as AcertividadeRouteImport } from './routes/acertividade'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
 import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
@@ -37,6 +38,11 @@ const AmanhaRoute = AmanhaRouteImport.update({
   path: '/amanha',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AcertividadeRoute = AcertividadeRouteImport.update({
+  id: '/acertividade',
+  path: '/acertividade',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -55,6 +61,7 @@ const ApiPublicHealthRoute = ApiPublicHealthRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/acertividade': typeof AcertividadeRoute
   '/amanha': typeof AmanhaRoute
   '/live': typeof LiveRoute
   '/melhor-aposta': typeof MelhorApostaRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/acertividade': typeof AcertividadeRoute
   '/amanha': typeof AmanhaRoute
   '/live': typeof LiveRoute
   '/melhor-aposta': typeof MelhorApostaRoute
@@ -74,6 +82,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/acertividade': typeof AcertividadeRoute
   '/amanha': typeof AmanhaRoute
   '/live': typeof LiveRoute
   '/melhor-aposta': typeof MelhorApostaRoute
@@ -85,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/acertividade'
     | '/amanha'
     | '/live'
     | '/melhor-aposta'
@@ -94,6 +104,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/acertividade'
     | '/amanha'
     | '/live'
     | '/melhor-aposta'
@@ -103,6 +114,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/acertividade'
     | '/amanha'
     | '/live'
     | '/melhor-aposta'
@@ -113,6 +125,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AcertividadeRoute: typeof AcertividadeRoute
   AmanhaRoute: typeof AmanhaRoute
   LiveRoute: typeof LiveRoute
   MelhorApostaRoute: typeof MelhorApostaRoute
@@ -151,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AmanhaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/acertividade': {
+      id: '/acertividade'
+      path: '/acertividade'
+      fullPath: '/acertividade'
+      preLoaderRoute: typeof AcertividadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -177,6 +197,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AcertividadeRoute: AcertividadeRoute,
   AmanhaRoute: AmanhaRoute,
   LiveRoute: LiveRoute,
   MelhorApostaRoute: MelhorApostaRoute,

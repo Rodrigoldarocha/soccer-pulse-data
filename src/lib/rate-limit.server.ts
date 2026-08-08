@@ -116,18 +116,4 @@ export async function checkRateLimit(
   return supabaseCheck(identifier, max, windowMs);
 }
 
-/**
- * Extrai o IP do request para uso como identificador de rate limit.
- */
-export function getRateLimitIdentifier(request: Request): string {
-  const cfIp = (request as { cf?: { connectingIp?: string } }).cf?.connectingIp;
-  if (cfIp) return cfIp;
 
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp;
-
-  return "unknown";
-}

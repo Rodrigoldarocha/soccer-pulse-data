@@ -17,9 +17,16 @@ export function LineupsDisplay({ lineups }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-      {home && <LineupSide team={home} />}
-      {away && <LineupSide team={away} />}
+    <div>
+      {lineups?.lineup_status === "predicted" && (
+        <div className="clay-sm mb-4 px-3 py-2 text-xs text-muted-foreground">
+          Escalações previstas pelo modelo — XI ainda não confirmado.
+        </div>
+      )}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {home && <LineupSide team={home} />}
+        {away && <LineupSide team={away} />}
+      </div>
     </div>
   );
 }

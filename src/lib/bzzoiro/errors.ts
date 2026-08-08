@@ -65,9 +65,10 @@ export class BzzoiroTokenError extends Error {
 /** Delay (ms) to wait before retrying, or undefined for default backoff. */
 export function getRetryDelay(error: unknown): number | undefined {
   if (error instanceof BzzoiroApiError && error.isRateLimit()) {
-    const rateLimit = (globalThis as Record<string, unknown>).__BZZOIRO_RATE_LIMIT as
-      | { retryAfter: number }
+    const rateLimits = (globalThis as Record<string, unknown>).__BZZOIRO_RATE_LIMITS as
+      | Map<string, { retryAfter: number }>
       | undefined;
+    const rateLimit = rateLimits?.get(error.path);
     if (rateLimit) return rateLimit.retryAfter * 1000 + 1000;
     return 60_000;
   }

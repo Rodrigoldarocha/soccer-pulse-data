@@ -27,8 +27,9 @@ export const listLiveEvents = createServerFn({ method: "GET" })
   .handler(async (ctx): Promise<LiveEvent[]> => {
     const request = (ctx as unknown as { request: Request }).request;
     const { data } = ctx;
-    const { checkRateLimit, getRateLimitIdentifier } = await import("./rate-limit.server");
-    await checkRateLimit(`live:list:${getRateLimitIdentifier(request)}`, {
+    const { checkRateLimit } = await import("./rate-limit.server");
+    const { getRequestIP } = await import("./request-ip");
+    await checkRateLimit(`live:list:${getRequestIP(request)}`, {
       max: 60,
       windowMs: 60_000,
     });
@@ -36,7 +37,7 @@ export const listLiveEvents = createServerFn({ method: "GET" })
     const { bzzoiroCachedFetch } = await import("./bzzoiro/cache.server");
 
     const params: Record<string, string | number | undefined> = {
-      status: "inprogress",
+      status: "live",
     };
     if (data.leagueId) params.league_id = data.leagueId;
 
