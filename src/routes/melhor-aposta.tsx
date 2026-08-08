@@ -49,7 +49,8 @@ function BestBetsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Melhores apostas de hoje</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Apenas partidas de hoje com confiança do modelo acima de {Math.round(MIN_CONFIDENCE * 100)}
+          Apenas partidas de hoje com confiança do modelo acima de{" "}
+          {Math.round(MIN_CONFIDENCE * 100)}
           %, ordenadas da mais forte para a menos forte.
         </p>
       </div>

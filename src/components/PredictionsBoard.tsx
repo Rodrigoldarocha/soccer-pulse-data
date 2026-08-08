@@ -10,10 +10,7 @@ import type { Prediction } from "@/lib/bzzoiro/types";
 
 export type DayFilter = "today" | "tomorrow" | "later" | "all";
 
-export function buildPredictionsQuery(
-  leagueId?: number,
-  opts: { recommended?: boolean } = {},
-) {
+export function buildPredictionsQuery(leagueId?: number, opts: { recommended?: boolean } = {}) {
   return queryOptions({
     queryKey: ["predictions", "upcoming", { limit: 30, leagueId, recommended: opts.recommended }],
     queryFn: () =>

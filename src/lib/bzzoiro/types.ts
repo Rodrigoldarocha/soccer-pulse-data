@@ -147,7 +147,11 @@ export interface PolymarketData {
   event_id: number;
   markets?: Record<string, Record<string, number | null>> | null;
   liquidity?: { volume_24hr?: number | null; open_interest?: number | null } | null;
-  pricing?: { best_bid?: number | null; best_ask?: number | null; change_1d?: number | null } | null;
+  pricing?: {
+    best_bid?: number | null;
+    best_ask?: number | null;
+    change_1d?: number | null;
+  } | null;
   updated_at?: string | null;
 }
 
