@@ -81,6 +81,9 @@ export function PredictionCard({ prediction }: Props) {
       over: Math.round(v as number),
     }));
   const bttsYes = markets.btts.prob_yes != null ? Math.round(markets.btts.prob_yes) : null;
+  const bttsShown = bttsYes != null && Math.abs(bttsYes - 50) >= 8;
+  const dnbHome = markets.draw_no_bet.prob_home;
+  const dnbShown = dnbHome != null && Math.abs(dnbHome - 50) >= 8;
 
   return (
     <Link
@@ -172,24 +175,24 @@ export function PredictionCard({ prediction }: Props) {
             </div>
           </div>
         )}
-        {bttsYes != null && (
+        {bttsShown && (
           <div className="clay-inset px-3 py-2.5">
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Ambos marcam
             </div>
-            <PctRow labelA="Sim" a={bttsYes} labelB="Não" b={100 - bttsYes} />
+            <PctRow labelA="Sim" a={bttsYes as number} labelB="Não" b={100 - (bttsYes as number)} />
           </div>
         )}
-        {markets.draw_no_bet.prob_home != null && (
+        {dnbShown && (
           <div className="clay-inset px-3 py-2.5">
             <div className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">
               Draw No Bet
             </div>
             <PctRow
               labelA={event.home_team}
-              a={Math.round(markets.draw_no_bet.prob_home)}
+              a={Math.round(dnbHome as number)}
               labelB={event.away_team}
-              b={Math.round(100 - markets.draw_no_bet.prob_home)}
+              b={Math.round(100 - (dnbHome as number))}
             />
           </div>
         )}

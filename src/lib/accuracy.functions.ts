@@ -7,29 +7,65 @@ import { z } from "zod";
 import type { Prediction } from "./bzzoiro/types";
 
 const accuracyInput = z.object({
+  market: z.enum(["1x2", "btts", "over25"]).default("1x2"),
   leagueId: z.number().int().positive().optional(),
   limit: z.number().int().min(1).max(200).default(200),
 });
+
+export type AccuracyMarket = "1x2" | "btts" | "over25";
 
 export interface AccuracyPick {
   event_id: number;
   event_date: string;
   home_team: string;
   away_team: string;
-  predicted: "H" | "D" | "A" | null;
-  actual: "H" | "D" | "A" | null;
+  predicted: "H" | "D" | "A" | "Sim" | "Não" | "Over" | "Under" | null;
+  actual: "H" | "D" | "A" | "Sim" | "Não" | "Over" | "Under" | null;
   confidence: number | null;
   hit: boolean | null;
 }
 
-export interface LeagueAccuracy {
-  league_id?: number;
+export interface MarketSummary {
+  market: AccuracyMarket;
   total: number;
   decided: number;
   hits: number;
   hit_rate: number | null;
   avg_confidence: number | null;
   picks: AccuracyPick[];
+}
+
+export interface LeagueAccuracy {
+  league_id?: number;
+  /** Amostra crua (todos os mercados usam os mesmos picks). */
+  sample: number;
+  markets: Record<AccuracyMarket, MarketSummary>;
+  /** Resumo do mercado selecionado — apenas troca o dedo sem refetch. */
+  market: AccuracyMarket;
+}
+
+function pctBinary<T extends string>(
+  pred: T | null,
+  actual: T | null,
+): { predicted: T | null; actual: T | null; hit: boolean | null } {
+  const hit = pred != null && actual != null ? pred === actual : null;
+  return { predicted: pred, actual, hit };
+}
+
+function summaryFor(market: AccuracyMarket, picks: AccuracyPick[]): MarketSummary {
+  const decided = picks.filter((p) => p.hit != null);
+  const hits = decided.filter((p) => p.hit).length;
+  const confidences = decided.map((p) => p.confidence).filter((c): c is number => c != null);
+  return {
+    market,
+    total: picks.length,
+    decided: decided.length,
+    hits,
+    hit_rate: decided.length > 0 ? hits / decided.length : null,
+    avg_confidence:
+      confidences.length > 0 ? confidences.reduce((a, b) => a + b, 0) / confidences.length : null,
+    picks: picks.sort((a, b) => b.event_date.localeCompare(a.event_date)),
+  };
 }
 
 function normalizeList<T>(raw: unknown): T[] {
@@ -108,35 +144,51 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
       scoreById.set(ev.id, { home: ev.home_score ?? null, away: ev.away_score ?? null });
     }
 
-    const picks: AccuracyPick[] = predictions.map((p) => {
-      const score = scoreById.get(p.event.id);
-      const actual = score ? outcomeFromScore(score.home, score.away) : null;
-      const predicted = p.markets.match_result?.predicted ?? null;
-      const hit = predicted != null && actual != null ? predicted === actual : null;
-      return {
-        event_id: p.event.id,
-        event_date: p.event.event_date,
-        home_team: p.event.home_team,
-        away_team: p.event.away_team,
-        predicted,
-        actual,
-        confidence: p.model?.confidence ?? null,
-        hit,
-      };
+    const base = (p: Prediction) => ({
+      event_id: p.event.id,
+      event_date: p.event.event_date,
+      home_team: p.event.home_team,
+      away_team: p.event.away_team,
+      confidence: p.model?.confidence ?? null,
+      predicted: null as AccuracyPick["predicted"],
+      actual: null as AccuracyPick["actual"],
+      hit: null as boolean | null,
     });
 
-    const decided = picks.filter((p) => p.hit != null);
-    const hits = decided.filter((p) => p.hit).length;
-    const confidences = decided.map((p) => p.confidence).filter((c): c is number => c != null);
+    const picksAll: AccuracyPick[] = predictions.map((p) => {
+      const sc = scoreById.get(p.event.id);
+      const actual3 = sc ? outcomeFromScore(sc.home, sc.away) : null;
+      return { ...base(p), predicted: p.markets.match_result?.predicted ?? null, actual: actual3 };
+    });
+
+    const picksBtts: AccuracyPick[] = predictions.map((p) => {
+      const sc = scoreById.get(p.event.id);
+      const yes = p.markets.btts?.prob_yes;
+      const bothScored = sc && sc.home != null && sc.away != null ? sc.home > 0 && sc.away > 0 : null;
+      const predicted: AccuracyPick["predicted"] = yes == null ? null : yes >= 50 ? "Sim" : "Não";
+      const picked = pctBinary(predicted, bothScored == null ? null : bothScored ? "Sim" : "Não");
+      return { ...base(p), predicted: picked.predicted, actual: picked.actual, hit: picked.hit };
+    });
+
+    const picksOver: AccuracyPick[] = predictions.map((p) => {
+      const sc = scoreById.get(p.event.id);
+      const over = p.markets.over_under?.prob_over_25;
+      const goals = sc && sc.home != null && sc.away != null ? sc.home + sc.away : null;
+      const predicted: AccuracyPick["predicted"] = over == null ? null : over >= 50 ? "Over" : "Under";
+      const picked = pctBinary(predicted, goals == null ? null : goals >= 3 ? "Over" : "Under");
+      return { ...base(p), predicted: picked.predicted, actual: picked.actual, hit: picked.hit };
+    });
+
+    const markets: Record<AccuracyMarket, MarketSummary> = {
+      "1x2": summaryFor("1x2", picksAll),
+      btts: summaryFor("btts", picksBtts),
+      over25: summaryFor("over25", picksOver),
+    };
 
     return {
       league_id: data.leagueId,
-      total: picks.length,
-      decided: decided.length,
-      hits,
-      hit_rate: decided.length > 0 ? hits / decided.length : null,
-      avg_confidence:
-        confidences.length > 0 ? confidences.reduce((a, b) => a + b, 0) / confidences.length : null,
-      picks: picks.sort((a, b) => b.event_date.localeCompare(a.event_date)),
+      sample: predictions.length,
+      markets,
+      market: data.market,
     };
   });
