@@ -10,7 +10,17 @@ const upcomingInput = z.object({
   minConfidence: z.number().min(0).max(1).optional(),
   leagueId: z.number().int().positive().optional(),
   recommended: z.boolean().optional(),
-  limit: z.number().int().min(1).max(100).default(30),
+  /** UTC day (YYYY-MM-DD) — inclusive lower bound do event_date. */
+  dateFrom: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  /** UTC day (YYYY-MM-DD) — limite superior do event_date. */
+  dateTo: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  limit: z.number().int().min(1).max(200).default(60),
 });
 
 export const listUpcomingPredictions = createServerFn({ method: "GET" })
@@ -32,6 +42,8 @@ export const listUpcomingPredictions = createServerFn({ method: "GET" })
       min_confidence: data.minConfidence,
       league_id: data.leagueId,
       recommended: data.recommended ? "true" : undefined,
+      date_from: data.dateFrom,
+      date_to: data.dateTo,
     };
 
     const key = await hashKey("predictions:v2:upcoming", params as Record<string, unknown>);

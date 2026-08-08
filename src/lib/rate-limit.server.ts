@@ -115,5 +115,3 @@ export async function checkRateLimit(
 
   return supabaseCheck(identifier, max, windowMs);
 }
-
-

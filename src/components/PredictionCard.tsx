@@ -41,7 +41,17 @@ function outcomeLabel(o: "H" | "D" | "A" | null, home: string, away: string): st
   return "Sem favorito";
 }
 
-function PctRow({ labelA, a, labelB, b }: { labelA: string; a: number; labelB: string; b: number }) {
+function PctRow({
+  labelA,
+  a,
+  labelB,
+  b,
+}: {
+  labelA: string;
+  a: number;
+  labelB: string;
+  b: number;
+}) {
   return (
     <div className="flex items-center justify-between text-xs">
       <span className="font-medium">{labelA}</span>
