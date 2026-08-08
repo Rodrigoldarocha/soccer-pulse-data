@@ -25,7 +25,7 @@ export const Route = createFileRoute("/")({
   }),
   loaderDeps: ({ search }) => ({ leagueId: search.leagueId }),
   loader: ({ context, deps }) => {
-    context.queryClient.ensureQueryData(buildPredictionsQuery(deps.leagueId));
+    context.queryClient.ensureQueryData(buildPredictionsQuery(deps.leagueId, { dayFilter: "today" }));
   },
   component: TodayPage,
 });

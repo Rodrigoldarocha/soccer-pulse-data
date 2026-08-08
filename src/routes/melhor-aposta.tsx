@@ -6,6 +6,8 @@ import { PredictionCard } from "@/components/PredictionCard";
 import { buildPredictionsQuery } from "@/components/PredictionsBoard";
 import type { Prediction } from "@/lib/bzzoiro/types";
 
+// Confiança mínima aplicada no servidor (min_confidence) e na exibição.
+
 export const Route = createFileRoute("/melhor-aposta")({
   head: () => ({
     meta: [
@@ -25,7 +27,7 @@ export const Route = createFileRoute("/melhor-aposta")({
     ],
   }),
   loader: ({ context }) => {
-    context.queryClient.ensureQueryData(buildPredictionsQuery(undefined, { recommended: true }));
+    context.queryClient.ensureQueryData(buildPredictionsQuery(undefined, { dayFilter: "today", minConfidence: MIN_CONFIDENCE }));
   },
   component: BestBetsPage,
 });
@@ -72,7 +74,7 @@ function BestBetsPage() {
 
 function BestBetsGrid() {
   const { data: predictions } = useSuspenseQuery(
-    buildPredictionsQuery(undefined, { recommended: true }),
+    buildPredictionsQuery(undefined, { dayFilter: "today", minConfidence: MIN_CONFIDENCE }),
   );
   const [mounted, setMounted] = useState(false);
 

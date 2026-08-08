@@ -10,11 +10,43 @@ import type { Prediction } from "@/lib/bzzoiro/types";
 
 export type DayFilter = "today" | "tomorrow" | "later" | "all";
 
-export function buildPredictionsQuery(leagueId?: number, opts: { recommended?: boolean } = {}) {
+export interface PredictionsQueryOpts {
+  /** Restringe o feed ao período exibido (API filtra por event_date em UTC). */
+  dayFilter?: DayFilter;
+  minConfidence?: number;
+  limit?: number;
+}
+
+/** Dia UTC (YYYY-MM-DD) deslocado por `offset` dias a partir de hoje. */
+export function utcDay(offset = 0) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + offset);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * A API pagina por data (`date_from`), então cada período precisa do seu
+ * próprio recorte — sem isso um único `limit` cobria apenas o primeiro dia e
+ * as abas "Amanhã"/"Próximos" vinham vazias.
+ */
+function dateFromFor(dayFilter: DayFilter | undefined) {
+  if (dayFilter === "tomorrow") return utcDay(0);
+  if (dayFilter === "later") return utcDay(1);
+  return utcDay(0);
+}
+
+export function buildPredictionsQuery(leagueId?: number, opts: PredictionsQueryOpts = {}) {
+  const limit = opts.limit ?? 200;
+  const dateFrom = dateFromFor(opts.dayFilter);
+  const data = {
+    limit,
+    leagueId,
+    dateFrom,
+    minConfidence: opts.minConfidence,
+  };
   return queryOptions({
-    queryKey: ["predictions", "upcoming", { limit: 30, leagueId, recommended: opts.recommended }],
-    queryFn: () =>
-      listUpcomingPredictions({ data: { limit: 30, leagueId, recommended: opts.recommended } }),
+    queryKey: ["predictions", "upcoming", data],
+    queryFn: () => listUpcomingPredictions({ data }),
     staleTime: 30_000,
     refetchInterval: (query) => {
       const data = query.state.data;
@@ -103,7 +135,7 @@ function PredictionsGrid({ leagueId, dayFilter }: { leagueId?: number; dayFilter
     data: predictions,
     isFetching,
     dataUpdatedAt,
-  } = useSuspenseQuery(buildPredictionsQuery(leagueId));
+  } = useSuspenseQuery(buildPredictionsQuery(leagueId, { dayFilter }));
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

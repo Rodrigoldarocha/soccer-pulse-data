@@ -25,7 +25,7 @@ export const Route = createFileRoute("/proximos")({
   }),
   loaderDeps: ({ search }) => ({ leagueId: search.leagueId }),
   loader: ({ context, deps }) => {
-    context.queryClient.ensureQueryData(buildPredictionsQuery(deps.leagueId));
+    context.queryClient.ensureQueryData(buildPredictionsQuery(deps.leagueId, { dayFilter: "later" }));
   },
   component: UpcomingPage,
 });
