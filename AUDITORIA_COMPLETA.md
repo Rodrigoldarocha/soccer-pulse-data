@@ -70,6 +70,9 @@ Endpoints usados:
 | P-14 | P3 | Docs internos desatualizados |
 | P-15 | RESOLVIDA | `__BZZOIRO_RATE_LIMITS` agora é `Map<path, retryAfter>` — Retry-After por endpoint, sem sobrescrita em concorrência |
 | P-16 | RESOLVIDA | Extrator único `getRequestIP` (fallback `"unknown"`) usado em lineups/stats/live; `getRateLimitIdentifier` removido |
+| P-17 | P0 | `/amanha` e `/proximos` vinham vazias: o feed pedia 30 previsões sem filtro de data e os jogos de hoje consumiam toda a resposta |
+| P-18 | P0 | `/melhor-aposta` usava `recommended=true`, parâmetro que a API v2 responde com `count: 0` — página sempre vazia |
+
 ## 5. Problemas Corrigidos
 
 | ID | Correção aplicada | Arquivo(s) |
@@ -82,6 +85,8 @@ Endpoints usados:
 | P-06 | Novo `getLeagueAccuracy` (status=finished × resultado real) + rota `/acertividade` | `src/lib/accuracy.functions.ts` (novo), `src/routes/acertividade.tsx` (novo) |
 | P-07 | Badge "Escalações previstas pelo modelo" | `src/components/LineupsDisplay.tsx` |
 | P-08 | Bloco PolData na ficha (prob implícitas 0–1 → %) | `src/routes/events.$eventId.tsx`, `src/lib/events.functions.ts` |
+| P-17 | `dateFrom`/`dateTo` (dia UTC) no serverFn + `limit` até 200; cada aba pede seu próprio recorte (`date_from`) | `src/lib/predictions.functions.ts`, `src/components/PredictionsBoard.tsx`, `src/routes/index.tsx`, `amanha.tsx`, `proximos.tsx` |
+| P-18 | Troca de `recommended` por `min_confidence=0.6` + recorte do dia | `src/routes/melhor-aposta.tsx` |
 | P-09 | Badges `xG disponível` e `2ª mão` | `src/routes/events.$eventId.tsx`, `src/lib/bzzoiro/types.ts` |
 
 ## 6. Problemas Pendentes
