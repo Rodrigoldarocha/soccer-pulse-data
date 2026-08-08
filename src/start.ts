@@ -1,7 +1,6 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 
 
@@ -28,6 +27,6 @@ const csrfMiddleware = createCsrfMiddleware({
 // intentionally omitted to prevent the Supabase client from being pulled into
 // the browser bundle (where VITE_SUPABASE_* env vars aren't set in publish).
 export const startInstance = createStart(() => ({
-  functionMiddleware: [attachSupabaseAuth],
+  functionMiddleware: [],
   requestMiddleware: [errorMiddleware, csrfMiddleware],
 }));
