@@ -109,7 +109,14 @@ export async function checkRateLimit(
     process.env.NODE_ENV === "test" ||
     !process.env.NODE_ENV;
 
-  if (isDev) {
+  const hasSupabase = Boolean(
+    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
+  );
+
+  if (isDev || !hasSupabase) {
+    if (!isDev) {
+      console.warn("[rate-limit] Supabase ausente — rate limit em memória (por instância).");
+    }
     return memCheck(identifier, max, windowMs);
   }
 

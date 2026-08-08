@@ -5,6 +5,7 @@
 import { z } from "zod";
 import { bzzoiroFetch, type FetchOptions } from "./client.server";
 import type { CacheStore, CacheEntry } from "./cache-store";
+import { InMemoryCacheStore } from "./cache-store";
 
 // Hash-based cache key to keep index size small.
 export async function hashKey(prefix: string, params: Record<string, unknown>): Promise<string> {
@@ -29,12 +30,24 @@ type SupabaseAdmin = Awaited<
 
 let _admin: SupabaseAdmin | null = null;
 
+function hasSupabase(): boolean {
+  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+const memStore = new InMemoryCacheStore();
+
 async function getSupabaseAdmin(): Promise<SupabaseAdmin> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
 }
 
 function defaultStore(): CacheStore {
+  if (!hasSupabase()) {
+    console.warn(
+      "[cache] Supabase não configurado — usando cache em memória (por instância, não persiste).",
+    );
+    return memStore;
+  }
   const store: CacheStore = {
     async get(key: string): Promise<CacheEntry | null> {
       if (!_admin) _admin = await getSupabaseAdmin();
@@ -109,7 +122,7 @@ export async function bzzoiroCachedFetch<T>(path: string, opts: CachedFetchOptio
     }
 
     // 3b. Purga probabilística: 10% das chamadas limpam cache expirado.
-    if (Math.random() < 0.1) {
+    if (hasSupabase() && Math.random() < 0.1) {
       try {
         if (!_admin) _admin = await getSupabaseAdmin();
         await _admin.rpc("purge_expired_cache");
