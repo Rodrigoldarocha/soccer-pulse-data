@@ -25,7 +25,9 @@ export const Route = createFileRoute("/amanha")({
   }),
   loaderDeps: ({ search }) => ({ leagueId: search.leagueId }),
   loader: ({ context, deps }) => {
-    context.queryClient.ensureQueryData(buildPredictionsQuery(deps.leagueId, { dayFilter: "tomorrow" }));
+    context.queryClient.ensureQueryData(
+      buildPredictionsQuery(deps.leagueId, { dayFilter: "tomorrow" }),
+    );
   },
   component: TomorrowPage,
 });

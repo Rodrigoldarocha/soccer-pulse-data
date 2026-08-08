@@ -27,7 +27,9 @@ export const Route = createFileRoute("/melhor-aposta")({
     ],
   }),
   loader: ({ context }) => {
-    context.queryClient.ensureQueryData(buildPredictionsQuery(undefined, { dayFilter: "today", minConfidence: MIN_CONFIDENCE }));
+    context.queryClient.ensureQueryData(
+      buildPredictionsQuery(undefined, { dayFilter: "today", minConfidence: MIN_CONFIDENCE }),
+    );
   },
   component: BestBetsPage,
 });
