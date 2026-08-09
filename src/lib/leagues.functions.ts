@@ -7,7 +7,7 @@ export const listLeagues = createServerFn({ method: "GET" }).handler(
     const { checkRateLimit } = await import("./rate-limit.server");
     const { getRequestIP } = await import("./request-ip");
     await checkRateLimit(`leagues:list:${getRequestIP(getRequest())}`, {
-      max: 10,
+      max: 60,
       windowMs: 60_000,
     });
 

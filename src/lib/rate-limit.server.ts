@@ -109,9 +109,7 @@ export async function checkRateLimit(
     process.env.NODE_ENV === "test" ||
     !process.env.NODE_ENV;
 
-  const hasSupabase = Boolean(
-    process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY,
-  );
+  const hasSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   if (isDev || !hasSupabase) {
     if (!isDev) {

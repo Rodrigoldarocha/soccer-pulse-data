@@ -30,7 +30,7 @@ export const listUpcomingPredictions = createServerFn({ method: "GET" })
     const { checkRateLimit } = await import("./rate-limit.server");
     const { getRequestIP } = await import("./request-ip");
     await checkRateLimit(`predictions:upcoming:${getRequestIP(getRequest())}`, {
-      max: 30,
+      max: 90,
       windowMs: 60_000,
     });
 

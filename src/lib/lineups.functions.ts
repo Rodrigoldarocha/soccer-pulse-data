@@ -14,7 +14,7 @@ export const getEventLineups = createServerFn({ method: "GET" })
     const { checkRateLimit } = await import("./rate-limit.server");
     const { getRequestIP } = await import("./request-ip");
     await checkRateLimit(`lineups:${getRequestIP(getRequest())}`, {
-      max: 30,
+      max: 90,
       windowMs: 60_000,
     });
 

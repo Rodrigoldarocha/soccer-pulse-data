@@ -22,7 +22,9 @@ export const Route = createFileRoute("/acertividade")({
       { property: "og:type", content: "website" },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>): { leagueId?: number; market?: AccuracyMarket } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { leagueId?: number; market?: AccuracyMarket } => ({
     leagueId: typeof search.leagueId === "number" ? search.leagueId : undefined,
     market:
       search.market === "btts" || search.market === "over25" || search.market === "1x2"
@@ -154,7 +156,9 @@ function AccuracyData({ leagueId, market }: { leagueId?: number; market?: Accura
     <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {stats.map((st) => (
         <div key={st.label} className="clay p-4 text-center">
-          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{st.label}</div>
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            {st.label}
+          </div>
           <div className="mt-1 text-2xl font-black">{st.value}</div>
         </div>
       ))}
@@ -208,7 +212,9 @@ function PickRow({ pick }: { pick: AccuracyPick }) {
   return (
     <tr className="border-b border-border/50 last:border-0">
       <td className="px-4 py-2 tabular-nums text-muted-foreground">
-        {new Date(pick.event_date).toLocaleDateString("pt-BR")}
+        {new Date(pick.event_date).toLocaleDateString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+        })}
       </td>
       <td className="px-4 py-2 font-medium">
         {pick.home_team} × {pick.away_team}

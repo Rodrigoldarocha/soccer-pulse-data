@@ -22,7 +22,7 @@ function oddsQuery(eventId: number) {
   return queryOptions({
     queryKey: ["odds", "comparison", eventId],
     queryFn: () => getOddsComparison({ data: { eventId } }),
-    staleTime: 1 * 60_000,
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -74,6 +74,7 @@ function MatchHeader({ event, leagueName }: { event: EventDetail; leagueName?: s
           year: "numeric",
           hour: "2-digit",
           minute: "2-digit",
+          timeZone: "America/Sao_Paulo",
         })}
       </p>
 
@@ -124,7 +125,23 @@ const MARKET_LABELS: Record<string, string> = {
   over_under: "Over / Under",
   double_chance: "Dupla Chance",
   handicap: "Handicap",
+  draw_no_bet: "Sem Empate (DNB)",
+  correct_score: "Placar Exato",
+  half_time: "Intervalo",
+  total_goals: "Total de Gols",
 };
+
+/** Turns API market keys like `over_under_25` into "Over / Under 2.5". */
+function marketLabel(market: string): string {
+  if (MARKET_LABELS[market]) return MARKET_LABELS[market];
+  const ou = /^over_under_(\d+)$/.exec(market);
+  if (ou) {
+    const digits = ou[1];
+    const line = digits.length > 1 ? `${digits.slice(0, -1)}.${digits.slice(-1)}` : digits;
+    return `Over / Under ${line}`;
+  }
+  return market.replaceAll("_", " ").replace(/^\w/, (c) => c.toUpperCase());
+}
 
 function PolymarketBlock({ data }: { data: PolymarketData | null }) {
   if (!data) return null;
@@ -141,12 +158,7 @@ function PolymarketBlock({ data }: { data: PolymarketData | null }) {
     return key.replaceAll("_", " ");
   };
 
-  const marketTitle = (market: string): string => {
-    if (market === "1x2") return "Resultado (1X2)";
-    if (market === "btts") return "Ambas Marcam";
-    if (market === "over_under") return "Over / Under";
-    return market.replaceAll("_", " ");
-  };
+  const marketTitle = marketLabel;
 
   return (
     <div className="clay p-4">
@@ -154,7 +166,9 @@ function PolymarketBlock({ data }: { data: PolymarketData | null }) {
         <span>Mercado preditivo (Polymarket)</span>
         {data.updated_at && (
           <span className="text-[10px] font-normal text-muted-foreground">
-            {new Date(data.updated_at).toLocaleString("pt-BR")}
+            {new Date(data.updated_at).toLocaleString("pt-BR", {
+              timeZone: "America/Sao_Paulo",
+            })}
           </span>
         )}
       </h2>
@@ -198,9 +212,8 @@ function OddsTable({ data }: { data: OddsComparison }) {
     <div className="space-y-4">
       {markets.map(([market, outcomes]) => (
         <div key={market} className="clay p-4">
-          <h2 className="mb-3 text-sm font-bold">
-            {MARKET_LABELS[market] ?? market.replaceAll("_", " ")}
-          </h2>
+          <h2 className="mb-3 text-sm font-bold">{marketLabel(market)}</h2>
+
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {Object.entries(outcomes).map(([key, o]) => (
               <div key={key} className="clay-inset p-3">
