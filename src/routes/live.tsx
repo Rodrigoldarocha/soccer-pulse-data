@@ -1,5 +1,5 @@
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useHydrated } from "@tanstack/react-router";
 import { Suspense } from "react";
 
 import { listLiveEvents, type LiveEvent } from "@/lib/live.functions";
@@ -59,8 +59,13 @@ function LivePage() {
 
 function LiveGrid() {
   const { data: events, isFetching, dataUpdatedAt } = useSuspenseQuery(liveQuery);
+  const hydrated = useHydrated();
 
-  const lastUpdate = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString("pt-BR") : null;
+  // Rendered only after hydration: the server clock would not match the browser.
+  const lastUpdate =
+    hydrated && dataUpdatedAt
+      ? new Date(dataUpdatedAt).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo" })
+      : null;
 
   if (events.length === 0) {
     return (

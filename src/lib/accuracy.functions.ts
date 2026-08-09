@@ -95,7 +95,7 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
     const { checkRateLimit } = await import("./rate-limit.server");
     const { getRequestIP } = await import("./request-ip");
     await checkRateLimit(`accuracy:${getRequestIP(getRequest())}`, {
-      max: 10,
+      max: 60,
       windowMs: 60_000,
     });
 
@@ -164,7 +164,8 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
     const picksBtts: AccuracyPick[] = predictions.map((p) => {
       const sc = scoreById.get(p.event.id);
       const yes = p.markets.btts?.prob_yes;
-      const bothScored = sc && sc.home != null && sc.away != null ? sc.home > 0 && sc.away > 0 : null;
+      const bothScored =
+        sc && sc.home != null && sc.away != null ? sc.home > 0 && sc.away > 0 : null;
       const predicted: AccuracyPick["predicted"] = yes == null ? null : yes >= 50 ? "Sim" : "Não";
       const picked = pctBinary(predicted, bothScored == null ? null : bothScored ? "Sim" : "Não");
       return { ...base(p), predicted: picked.predicted, actual: picked.actual, hit: picked.hit };
@@ -174,7 +175,8 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
       const sc = scoreById.get(p.event.id);
       const over = p.markets.over_under?.prob_over_25;
       const goals = sc && sc.home != null && sc.away != null ? sc.home + sc.away : null;
-      const predicted: AccuracyPick["predicted"] = over == null ? null : over >= 50 ? "Over" : "Under";
+      const predicted: AccuracyPick["predicted"] =
+        over == null ? null : over >= 50 ? "Over" : "Under";
       const picked = pctBinary(predicted, goals == null ? null : goals >= 3 ? "Over" : "Under");
       return { ...base(p), predicted: picked.predicted, actual: picked.actual, hit: picked.hit };
     });

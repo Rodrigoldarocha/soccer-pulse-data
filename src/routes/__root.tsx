@@ -139,9 +139,7 @@ function RootComponent() {
           <span className="clay-primary grid h-16 w-16 animate-bounce place-items-center rounded-2xl text-3xl font-black">
             Z
           </span>
-          <span className="text-sm font-semibold text-muted-foreground">
-            Carregando previsões…
-          </span>
+          <span className="text-sm font-semibold text-muted-foreground">Carregando previsões…</span>
         </div>
       )}
       <header className="mx-auto max-w-6xl px-4 py-5">
