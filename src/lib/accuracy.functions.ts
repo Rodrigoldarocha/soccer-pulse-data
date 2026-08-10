@@ -194,8 +194,11 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
     const picksAll: AccuracyPick[] = predictions.map((p) => {
       const sc = scoreById.get(p.event.id);
       const actual3 = sc ? outcomeFromScore(sc.home, sc.away) : null;
-      return { ...base(p), predicted: p.markets.match_result?.predicted ?? null, actual: actual3 };
+      const predicted3 = p.markets.match_result?.predicted ?? null;
+      const picked = pctBinary(predicted3, actual3);
+      return { ...base(p), predicted: picked.predicted, actual: picked.actual, hit: picked.hit };
     });
+
 
     const picksBtts: AccuracyPick[] = predictions.map((p) => {
       const sc = scoreById.get(p.event.id);
