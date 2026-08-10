@@ -179,7 +179,6 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
     // Only keep picks we can actually score — no undecided rows presented as backtest.
     const predictions = allPredictions.filter((p) => scoreById.has(p.event.id));
 
-
     const base = (p: Prediction) => ({
       event_id: p.event.id,
       event_date: p.event.event_date,
@@ -198,7 +197,6 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
       const picked = pctBinary(predicted3, actual3);
       return { ...base(p), predicted: picked.predicted, actual: picked.actual, hit: picked.hit };
     });
-
 
     const picksBtts: AccuracyPick[] = predictions.map((p) => {
       const sc = scoreById.get(p.event.id);

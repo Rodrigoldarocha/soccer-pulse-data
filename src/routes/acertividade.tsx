@@ -63,7 +63,6 @@ function AccuracyPage() {
         <p className="text-sm text-muted-foreground">
           Backtest contra resultados reais — selecione o mercado. Partidas finalizadas dos últimos 7
           dias.
-
         </p>
         <div className="flex flex-wrap gap-2">
           <Suspense fallback={<div className="clay-sm h-11 w-40 animate-pulse rounded-xl" />}>
