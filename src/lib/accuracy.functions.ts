@@ -101,21 +101,49 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
 
     const { bzzoiroCachedFetch, hashKey } = await import("./bzzoiro/cache.server");
 
+    // The upstream /predictions/ endpoint ignores `status`, so we bound the
+    // sample by date instead: a closed window that ends yesterday (UTC) only
+    // contains matches that already have a final score.
+    const day = (offsetDays: number) =>
+      new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
+    const dateTo = day(-1);
+    const dateFrom = day(-8);
+
     const predParams: Record<string, string | number | undefined> = {
-      status: "finished",
       limit: data.limit,
       league_id: data.leagueId,
-    };
-    const evParams: Record<string, string | number | undefined> = {
-      status: "finished",
-      limit: data.limit,
-      league_id: data.leagueId,
+      date_from: dateFrom,
+      date_to: dateTo,
     };
 
-    const predKey = await hashKey("accuracy:v1:predictions", predParams as Record<string, unknown>);
-    const evKey = await hashKey("accuracy:v1:events", evParams as Record<string, unknown>);
+    const predKey = await hashKey("accuracy:v2:predictions", predParams as Record<string, unknown>);
 
-    const [predRaw, evRaw] = await Promise.all([
+    // Scores live on /events/, which pages at 200 items — walk enough pages to
+    // cover the same window so every prediction can be resolved.
+    type EventRow = { id: number; home_score?: number | null; away_score?: number | null };
+    const PAGE = 200;
+    const MAX_PAGES = 6;
+
+    const fetchEventsPage = async (offset: number) => {
+      const evParams: Record<string, string | number | undefined> = {
+        status: "finished",
+        limit: PAGE,
+        offset,
+        league_id: data.leagueId,
+        date_from: dateFrom,
+        date_to: dateTo,
+      };
+      const evKey = await hashKey("accuracy:v2:events", evParams as Record<string, unknown>);
+      return bzzoiroCachedFetch<unknown>("/api/v2/events/", {
+        key: evKey,
+        ttlSeconds: 10 * 60,
+        params: evParams,
+        timeoutMs: 20_000,
+        retries: 2,
+      });
+    };
+
+    const [predRaw, firstEvRaw] = await Promise.all([
       bzzoiroCachedFetch<unknown>("/api/v2/predictions/", {
         key: predKey,
         ttlSeconds: 10 * 60,
@@ -123,26 +151,33 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
         timeoutMs: 20_000,
         retries: 2,
       }),
-      bzzoiroCachedFetch<unknown>("/api/v2/events/", {
-        key: evKey,
-        ttlSeconds: 10 * 60,
-        params: evParams,
-        timeoutMs: 20_000,
-        retries: 2,
-      }),
+      fetchEventsPage(0),
     ]);
 
-    const predictions = normalizeList<Prediction>(predRaw);
-    const events = normalizeList<{
-      id: number;
-      home_score?: number | null;
-      away_score?: number | null;
-    }>(evRaw);
+    const totalEvents =
+      firstEvRaw && typeof firstEvRaw === "object" && "count" in firstEvRaw
+        ? Number((firstEvRaw as { count: unknown }).count) || 0
+        : 0;
+
+    const events: EventRow[] = normalizeList<EventRow>(firstEvRaw);
+    const pages = Math.min(MAX_PAGES, Math.ceil(totalEvents / PAGE) || 1);
+    if (pages > 1) {
+      const rest = await Promise.all(
+        Array.from({ length: pages - 1 }, (_, i) => fetchEventsPage((i + 1) * PAGE)),
+      );
+      for (const page of rest) events.push(...normalizeList<EventRow>(page));
+    }
+
+    const allPredictions = normalizeList<Prediction>(predRaw);
 
     const scoreById = new Map<number, { home: number | null; away: number | null }>();
     for (const ev of events) {
-      scoreById.set(ev.id, { home: ev.home_score ?? null, away: ev.away_score ?? null });
+      if (ev.home_score == null || ev.away_score == null) continue;
+      scoreById.set(ev.id, { home: ev.home_score, away: ev.away_score });
     }
+
+    // Only keep picks we can actually score — no undecided rows presented as backtest.
+    const predictions = allPredictions.filter((p) => scoreById.has(p.event.id));
 
     const base = (p: Prediction) => ({
       event_id: p.event.id,
@@ -158,7 +193,9 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
     const picksAll: AccuracyPick[] = predictions.map((p) => {
       const sc = scoreById.get(p.event.id);
       const actual3 = sc ? outcomeFromScore(sc.home, sc.away) : null;
-      return { ...base(p), predicted: p.markets.match_result?.predicted ?? null, actual: actual3 };
+      const predicted3 = p.markets.match_result?.predicted ?? null;
+      const picked = pctBinary(predicted3, actual3);
+      return { ...base(p), predicted: picked.predicted, actual: picked.actual, hit: picked.hit };
     });
 
     const picksBtts: AccuracyPick[] = predictions.map((p) => {

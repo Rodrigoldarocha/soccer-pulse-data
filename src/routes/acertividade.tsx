@@ -61,7 +61,8 @@ function AccuracyPage() {
       <div className="mb-6 space-y-3">
         <h1 className="text-2xl font-bold">Acertividade por liga</h1>
         <p className="text-sm text-muted-foreground">
-          Backtest contra resultados reais — selecione o mercado. Últimas 200 previsões finalizadas.
+          Backtest contra resultados reais — selecione o mercado. Partidas finalizadas dos últimos 7
+          dias.
         </p>
         <div className="flex flex-wrap gap-2">
           <Suspense fallback={<div className="clay-sm h-11 w-40 animate-pulse rounded-xl" />}>
