@@ -1,108 +1,272 @@
-# Zagueiro — Previsões ML de Futebol
+# ⚽ Zagueiro — Previsões ML de Futebol
 
-Previsões CatBoost para partidas de futebol: 1X2, Over/Under, BTTS, Expectativas de Gols e placar mais provável.
+Dashboard de **previsões de futebol com Machine Learning**, utilizando CatBoost para estimar probabilidades de **1X2, Over/Under, BTTS, gols esperados (xG) e placar provável**.
 
-## Stack
+---
 
-- **Runtime**: Node.js 22 (via nvm) / Bun
-- **Framework**: TanStack Start + React 19 + TypeScript 5.8
-- **Estilo**: Tailwind CSS v4 + shadcn/ui
-- **API Externa**: Bzzoiro Sports Data API (CatBoost ML)
-- **Banco/Cache**: Supabase (PostgreSQL 14.5)
-- **Deploy**: Cloudflare Workers (Nitro)
+## ✨ Funcionalidades
 
-## Pré-requisitos
+* 🤖 **Previsões ML** — probabilidades para 1X2, Over/Under, BTTS e xG
+* ⚽ **Jogos ao Vivo** — placares e eventos atualizados automaticamente
+* 📊 **Detalhes da partida** — estatísticas, previsões e odds
+* 💰 **Comparação de odds** — visualização de odds entre casas disponíveis
+* 🔄 **Atualização automática** — polling para partidas e eventos ativos
+* 💾 **Cache distribuído** — PostgreSQL/Supabase com fallback para dados expirados
+* 🛡️ **Rate limiting** — proteção distribuída em produção
+* 🚨 **Tratamento de erros** — timeout, autenticação, limite de requisições e falhas da API
+* 📱 **Interface responsiva** — desktop e mobile
 
-- Node.js >= 22 (use [nvm](https://github.com/nvm-sh/nvm))
-- Bun (opcional, para lockfile)
+---
 
-## Setup
+## 🛠️ Stack
 
-```sh
-# Clone e instale
+| Tecnologia                  | Uso               |
+| --------------------------- | ----------------- |
+| **Node.js 22 / Bun**        | Runtime           |
+| **TanStack Start**          | Framework         |
+| **React 19**                | Interface         |
+| **TypeScript 5.8**          | Tipagem           |
+| **Tailwind CSS v4**         | Estilização       |
+| **shadcn/ui**               | Componentes       |
+| **CatBoost**                | Machine Learning  |
+| **Bzzoiro Sports Data API** | Dados e previsões |
+| **Supabase / PostgreSQL**   | Banco e cache     |
+| **Cloudflare Workers**      | Deploy            |
+
+---
+
+## 🚀 Setup
+
+### Pré-requisitos
+
+* Node.js `>= 22`
+* npm
+* Bun *(opcional)*
+
+### Instalação
+
+```bash
 git clone <repo-url>
-cd soccer-pulse-data
+cd <project-directory>
+
 npm install
 
-# Configure variáveis de ambiente
 cp .env.example .env
-# Edite .env com suas chaves (ver abaixo)
 ```
 
-## Variáveis de Ambiente
+Configure as variáveis no `.env`.
 
-| Variável                        | Obrigatória | Descrição                               |
-| ------------------------------- | ----------- | --------------------------------------- |
-| `BZZOIRO_TOKEN`                 | Sim         | Token da API Bzzoiro                    |
-| `SUPABASE_URL`                  | Sim         | URL do projeto Supabase                 |
-| `SUPABASE_SERVICE_ROLE_KEY`     | Server-side | Chave service_role (cache + rate limit) |
-| `SUPABASE_PUBLISHABLE_KEY`      | Sim         | Chave pública anônima do Supabase       |
-| `VITE_SUPABASE_URL`             | Sim         | Mesmo valor de SUPABASE_URL (Vite)      |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Sim         | Mesmo valor de SUPABASE_PUBLISHABLE_KEY |
+---
 
-> **⚠️ Segurança**: Nunca commite o arquivo `.env`. Use `.env.example` como template.
+## 🔐 Variáveis de Ambiente
 
-## Scripts
+| Variável                        | Obrigatória | Descrição                       |
+| ------------------------------- | ----------- | ------------------------------- |
+| `BZZOIRO_TOKEN`                 | ✅           | Token da API Bzzoiro            |
+| `SUPABASE_URL`                  | ✅           | URL do Supabase                 |
+| `SUPABASE_SERVICE_ROLE_KEY`     | 🔒 Server   | Chave `service_role`            |
+| `SUPABASE_PUBLISHABLE_KEY`      | ✅           | Chave pública do Supabase       |
+| `VITE_SUPABASE_URL`             | ✅           | URL do Supabase para o frontend |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | ✅           | Chave pública para o frontend   |
 
-```sh
-npm run dev              # Dev server com HMR
-npm run build            # Build produção
-npm run test             # Rodar testes unitários
-npm run lint             # ESLint
-npm run format           # Prettier
-bun scripts/verify-setup.ts  # Verificar configuração
+> ⚠️ **Nunca versione o `.env`.** Utilize `.env.example` como modelo e mantenha credenciais privadas exclusivamente no ambiente de execução.
+
+---
+
+## 📜 Scripts
+
+```bash
+npm run dev                 # Desenvolvimento com HMR
+npm run build               # Build de produção
+npm run test                # Testes unitários
+npm run lint                # ESLint
+npm run format              # Prettier
+bun scripts/verify-setup.ts # Validação da configuração
 ```
 
-## Arquitetura
+---
 
-```
+## 🏗️ Arquitetura
+
+```text
 src/
-├── __tests__/          # Testes unitários (Vitest)
-├── components/         # Componentes React (UI)
+├── __tests__/                 # Testes Vitest
+├── components/                # Componentes React
 │   ├── PredictionCard.tsx
 │   ├── TeamLogo.tsx
-│   └── ui/             # shadcn/ui components
+│   └── ui/
+│
 ├── integrations/
-│   └── supabase/       # Clientes Supabase (client/server/admin)
+│   └── supabase/              # Clientes Supabase
+│
 ├── lib/
-│   ├── bzzoiro/        # API client + cache (server-only)
-│   ├── predictions.functions.ts  # Server functions
-│   ├── live.functions.ts         # Live events server function
-│   └── rate-limit.server.ts      # Rate limiting (distribuído)
-├── routes/             # TanStack Router (file-based)
-│   ├── index.tsx       # Home — previsões futuras
-│   ├── live.tsx        # Ao Vivo — jogos em andamento
-│   └── events.$eventId.tsx  # Detalhe do evento + odds
-└── server.ts           # SSR entry + security headers
+│   ├── bzzoiro/              # API + cache
+│   ├── predictions.functions.ts
+│   ├── live.functions.ts
+│   └── rate-limit.server.ts
+│
+├── routes/
+│   ├── index.tsx             # Previsões
+│   ├── live.tsx              # Jogos ao vivo
+│   └── events.$eventId.tsx   # Detalhes da partida
+│
+└── server.ts                 # SSR + headers de segurança
 ```
 
-### Fluxo de dados
+### 🔄 Fluxo de dados
 
-1. Cliente → TanStack React Query → Server Function
-2. Server Function valida input (Zod) → verifica rate limit (Supabase em produção, in-memory em dev)
-3. Cache (Postgres via Supabase) → se miss, chama API Bzzoiro
-4. Se API falhar, serve cache expirado (stale-if-error)
-5. Resposta normalizada → React Query cache → Componentes
+```text
+Usuário
+   ↓
+React Query
+   ↓
+Server Function
+   ↓
+Validação + Rate Limit
+   ↓
+Cache Supabase
+   ↓
+Bzzoiro API
+   ↓
+Normalização
+   ↓
+React Query
+   ↓
+Interface
+```
 
-## Funcionalidades
+Em caso de indisponibilidade da API, o sistema pode utilizar **dados expirados do cache (stale-if-error)** quando disponíveis.
 
-- **Previsões ML**: Lista de partidas futuras com probabilidades 1X2, Over/Under, BTTS, xG
-- **Jogos ao Vivo**: Rota `/live` com scores atualizados e polling a cada 10s
-- **Detalhe do Evento**: Placar, odds comparativas entre casas de apostas
-- **Polling Automático**: Dados atualizados a cada 30s enquanto houver jogos ativos
-- **Cache Distribuído**: Respostas armazenadas em Postgres com fallback para dados expirados
-- **Rate Limiting Distribuído**: Supabase RPC em produção, in-memory em desenvolvimento
-- **Tratamento de Erros**: Hierarquia de erros (auth, rate limit, timeout) com mensagens amigáveis
+---
 
-## CI/CD
+## 📊 Previsões
 
-GitHub Actions configurado (`.github/workflows/ci.yml`):
+O sistema disponibiliza modelos e indicadores para:
 
-- Lint + type check + build em push/PR para main
+* 🏠 **1X2** — Casa / Empate / Fora
+* ⚽ **Over/Under** — linhas de gols
+* 🤝 **BTTS** — ambas marcam
+* 📈 **xG** — gols esperados
+* 🎯 **Placar provável**
+* 💰 **Odds** — comparação das cotações disponíveis
 
-## Deploy (Cloudflare Workers)
+> As previsões são estimativas estatísticas e não representam garantia de resultado.
 
-```sh
+---
+
+## 🔴 Jogos ao Vivo
+
+A rota:
+
+```text
+/live
+```
+
+apresenta partidas em andamento com atualização automática dos dados.
+
+O sistema utiliza polling para manter:
+
+* Placar;
+* Eventos;
+* Status da partida;
+* Informações relevantes
+
+atualizados enquanto houver jogos ativos.
+
+---
+
+## 💾 Cache e Performance
+
+O sistema utiliza **Supabase/PostgreSQL** como cache distribuído.
+
+Estratégia:
+
+```text
+Cache válido
+    ↓
+Retorna imediatamente
+
+Cache expirado
+    ↓
+Tenta API
+
+API indisponível
+    ↓
+Utiliza cache expirado
+```
+
+Isso reduz chamadas desnecessárias à API e melhora a disponibilidade do sistema.
+
+---
+
+## 🛡️ Segurança
+
+A aplicação implementa:
+
+* 🔐 Validação de entrada com Zod
+* 🚦 Rate limiting
+* ⏱️ Controle de timeout
+* 🔒 Separação entre clientes Supabase
+* 🧱 Server Functions para operações sensíveis
+* 🛡️ Headers de segurança
+* 🚫 Proteção das credenciais server-side
+
+A `SUPABASE_SERVICE_ROLE_KEY` deve permanecer **exclusivamente no ambiente server-side**.
+
+---
+
+## 🔄 CI/CD
+
+O projeto utiliza **GitHub Actions** para validação automática.
+
+Em pushes e Pull Requests para `main` são executados:
+
+```text
+Lint
+  ↓
+Type Check
+  ↓
+Build
+```
+
+---
+
+## ☁️ Deploy
+
+O projeto utiliza **Cloudflare Workers**.
+
+Build de produção:
+
+```bash
 npm run build
-# O build gera os arquivos em .output/ para deploy via wrangler
 ```
+
+Os arquivos gerados ficam em:
+
+```text
+.output/
+```
+
+O deploy pode ser realizado utilizando a configuração do Wrangler do projeto.
+
+---
+
+## ⚠️ Aviso
+
+As previsões são produzidas por modelos estatísticos e Machine Learning a partir dos dados disponíveis.
+
+**Nenhuma previsão garante o resultado de uma partida.**
+
+O projeto tem finalidade **analítica e experimental**.
+
+---
+
+<p align="center">
+
+⚽ **Zagueiro**
+
+<br>
+
+<sub>Machine Learning aplicado à análise de futebol</sub>
+
+</p>
