@@ -162,6 +162,7 @@ function RootComponent() {
               { to: "/amanha", label: "Amanhã" },
               { to: "/proximos", label: "Próximos" },
               { to: "/tabela", label: "📋 Tabela" },
+              { to: "/valor", label: "💰 Valor" },
               { to: "/acertividade", label: "📊 Acertividade" },
             ].map((item) => (
               <Link

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import { getEventDetail } from "../lib/events.functions";
 import { getEventPolymarket } from "../lib/events.functions";
 import { getOddsComparison } from "../lib/odds.functions";
@@ -272,6 +273,29 @@ function EventPage({ eventId }: { eventId: number }) {
       </Link>
 
       <MatchHeader event={event.data} leagueName={odds.data?.league_name} />
+
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={async () => {
+            const url = new URL(window.location.href);
+            const text = `Previsão Zagueiro: ${event.data.home_team} vs ${event.data.away_team}`;
+            if (navigator.share) {
+              try {
+                await navigator.share({ title: text, text, url: url.toString() });
+                return;
+              } catch {
+                // user cancelou ou share indisponível — cai no clipboard
+              }
+            }
+            await navigator.clipboard.writeText(url.toString());
+            toast.success("Link copiado");
+          }}
+          className="clay-sm px-4 py-2 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
+        >
+          🔗 Compartilhar
+        </button>
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-secondary/50 p-1">

@@ -6,15 +6,15 @@ Dashboard de **previsões de futebol com Machine Learning**, utilizando CatBoost
 
 ## ✨ Funcionalidades
 
-* 🤖 **Previsões ML** — probabilidades para 1X2, Over/Under, BTTS e xG
-* ⚽ **Jogos ao Vivo** — placares e eventos atualizados automaticamente
-* 📊 **Detalhes da partida** — estatísticas, previsões e odds
-* 💰 **Comparação de odds** — visualização de odds entre casas disponíveis
-* 🔄 **Atualização automática** — polling para partidas e eventos ativos
-* 💾 **Cache distribuído** — PostgreSQL/Supabase com fallback para dados expirados
-* 🛡️ **Rate limiting** — proteção distribuída em produção
-* 🚨 **Tratamento de erros** — timeout, autenticação, limite de requisições e falhas da API
-* 📱 **Interface responsiva** — desktop e mobile
+- 🤖 **Previsões ML** — probabilidades para 1X2, Over/Under, BTTS e xG
+- ⚽ **Jogos ao Vivo** — placares e eventos atualizados automaticamente
+- 📊 **Detalhes da partida** — estatísticas, previsões e odds
+- 💰 **Comparação de odds** — visualização de odds entre casas disponíveis
+- 🔄 **Atualização automática** — polling para partidas e eventos ativos
+- 💾 **Cache distribuído** — PostgreSQL/Supabase com fallback para dados expirados
+- 🛡️ **Rate limiting** — proteção distribuída em produção
+- 🚨 **Tratamento de erros** — timeout, autenticação, limite de requisições e falhas da API
+- 📱 **Interface responsiva** — desktop e mobile
 
 ---
 
@@ -39,9 +39,9 @@ Dashboard de **previsões de futebol com Machine Learning**, utilizando CatBoost
 
 ### Pré-requisitos
 
-* Node.js `>= 22`
-* npm
-* Bun *(opcional)*
+- Node.js `>= 22`
+- npm
+- Bun _(opcional)_
 
 ### Instalação
 
@@ -62,12 +62,12 @@ Configure as variáveis no `.env`.
 
 | Variável                        | Obrigatória | Descrição                       |
 | ------------------------------- | ----------- | ------------------------------- |
-| `BZZOIRO_TOKEN`                 | ✅           | Token da API Bzzoiro            |
-| `SUPABASE_URL`                  | ✅           | URL do Supabase                 |
+| `BZZOIRO_TOKEN`                 | ✅          | Token da API Bzzoiro            |
+| `SUPABASE_URL`                  | ✅          | URL do Supabase                 |
 | `SUPABASE_SERVICE_ROLE_KEY`     | 🔒 Server   | Chave `service_role`            |
-| `SUPABASE_PUBLISHABLE_KEY`      | ✅           | Chave pública do Supabase       |
-| `VITE_SUPABASE_URL`             | ✅           | URL do Supabase para o frontend |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | ✅           | Chave pública para o frontend   |
+| `SUPABASE_PUBLISHABLE_KEY`      | ✅          | Chave pública do Supabase       |
+| `VITE_SUPABASE_URL`             | ✅          | URL do Supabase para o frontend |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | ✅          | Chave pública para o frontend   |
 
 > ⚠️ **Nunca versione o `.env`.** Utilize `.env.example` como modelo e mantenha credenciais privadas exclusivamente no ambiente de execução.
 
@@ -143,12 +143,12 @@ Em caso de indisponibilidade da API, o sistema pode utilizar **dados expirados d
 
 O sistema disponibiliza modelos e indicadores para:
 
-* 🏠 **1X2** — Casa / Empate / Fora
-* ⚽ **Over/Under** — linhas de gols
-* 🤝 **BTTS** — ambas marcam
-* 📈 **xG** — gols esperados
-* 🎯 **Placar provável**
-* 💰 **Odds** — comparação das cotações disponíveis
+- 🏠 **1X2** — Casa / Empate / Fora
+- ⚽ **Over/Under** — linhas de gols
+- 🤝 **BTTS** — ambas marcam
+- 📈 **xG** — gols esperados
+- 🎯 **Placar provável**
+- 💰 **Odds** — comparação das cotações disponíveis
 
 > As previsões são estimativas estatísticas e não representam garantia de resultado.
 
@@ -166,10 +166,10 @@ apresenta partidas em andamento com atualização automática dos dados.
 
 O sistema utiliza polling para manter:
 
-* Placar;
-* Eventos;
-* Status da partida;
-* Informações relevantes
+- Placar;
+- Eventos;
+- Status da partida;
+- Informações relevantes
 
 atualizados enquanto houver jogos ativos.
 
@@ -203,13 +203,13 @@ Isso reduz chamadas desnecessárias à API e melhora a disponibilidade do sistem
 
 A aplicação implementa:
 
-* 🔐 Validação de entrada com Zod
-* 🚦 Rate limiting
-* ⏱️ Controle de timeout
-* 🔒 Separação entre clientes Supabase
-* 🧱 Server Functions para operações sensíveis
-* 🛡️ Headers de segurança
-* 🚫 Proteção das credenciais server-side
+- 🔐 Validação de entrada com Zod
+- 🚦 Rate limiting
+- ⏱️ Controle de timeout
+- 🔒 Separação entre clientes Supabase
+- 🧱 Server Functions para operações sensíveis
+- 🛡️ Headers de segurança
+- 🚫 Proteção das credenciais server-side
 
 A `SUPABASE_SERVICE_ROLE_KEY` deve permanecer **exclusivamente no ambiente server-side**.
 

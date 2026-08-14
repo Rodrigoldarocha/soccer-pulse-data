@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ValorRouteImport } from './routes/valor'
 import { Route as TabelaRouteImport } from './routes/tabela'
 import { Route as ProximosRouteImport } from './routes/proximos'
 import { Route as MelhorApostaRouteImport } from './routes/melhor-aposta'
@@ -16,9 +17,16 @@ import { Route as LiveRouteImport } from './routes/live'
 import { Route as AmanhaRouteImport } from './routes/amanha'
 import { Route as AcertividadeRouteImport } from './routes/acertividade'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LigaLeagueIdRouteImport } from './routes/liga.$leagueId'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
+import { Route as ApiV1PredictionsRouteImport } from './routes/api/v1/predictions'
 import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
 
+const ValorRoute = ValorRouteImport.update({
+  id: '/valor',
+  path: '/valor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TabelaRoute = TabelaRouteImport.update({
   id: '/tabela',
   path: '/tabela',
@@ -54,9 +62,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LigaLeagueIdRoute = LigaLeagueIdRouteImport.update({
+  id: '/liga/$leagueId',
+  path: '/liga/$leagueId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsEventIdRoute = EventsEventIdRouteImport.update({
   id: '/events/$eventId',
   path: '/events/$eventId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiV1PredictionsRoute = ApiV1PredictionsRouteImport.update({
+  id: '/api/v1/predictions',
+  path: '/api/v1/predictions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicHealthRoute = ApiPublicHealthRouteImport.update({
@@ -73,8 +91,11 @@ export interface FileRoutesByFullPath {
   '/melhor-aposta': typeof MelhorApostaRoute
   '/proximos': typeof ProximosRoute
   '/tabela': typeof TabelaRoute
+  '/valor': typeof ValorRoute
   '/events/$eventId': typeof EventsEventIdRoute
+  '/liga/$leagueId': typeof LigaLeagueIdRoute
   '/api/public/health': typeof ApiPublicHealthRoute
+  '/api/v1/predictions': typeof ApiV1PredictionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -84,8 +105,11 @@ export interface FileRoutesByTo {
   '/melhor-aposta': typeof MelhorApostaRoute
   '/proximos': typeof ProximosRoute
   '/tabela': typeof TabelaRoute
+  '/valor': typeof ValorRoute
   '/events/$eventId': typeof EventsEventIdRoute
+  '/liga/$leagueId': typeof LigaLeagueIdRoute
   '/api/public/health': typeof ApiPublicHealthRoute
+  '/api/v1/predictions': typeof ApiV1PredictionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -96,8 +120,11 @@ export interface FileRoutesById {
   '/melhor-aposta': typeof MelhorApostaRoute
   '/proximos': typeof ProximosRoute
   '/tabela': typeof TabelaRoute
+  '/valor': typeof ValorRoute
   '/events/$eventId': typeof EventsEventIdRoute
+  '/liga/$leagueId': typeof LigaLeagueIdRoute
   '/api/public/health': typeof ApiPublicHealthRoute
+  '/api/v1/predictions': typeof ApiV1PredictionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -109,8 +136,11 @@ export interface FileRouteTypes {
     | '/melhor-aposta'
     | '/proximos'
     | '/tabela'
+    | '/valor'
     | '/events/$eventId'
+    | '/liga/$leagueId'
     | '/api/public/health'
+    | '/api/v1/predictions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -120,8 +150,11 @@ export interface FileRouteTypes {
     | '/melhor-aposta'
     | '/proximos'
     | '/tabela'
+    | '/valor'
     | '/events/$eventId'
+    | '/liga/$leagueId'
     | '/api/public/health'
+    | '/api/v1/predictions'
   id:
     | '__root__'
     | '/'
@@ -131,8 +164,11 @@ export interface FileRouteTypes {
     | '/melhor-aposta'
     | '/proximos'
     | '/tabela'
+    | '/valor'
     | '/events/$eventId'
+    | '/liga/$leagueId'
     | '/api/public/health'
+    | '/api/v1/predictions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -143,12 +179,22 @@ export interface RootRouteChildren {
   MelhorApostaRoute: typeof MelhorApostaRoute
   ProximosRoute: typeof ProximosRoute
   TabelaRoute: typeof TabelaRoute
+  ValorRoute: typeof ValorRoute
   EventsEventIdRoute: typeof EventsEventIdRoute
+  LigaLeagueIdRoute: typeof LigaLeagueIdRoute
   ApiPublicHealthRoute: typeof ApiPublicHealthRoute
+  ApiV1PredictionsRoute: typeof ApiV1PredictionsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/valor': {
+      id: '/valor'
+      path: '/valor'
+      fullPath: '/valor'
+      preLoaderRoute: typeof ValorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tabela': {
       id: '/tabela'
       path: '/tabela'
@@ -198,11 +244,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/liga/$leagueId': {
+      id: '/liga/$leagueId'
+      path: '/liga/$leagueId'
+      fullPath: '/liga/$leagueId'
+      preLoaderRoute: typeof LigaLeagueIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/events/$eventId': {
       id: '/events/$eventId'
       path: '/events/$eventId'
       fullPath: '/events/$eventId'
       preLoaderRoute: typeof EventsEventIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/v1/predictions': {
+      id: '/api/v1/predictions'
+      path: '/api/v1/predictions'
+      fullPath: '/api/v1/predictions'
+      preLoaderRoute: typeof ApiV1PredictionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/health': {
@@ -223,9 +283,22 @@ const rootRouteChildren: RootRouteChildren = {
   MelhorApostaRoute: MelhorApostaRoute,
   ProximosRoute: ProximosRoute,
   TabelaRoute: TabelaRoute,
+  ValorRoute: ValorRoute,
   EventsEventIdRoute: EventsEventIdRoute,
+  LigaLeagueIdRoute: LigaLeagueIdRoute,
   ApiPublicHealthRoute: ApiPublicHealthRoute,
+  ApiV1PredictionsRoute: ApiV1PredictionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

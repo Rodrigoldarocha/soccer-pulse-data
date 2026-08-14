@@ -218,6 +218,38 @@ export interface StandingGroup {
   entries: StandingEntry[];
 }
 
+// -------- Odds Best (v2) --------
+
+export interface OddsBestOutcome {
+  outcome: string;
+  best_odds: number | null;
+  best_bookmaker_name?: string | null;
+}
+
+export interface OddsBestEntry {
+  event_id: number;
+  home_team?: string | null;
+  away_team?: string | null;
+  outcomes?: OddsBestOutcome[] | null;
+}
+
+// -------- Value Bets --------
+
+export type ValueMarket = "1x2" | "over_under_25" | "btts";
+
+export interface ValueBet {
+  event_id: number;
+  home_team: string;
+  away_team: string;
+  league_name?: string | null;
+  market: ValueMarket;
+  outcome: string;
+  prob: number; // 0-1
+  odds: number;
+  ev: number; // decimal, ex: 0.12
+  evPct: number; // ex: 12
+}
+
 // -------- Common list wrappers --------
 
 export interface Paginated<T> {
