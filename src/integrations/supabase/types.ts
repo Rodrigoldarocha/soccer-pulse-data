@@ -53,6 +53,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      value_bets: {
+        Row: {
+          id: number;
+          event_id: number;
+          market: string;
+          outcome: string;
+          prob: number;
+          odds: number;
+          ev: number;
+          event_date: string;
+          home_team: string;
+          away_team: string;
+          league_name: string | null;
+          status: string;
+          settled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          event_id: number;
+          market: string;
+          outcome: string;
+          prob: number;
+          odds: number;
+          ev: number;
+          event_date: string;
+          home_team: string;
+          away_team: string;
+          league_name?: string | null;
+          status?: string;
+          settled_at?: string | null;
+        };
+        Update: {
+          event_id?: number;
+          market?: string;
+          outcome?: string;
+          prob?: number;
+          odds?: number;
+          ev?: number;
+          event_date?: string;
+          home_team?: string;
+          away_team?: string;
+          league_name?: string | null;
+          status?: string;
+          settled_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;

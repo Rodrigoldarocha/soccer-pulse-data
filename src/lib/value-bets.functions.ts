@@ -10,6 +10,90 @@ const MIN_EV = 0.05;
 const MIN_ODDS = 1.01;
 const MAX_ODDS = 50.0;
 
+// -------- Settlement (pure) --------
+
+export type ValueBetStatus = "pending" | "won" | "lost";
+
+export interface ValueBetRow {
+  id: number;
+  event_id: number;
+  market: ValueMarket;
+  outcome: string;
+  prob: number;
+  odds: number;
+  ev: number;
+  event_date: string;
+  home_team: string;
+  away_team: string;
+  league_name: string | null;
+  status: ValueBetStatus;
+  settled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Decide win/loss de um palpite contra o placar final. Retorna null quando o
+ * resultado ainda não é determinável (score ausente). Stake unitária = 1.
+ */
+export function settleOutcome(
+  market: ValueMarket,
+  outcome: string,
+  home: number | null,
+  away: number | null,
+): boolean | null {
+  if (home == null || away == null) return null;
+  const o = outcome.toUpperCase();
+  const total = home + away;
+
+  switch (market) {
+    case "1x2":
+      if (o === "HOME") return home > away;
+      if (o === "AWAY") return away > home;
+      if (o === "DRAW") return home === away;
+      return null;
+    case "over_under_25":
+      if (o === "OVER") return total >= 3;
+      if (o === "UNDER") return total <= 2;
+      return null;
+    case "btts":
+      if (o === "YES") return home > 0 && away > 0;
+      if (o === "NO") return home === 0 || away === 0;
+      return null;
+    default:
+      return null;
+  }
+}
+
+export interface RoiStats {
+  total: number;
+  settled: number;
+  pending: number;
+  won: number;
+  lost: number;
+  hit_rate: number | null;
+  roi: number | null;
+  profit: number;
+}
+
+/** ROI com stake unitária: ganho = odds, perda = 0, retorno sobre stakes liquidados. */
+export function computeRoiStats(rows: ValueBetRow[]): RoiStats {
+  const settledRows = rows.filter((r) => r.status !== "pending");
+  const won = settledRows.filter((r) => r.status === "won");
+  const returns = won.reduce((a, r) => a + r.odds, 0);
+  const profit = returns - settledRows.length;
+  return {
+    total: rows.length,
+    settled: settledRows.length,
+    pending: rows.length - settledRows.length,
+    won: won.length,
+    lost: settledRows.length - won.length,
+    hit_rate: settledRows.length > 0 ? won.length / settledRows.length : null,
+    roi: settledRows.length > 0 ? profit / settledRows.length : null,
+    profit,
+  };
+}
+
 /** Mercados com valor: prob do modelo ↔ melhor odd da casa. */
 const MARKET_JOINS: {
   market: ValueMarket;
@@ -78,6 +162,7 @@ export function computeValueBets(predictions: Prediction[], oddsBest: OddsBestEn
 
       bets.push({
         event_id: p.event.id,
+        event_date: p.event.event_date,
         home_team: p.event.home_team,
         away_team: p.event.away_team,
         league_name: p.event.league_name,
@@ -139,6 +224,136 @@ export const getValueBets = createServerFn({ method: "GET" }).handler(
       oddsEntries.push(...normalizeOddsBest(rawOdds));
     }
 
-    return computeValueBets(predictions, oddsEntries);
+    const bets = computeValueBets(predictions, oddsEntries);
+
+    // Snapshot idempotente p/ o backtest de ROI: registra bets novos sem
+    // duplicar. Falha de persistência não derruba o feed (tabela ausente → log).
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const snapshot = bets.map((b) => ({
+        event_id: b.event_id,
+        market: b.market,
+        outcome: b.outcome,
+        prob: b.prob,
+        odds: b.odds,
+        ev: b.ev,
+        event_date: b.event_date,
+        home_team: b.home_team,
+        away_team: b.away_team,
+        league_name: b.league_name ?? null,
+      }));
+      if (snapshot.length > 0) {
+        await supabaseAdmin
+          .from("value_bets")
+          .upsert(snapshot, { onConflict: "event_id,market,outcome", ignoreDuplicates: true });
+      }
+    } catch (error) {
+      console.warn("[value-bets] snapshot não persistido:", error);
+    }
+
+    return bets;
+  },
+);
+
+const ROI_LIMIT = 20;
+
+async function settlePendingValueBets(): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { bzzoiroCachedFetch, hashKey } = await import("./bzzoiro/cache.server");
+
+  const { data: pending, error } = await supabaseAdmin
+    .from("value_bets")
+    .select("id,event_id,market,outcome,event_date")
+    .eq("status", "pending")
+    .lt("event_date", new Date(Date.now() - 3 * 3_600_000).toISOString())
+    .limit(500);
+
+  if (error) throw error;
+  if (!pending || pending.length === 0) return 0;
+
+  const minDate = pending.map((p) => p.event_date).sort()[0];
+  const dateFrom = new Date(new Date(minDate).getTime() - 86_400_000).toISOString().slice(0, 10);
+
+  type EventRow = { id: number; home_score?: number | null; away_score?: number | null };
+  const PAGE = 200;
+  const MAX_PAGES = 6;
+  const events: EventRow[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const params = {
+      status: "finished",
+      limit: PAGE,
+      offset: page * PAGE,
+      date_from: dateFrom,
+      date_to: new Date().toISOString(),
+    };
+    const key = await hashKey("value-bets:settle:events", params);
+    const raw = await bzzoiroCachedFetch<unknown>("/api/v2/events/", {
+      key,
+      ttlSeconds: 10 * 60,
+      params,
+      timeoutMs: 20_000,
+      retries: 2,
+    });
+    const rows = Array.isArray(raw) ? (raw as EventRow[]) : [];
+    events.push(...rows);
+    if (rows.length < PAGE) break;
+  }
+
+  const scoreById = new Map<number, { home: number | null; away: number | null }>();
+  for (const ev of events) {
+    if (ev.home_score != null && ev.away_score != null) {
+      scoreById.set(ev.id, { home: ev.home_score, away: ev.away_score });
+    }
+  }
+
+  const updates: { id: number; status: ValueBetStatus; settled_at: string }[] = [];
+  for (const p of pending) {
+    const score = scoreById.get(p.event_id);
+    if (!score) continue;
+    const won = settleOutcome(p.market as ValueMarket, p.outcome, score.home, score.away);
+    if (won == null) continue;
+    updates.push({ id: p.id, status: won ? "won" : "lost", settled_at: new Date().toISOString() });
+  }
+
+  if (updates.length === 0) return 0;
+  const { error: updateError } = await supabaseAdmin.from("value_bets").upsert(updates);
+  if (updateError) throw updateError;
+  return updates.length;
+}
+
+export const getValueBetsBacktest = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ stats: RoiStats; recent: ValueBetRow[] }> => {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const { checkRateLimit } = await import("./rate-limit.server");
+    const { getRequestIP } = await import("./request-ip");
+    await checkRateLimit(`value-bets:roi:${getRequestIP(getRequest())}`, {
+      max: ROI_LIMIT,
+      windowMs: 60_000,
+    });
+
+    // Settlement lazy: liquida vencidas antes de ler. Sem cron — roda sob
+    // demanda na primeira consulta do backtest (rate limit 20/min).
+    try {
+      await settlePendingValueBets();
+
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data, error } = await supabaseAdmin
+        .from("value_bets")
+        .select("*")
+        .order("event_date", { ascending: false })
+        .limit(500);
+
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as ValueBetRow[];
+
+      return {
+        stats: computeRoiStats(rows),
+        recent: rows.filter((r) => r.status !== "pending").slice(0, 10),
+      };
+    } catch (error) {
+      // Tabela ausente (migration não aplicada) → backtest vazio em vez de crash.
+      console.warn("[value-bets] backtest indisponível:", error);
+      return { stats: computeRoiStats([]), recent: [] };
+    }
   },
 );

@@ -262,6 +262,7 @@ export type ValueMarket = "1x2" | "over_under_25" | "btts";
 
 export interface ValueBet {
   event_id: number;
+  event_date: string;
   home_team: string;
   away_team: string;
   league_name?: string | null;
