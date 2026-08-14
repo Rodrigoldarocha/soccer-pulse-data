@@ -163,6 +163,7 @@ function RootComponent() {
               { to: "/proximos", label: "Próximos" },
               { to: "/tabela", label: "📋 Tabela" },
               { to: "/valor", label: "💰 Valor" },
+              { to: "/favoritos", label: "⭐ Favoritos" },
               { to: "/acertividade", label: "📊 Acertividade" },
             ].map((item) => (
               <Link

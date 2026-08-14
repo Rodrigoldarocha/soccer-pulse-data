@@ -1,6 +1,14 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 import { PredictionsBoard } from "@/components/PredictionsBoard";
+import {
+  isFavorite,
+  readFavorites,
+  safeLocalStorage,
+  toggleFavorite,
+  writeFavorites,
+} from "@/lib/favorites";
 
 export const Route = createFileRoute("/liga/$leagueId")({
   head: () => ({
@@ -23,6 +31,11 @@ function LeaguePage() {
   const { leagueId } = Route.useParams();
   const router = useRouter();
   const parsed = Number(leagueId);
+  const [favorite, setFavorite] = useState(false);
+
+  useEffect(() => {
+    setFavorite(isFavorite(readFavorites(safeLocalStorage()), parsed));
+  }, [parsed]);
 
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return (
@@ -31,6 +44,13 @@ function LeaguePage() {
       </div>
     );
   }
+
+  const toggle = () => {
+    const next = toggleFavorite(readFavorites(safeLocalStorage()), parsed);
+    const storage = safeLocalStorage();
+    if (storage) writeFavorites(storage, next);
+    setFavorite(isFavorite(next, parsed));
+  };
 
   return (
     <>
@@ -46,6 +66,17 @@ function LeaguePage() {
         }}
       />
       <div className="mx-auto flex max-w-6xl gap-2 px-4 pb-8 text-xs">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-pressed={favorite}
+          aria-label={favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+          className={`clay-sm px-4 py-2 font-semibold transition ${
+            favorite ? "text-amber-500" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {favorite ? "★ Favorita" : "☆ Favoritar"}
+        </button>
         <Link
           to="/tabela"
           search={{ leagueId: parsed }}

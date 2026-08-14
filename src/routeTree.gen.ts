@@ -14,6 +14,7 @@ import { Route as TabelaRouteImport } from './routes/tabela'
 import { Route as ProximosRouteImport } from './routes/proximos'
 import { Route as MelhorApostaRouteImport } from './routes/melhor-aposta'
 import { Route as LiveRouteImport } from './routes/live'
+import { Route as FavoritosRouteImport } from './routes/favoritos'
 import { Route as AmanhaRouteImport } from './routes/amanha'
 import { Route as AcertividadeRouteImport } from './routes/acertividade'
 import { Route as IndexRouteImport } from './routes/index'
@@ -45,6 +46,11 @@ const MelhorApostaRoute = MelhorApostaRouteImport.update({
 const LiveRoute = LiveRouteImport.update({
   id: '/live',
   path: '/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FavoritosRoute = FavoritosRouteImport.update({
+  id: '/favoritos',
+  path: '/favoritos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AmanhaRoute = AmanhaRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/acertividade': typeof AcertividadeRoute
   '/amanha': typeof AmanhaRoute
+  '/favoritos': typeof FavoritosRoute
   '/live': typeof LiveRoute
   '/melhor-aposta': typeof MelhorApostaRoute
   '/proximos': typeof ProximosRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/acertividade': typeof AcertividadeRoute
   '/amanha': typeof AmanhaRoute
+  '/favoritos': typeof FavoritosRoute
   '/live': typeof LiveRoute
   '/melhor-aposta': typeof MelhorApostaRoute
   '/proximos': typeof ProximosRoute
@@ -116,6 +124,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/acertividade': typeof AcertividadeRoute
   '/amanha': typeof AmanhaRoute
+  '/favoritos': typeof FavoritosRoute
   '/live': typeof LiveRoute
   '/melhor-aposta': typeof MelhorApostaRoute
   '/proximos': typeof ProximosRoute
@@ -132,6 +141,7 @@ export interface FileRouteTypes {
     | '/'
     | '/acertividade'
     | '/amanha'
+    | '/favoritos'
     | '/live'
     | '/melhor-aposta'
     | '/proximos'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/'
     | '/acertividade'
     | '/amanha'
+    | '/favoritos'
     | '/live'
     | '/melhor-aposta'
     | '/proximos'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/'
     | '/acertividade'
     | '/amanha'
+    | '/favoritos'
     | '/live'
     | '/melhor-aposta'
     | '/proximos'
@@ -175,6 +187,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AcertividadeRoute: typeof AcertividadeRoute
   AmanhaRoute: typeof AmanhaRoute
+  FavoritosRoute: typeof FavoritosRoute
   LiveRoute: typeof LiveRoute
   MelhorApostaRoute: typeof MelhorApostaRoute
   ProximosRoute: typeof ProximosRoute
@@ -221,6 +234,13 @@ declare module '@tanstack/react-router' {
       path: '/live'
       fullPath: '/live'
       preLoaderRoute: typeof LiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/favoritos': {
+      id: '/favoritos'
+      path: '/favoritos'
+      fullPath: '/favoritos'
+      preLoaderRoute: typeof FavoritosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/amanha': {
@@ -279,6 +299,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AcertividadeRoute: AcertividadeRoute,
   AmanhaRoute: AmanhaRoute,
+  FavoritosRoute: FavoritosRoute,
   LiveRoute: LiveRoute,
   MelhorApostaRoute: MelhorApostaRoute,
   ProximosRoute: ProximosRoute,

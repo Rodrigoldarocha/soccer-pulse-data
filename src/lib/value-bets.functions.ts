@@ -226,6 +226,14 @@ export const getValueBets = createServerFn({ method: "GET" }).handler(
 
     const bets = computeValueBets(predictions, oddsEntries);
 
+    // Settlement do feed: liquida vencidas a cada consulta — o ROI anda sem
+    // depender do usuário abrir o backtest. Falha só loga.
+    try {
+      await settlePendingValueBets();
+    } catch (error) {
+      console.warn("[value-bets] settlement do feed falhou:", error);
+    }
+
     // Snapshot idempotente p/ o backtest de ROI: registra bets novos sem
     // duplicar. Falha de persistência não derruba o feed (tabela ausente → log).
     try {
