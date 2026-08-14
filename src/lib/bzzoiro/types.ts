@@ -92,6 +92,28 @@ export interface League {
 
 // -------- Events (v2) --------
 
+export interface HeadToHeadRecentMatch {
+  event_date?: string | null;
+  home_team?: string | null;
+  away_team?: string | null;
+  home_score?: number | null;
+  away_score?: number | null;
+  league_name?: string | null;
+}
+
+export interface HeadToHead {
+  total_matches?: number | null;
+  home_wins?: number | null;
+  draws?: number | null;
+  away_wins?: number | null;
+  home_goals?: number | null;
+  away_goals?: number | null;
+  avg_total_goals?: number | null;
+  home_win_rate?: number | null; // 0-1
+  away_win_rate?: number | null; // 0-1
+  recent_matches?: HeadToHeadRecentMatch[] | null;
+}
+
 export interface EventDetail {
   id: number;
   event_date: string;
@@ -111,6 +133,7 @@ export interface EventDetail {
   referee?: string | null;
   has_xg?: boolean | null;
   previous_leg_event_id?: number | null;
+  head_to_head?: HeadToHead | null;
 }
 
 // -------- Odds Comparison (v2) --------
