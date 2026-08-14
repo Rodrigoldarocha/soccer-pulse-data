@@ -161,6 +161,7 @@ function RootComponent() {
               { to: "/melhor-aposta", label: "⭐ Melhor aposta" },
               { to: "/amanha", label: "Amanhã" },
               { to: "/proximos", label: "Próximos" },
+              { to: "/tabela", label: "📋 Tabela" },
               { to: "/acertividade", label: "📊 Acertividade" },
             ].map((item) => (
               <Link

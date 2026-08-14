@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TabelaRouteImport } from './routes/tabela'
 import { Route as ProximosRouteImport } from './routes/proximos'
 import { Route as MelhorApostaRouteImport } from './routes/melhor-aposta'
 import { Route as LiveRouteImport } from './routes/live'
@@ -18,6 +19,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as EventsEventIdRouteImport } from './routes/events.$eventId'
 import { Route as ApiPublicHealthRouteImport } from './routes/api/public/health'
 
+const TabelaRoute = TabelaRouteImport.update({
+  id: '/tabela',
+  path: '/tabela',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProximosRoute = ProximosRouteImport.update({
   id: '/proximos',
   path: '/proximos',
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/live': typeof LiveRoute
   '/melhor-aposta': typeof MelhorApostaRoute
   '/proximos': typeof ProximosRoute
+  '/tabela': typeof TabelaRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/api/public/health': typeof ApiPublicHealthRoute
 }
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/live': typeof LiveRoute
   '/melhor-aposta': typeof MelhorApostaRoute
   '/proximos': typeof ProximosRoute
+  '/tabela': typeof TabelaRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/api/public/health': typeof ApiPublicHealthRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/live': typeof LiveRoute
   '/melhor-aposta': typeof MelhorApostaRoute
   '/proximos': typeof ProximosRoute
+  '/tabela': typeof TabelaRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/api/public/health': typeof ApiPublicHealthRoute
 }
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/live'
     | '/melhor-aposta'
     | '/proximos'
+    | '/tabela'
     | '/events/$eventId'
     | '/api/public/health'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/live'
     | '/melhor-aposta'
     | '/proximos'
+    | '/tabela'
     | '/events/$eventId'
     | '/api/public/health'
   id:
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/live'
     | '/melhor-aposta'
     | '/proximos'
+    | '/tabela'
     | '/events/$eventId'
     | '/api/public/health'
   fileRoutesById: FileRoutesById
@@ -130,12 +142,20 @@ export interface RootRouteChildren {
   LiveRoute: typeof LiveRoute
   MelhorApostaRoute: typeof MelhorApostaRoute
   ProximosRoute: typeof ProximosRoute
+  TabelaRoute: typeof TabelaRoute
   EventsEventIdRoute: typeof EventsEventIdRoute
   ApiPublicHealthRoute: typeof ApiPublicHealthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tabela': {
+      id: '/tabela'
+      path: '/tabela'
+      fullPath: '/tabela'
+      preLoaderRoute: typeof TabelaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/proximos': {
       id: '/proximos'
       path: '/proximos'
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   LiveRoute: LiveRoute,
   MelhorApostaRoute: MelhorApostaRoute,
   ProximosRoute: ProximosRoute,
+  TabelaRoute: TabelaRoute,
   EventsEventIdRoute: EventsEventIdRoute,
   ApiPublicHealthRoute: ApiPublicHealthRoute,
 }

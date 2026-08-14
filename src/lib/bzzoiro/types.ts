@@ -191,6 +191,33 @@ export interface EventStats {
   away: Record<string, StatValue>;
 }
 
+// -------- Standings (v2) --------
+
+export interface StandingEntry {
+  position: number | null;
+  team_id?: number | null;
+  team_name: string;
+  team_logo?: string | null;
+  played?: number | null;
+  won?: number | null;
+  drawn?: number | null;
+  lost?: number | null;
+  goals_for?: number | null;
+  goals_against?: number | null;
+  goal_diff?: number | null;
+  points: number | null;
+}
+
+export interface StandingsResponse {
+  standings?: StandingEntry[] | null;
+  groups?: Record<string, StandingEntry[]> | null;
+}
+
+export interface StandingGroup {
+  label: string | null;
+  entries: StandingEntry[];
+}
+
 // -------- Common list wrappers --------
 
 export interface Paginated<T> {

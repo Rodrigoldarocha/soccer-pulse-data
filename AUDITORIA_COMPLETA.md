@@ -39,67 +39,67 @@ Diretórios principais: `src/lib` (lógica/servidores), `src/routes` (telas), `s
 
 Endpoints usados:
 
-| Endpoint | Uso | Status |
-|---|---|---|
-| `/api/v2/predictions/` | previsões futuras/finalizadas | ✅ |
-| `/api/v2/leagues/` | filtro de liga | ✅ |
-| `/api/v2/events/` | partidas ao vivo + finalizadas (backtest) | ✅ (status `live` corrigido) |
-| `/api/v2/events/{id}/` | detalhe | ✅ (`tz` inválido removido) |
-| `/api/v2/events/{id}/odds/comparison/` | odds multicasas | ✅ |
-| `/api/v2/events/{id}/lineups/` | escalações (confirmed/predicted) | ✅ |
-| `/api/v2/events/{id}/stats/` | estatísticas | ✅ |
-| `/api/v2/events/{id}/polymarket/` | probabilidades implícitas (novo) | ✅ |
+| Endpoint                               | Uso                                       | Status                       |
+| -------------------------------------- | ----------------------------------------- | ---------------------------- |
+| `/api/v2/predictions/`                 | previsões futuras/finalizadas             | ✅                           |
+| `/api/v2/leagues/`                     | filtro de liga                            | ✅                           |
+| `/api/v2/events/`                      | partidas ao vivo + finalizadas (backtest) | ✅ (status `live` corrigido) |
+| `/api/v2/events/{id}/`                 | detalhe                                   | ✅ (`tz` inválido removido)  |
+| `/api/v2/events/{id}/odds/comparison/` | odds multicasas                           | ✅                           |
+| `/api/v2/events/{id}/lineups/`         | escalações (confirmed/predicted)          | ✅                           |
+| `/api/v2/events/{id}/stats/`           | estatísticas                              | ✅                           |
+| `/api/v2/events/{id}/polymarket/`      | probabilidades implícitas (novo)          | ✅                           |
 
 ## 4. Problemas Encontrados
 
-| ID | Prioridade | Descrição |
-|---|---|---|
-| P-01 | P0 | Live usava `status=inprogress` (não existe no v2; o válido é `live`) — lista ao vivo podia vir vazia |
-| P-02 | P1 | Parâmetro `recommended` (picks de valor da API) não era exposto nem consumido |
-| P-03 | P2 | Mercado escanteios (probs 8.5/9.5/10.5) chegava da API, mas não era exibido |
-| P-04 | P2 | Card mostrava apenas a "melhor linha" de O/U — as demais linhas ocultas |
-| P-05 | P2 | `tz` enviado ao detail (paramétro ignorado no v2, datas UTC) |
-| P-06 | P1 | Sem backtest / medida de acertividade por liga |
-| P-07 | P2 | Escalações `predicted` (pré-XI) não sinalizadas |
-| P-08 | P2 | Sem sinal independente de mercado (Polymarket) na ficha |
-| P-09 | P3 | Flags `has_xg` e jogo de 2ª mão ignoradas |
-| P-10 | P0 | Secrets vazios no ambiente (BZZOIRO_TOKEN, SUPABASE_SERVICE_ROLE_KEY) |
-| P-11 | P3 | Lint vermelho do repo inteiro por CRLF (pré-existente) |
-| P-12 | P3 | Código morto: middleware de auth não registrado desde o último sync |
-| P-13 | P2 | Migrations duplicadas/divergentes para rate_limits e purge |
-| P-14 | P3 | Docs internos desatualizados |
-| P-15 | RESOLVIDA | `__BZZOIRO_RATE_LIMITS` agora é `Map<path, retryAfter>` — Retry-After por endpoint, sem sobrescrita em concorrência |
-| P-16 | RESOLVIDA | Extrator único `getRequestIP` (fallback `"unknown"`) usado em lineups/stats/live; `getRateLimitIdentifier` removido |
-| P-17 | P0 | `/amanha` e `/proximos` vinham vazias: o feed pedia 30 previsões sem filtro de data e os jogos de hoje consumiam toda a resposta |
-| P-18 | P0 | `/melhor-aposta` usava `recommended=true`, parâmetro que a API v2 responde com `count: 0` — página sempre vazia |
+| ID   | Prioridade | Descrição                                                                                                                        |
+| ---- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| P-01 | P0         | Live usava `status=inprogress` (não existe no v2; o válido é `live`) — lista ao vivo podia vir vazia                             |
+| P-02 | P1         | Parâmetro `recommended` (picks de valor da API) não era exposto nem consumido                                                    |
+| P-03 | P2         | Mercado escanteios (probs 8.5/9.5/10.5) chegava da API, mas não era exibido                                                      |
+| P-04 | P2         | Card mostrava apenas a "melhor linha" de O/U — as demais linhas ocultas                                                          |
+| P-05 | P2         | `tz` enviado ao detail (paramétro ignorado no v2, datas UTC)                                                                     |
+| P-06 | P1         | Sem backtest / medida de acertividade por liga                                                                                   |
+| P-07 | P2         | Escalações `predicted` (pré-XI) não sinalizadas                                                                                  |
+| P-08 | P2         | Sem sinal independente de mercado (Polymarket) na ficha                                                                          |
+| P-09 | P3         | Flags `has_xg` e jogo de 2ª mão ignoradas                                                                                        |
+| P-10 | P0         | Secrets vazios no ambiente (BZZOIRO_TOKEN, SUPABASE_SERVICE_ROLE_KEY)                                                            |
+| P-11 | P3         | Lint vermelho do repo inteiro por CRLF (pré-existente)                                                                           |
+| P-12 | P3         | Código morto: middleware de auth não registrado desde o último sync                                                              |
+| P-13 | P2         | Migrations duplicadas/divergentes para rate_limits e purge                                                                       |
+| P-14 | P3         | Docs internos desatualizados                                                                                                     |
+| P-15 | RESOLVIDA  | `__BZZOIRO_RATE_LIMITS` agora é `Map<path, retryAfter>` — Retry-After por endpoint, sem sobrescrita em concorrência              |
+| P-16 | RESOLVIDA  | Extrator único `getRequestIP` (fallback `"unknown"`) usado em lineups/stats/live; `getRateLimitIdentifier` removido              |
+| P-17 | P0         | `/amanha` e `/proximos` vinham vazias: o feed pedia 30 previsões sem filtro de data e os jogos de hoje consumiam toda a resposta |
+| P-18 | P0         | `/melhor-aposta` usava `recommended=true`, parâmetro que a API v2 responde com `count: 0` — página sempre vazia                  |
 
 ## 5. Problemas Corrigidos
 
-| ID | Correção aplicada | Arquivo(s) |
-|---|---|---|
-| P-01 | `status: "live"` | `src/lib/live.functions.ts` |
-| P-02 | Input `recommended?: boolean` + pass para API; `/melhor-aposta` usa `recommended: true` | `src/lib/predictions.functions.ts`, `src/components/PredictionsBoard.tsx`, `src/routes/melhor-aposta.tsx` |
-| P-03 | Card exibe Escanteios 8.5/9.5/10.5 com %s | `src/components/PredictionCard.tsx` |
-| P-04 | Todos os mercados explícitos (O/U 1.5/2.5/3.5, BTTS, DNB, xG, escanteios) | `src/components/PredictionCard.tsx` |
-| P-05 | Removido envio de `tz`; datas convertidas no cliente | `src/lib/events.functions.ts` |
-| P-06 | Novo `getLeagueAccuracy` (status=finished × resultado real) + rota `/acertividade` | `src/lib/accuracy.functions.ts` (novo), `src/routes/acertividade.tsx` (novo) |
-| P-07 | Badge "Escalações previstas pelo modelo" | `src/components/LineupsDisplay.tsx` |
-| P-08 | Bloco PolData na ficha (prob implícitas 0–1 → %) | `src/routes/events.$eventId.tsx`, `src/lib/events.functions.ts` |
+| ID   | Correção aplicada                                                                                            | Arquivo(s)                                                                                                                      |
+| ---- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| P-01 | `status: "live"`                                                                                             | `src/lib/live.functions.ts`                                                                                                     |
+| P-02 | Input `recommended?: boolean` + pass para API; `/melhor-aposta` usa `recommended: true`                      | `src/lib/predictions.functions.ts`, `src/components/PredictionsBoard.tsx`, `src/routes/melhor-aposta.tsx`                       |
+| P-03 | Card exibe Escanteios 8.5/9.5/10.5 com %s                                                                    | `src/components/PredictionCard.tsx`                                                                                             |
+| P-04 | Todos os mercados explícitos (O/U 1.5/2.5/3.5, BTTS, DNB, xG, escanteios)                                    | `src/components/PredictionCard.tsx`                                                                                             |
+| P-05 | Removido envio de `tz`; datas convertidas no cliente                                                         | `src/lib/events.functions.ts`                                                                                                   |
+| P-06 | Novo `getLeagueAccuracy` (status=finished × resultado real) + rota `/acertividade`                           | `src/lib/accuracy.functions.ts` (novo), `src/routes/acertividade.tsx` (novo)                                                    |
+| P-07 | Badge "Escalações previstas pelo modelo"                                                                     | `src/components/LineupsDisplay.tsx`                                                                                             |
+| P-08 | Bloco PolData na ficha (prob implícitas 0–1 → %)                                                             | `src/routes/events.$eventId.tsx`, `src/lib/events.functions.ts`                                                                 |
 | P-17 | `dateFrom`/`dateTo` (dia UTC) no serverFn + `limit` até 200; cada aba pede seu próprio recorte (`date_from`) | `src/lib/predictions.functions.ts`, `src/components/PredictionsBoard.tsx`, `src/routes/index.tsx`, `amanha.tsx`, `proximos.tsx` |
-| P-18 | Troca de `recommended` por `min_confidence=0.6` + recorte do dia | `src/routes/melhor-aposta.tsx` |
-| P-09 | Badges `xG disponível` e `2ª mão` | `src/routes/events.$eventId.tsx`, `src/lib/bzzoiro/types.ts` |
+| P-18 | Troca de `recommended` por `min_confidence=0.6` + recorte do dia                                             | `src/routes/melhor-aposta.tsx`                                                                                                  |
+| P-09 | Badges `xG disponível` e `2ª mão`                                                                            | `src/routes/events.$eventId.tsx`, `src/lib/bzzoiro/types.ts`                                                                    |
 
 ## 6. Problemas Pendentes
 
-| ID | Status | Detalhe |
-|---|---|---|
+| ID   | Status    | Detalhe                                                                                                             |
+| ---- | --------- | ------------------------------------------------------------------------------------------------------------------- |
 | P-10 | BLOQUEADO | Secrets em painel Lovable/Cloudflare (não corrigível no código). Sem isso, produção não sobe (fail-fast no startup) |
-| P-11 | PENDENTE | Normalizar CRLF: `git config core.autocrlf input` + `prettier --write src` (diff grande; tarefa separada) |
-| P-12 | PENDENTE | Remover `auth-attacher.ts`/`auth-middleware.ts` órfãos |
-| P-13 | PENDENTE | Consolidar migrations duplicadas (exige acesso ao banco) |
-| P-14 | PENDENTE | Atualizar `docs/API-INTEGRATION.md` e README |
-| P-15 | RESOLVIDA | Trocar global por `Map<path, retryAfter>` — feito |
-| P-16 | RESOLVIDA | Unificar extrator de IP com fallback `"unknown"` — feito |
+| P-11 | PENDENTE  | Normalizar CRLF: `git config core.autocrlf input` + `prettier --write src` (diff grande; tarefa separada)           |
+| P-12 | PENDENTE  | Remover `auth-attacher.ts`/`auth-middleware.ts` órfãos                                                              |
+| P-13 | PENDENTE  | Consolidar migrations duplicadas (exige acesso ao banco)                                                            |
+| P-14 | PENDENTE  | Atualizar `docs/API-INTEGRATION.md` e README                                                                        |
+| P-15 | RESOLVIDA | Trocar global por `Map<path, retryAfter>` — feito                                                                   |
+| P-16 | RESOLVIDA | Unificar extrator de IP com fallback `"unknown"` — feito                                                            |
 
 ## 7. Auditoria de Dados
 
@@ -125,16 +125,16 @@ Endpoints usados:
 
 ## 10. Auditoria dos Mercados
 
-| Mercado | Dados da API | UI | Status |
-|---|---|---|---|
-| 1X2 | prob_home/draw/away + `predicted` | ✅ barras | ✅ |
-| Over/Under 1.5/2.5/3.5 | `prob_over_*` | ✅ agora todas as linhas | ✅ corrigido (P-04) |
-| BTTS | `prob_yes` | ✅ | ✅ |
-| Draw No Bet | `prob_home` | ✅ | ✅ |
-| Escanteios 8.5/9.5/10.5 | `corners.prob_over_*` | **faltava** | ✅ corrigido (P-03) |
-| Placar provável | `score.most_likely` | ✅ | ✅ |
-| xG | `expected_goals` | ✅ | ✅ |
-| Value bet | `recommended` + `recommendations` | **não usado** | ✅ corrigido (P-02) |
+| Mercado                 | Dados da API                      | UI                       | Status              |
+| ----------------------- | --------------------------------- | ------------------------ | ------------------- |
+| 1X2                     | prob_home/draw/away + `predicted` | ✅ barras                | ✅                  |
+| Over/Under 1.5/2.5/3.5  | `prob_over_*`                     | ✅ agora todas as linhas | ✅ corrigido (P-04) |
+| BTTS                    | `prob_yes`                        | ✅                       | ✅                  |
+| Draw No Bet             | `prob_home`                       | ✅                       | ✅                  |
+| Escanteios 8.5/9.5/10.5 | `corners.prob_over_*`             | **faltava**              | ✅ corrigido (P-03) |
+| Placar provável         | `score.most_likely`               | ✅                       | ✅                  |
+| xG                      | `expected_goals`                  | ✅                       | ✅                  |
+| Value bet               | `recommended` + `recommendations` | **não usado**            | ✅ corrigido (P-02) |
 
 Observação: filtro único de threshold não serve a todos os mercados — o `recommended` da API já filtra por mercado internamente; o filtro local permanece apenas como convenção de UX.
 
@@ -177,13 +177,13 @@ Observação: filtro único de threshold não serve a todos os mercados — o `r
 
 ## 16. Testes Executados
 
-| Check | Resultado |
-|---|---|
-| `tsc --noEmit` | ✅ sem erros |
-| `vitest` (4 arquivos, 26 testes) | ✅ 26/26 |
-| `bun run build` (vite + nitro/Cloudflare) | ✅ build emitido (wrangler.json gerado) |
-| `lint` | ❌ falha global por CRLF — **pré-existente**, novos arquivos prettificados |
-| Fluxo real via API | ⚠️ requer `BZZOIRO_TOKEN` configurado (P-10) |
+| Check                                     | Resultado                                                                  |
+| ----------------------------------------- | -------------------------------------------------------------------------- |
+| `tsc --noEmit`                            | ✅ sem erros                                                               |
+| `vitest` (4 arquivos, 26 testes)          | ✅ 26/26                                                                   |
+| `bun run build` (vite + nitro/Cloudflare) | ✅ build emitido (wrangler.json gerado)                                    |
+| `lint`                                    | ❌ falha global por CRLF — **pré-existente**, novos arquivos prettificados |
+| Fluxo real via API                        | ⚠️ requer `BZZOIRO_TOKEN` configurado (P-10)                               |
 
 ## 17. Alterações Realizadas
 
@@ -214,20 +214,20 @@ Monetização/preço próprio, WebSocket addon, Odds API multi-sport, job de bac
 
 ## 22. Matriz de Prioridades
 
-| Prioridade | Problema | Causa | Correção | Status | Arquivo | Evidência |
-|---|---|---|---|---|---|---|
-| P0 | Live `inprogress`→`live` | param fora do contrato v2 | `status: "live"` | **CORRIGIDO** | `live.functions.ts` | tsc/build |
-| P1 | Sem `recommended` | param não exposto | repasse + uso | **CORRIGIDO** | `predictions.functions.ts` | testes |
-| P1 | Sem backtest | ausência de feature | rota acertividade | **CORRIGIDO** | `acertividade.*` | build |
-| P0 | Secrets vazios | config deploy | — | **BLOQUEADO** | env/painel | verify-setup |
-| P2 | Mercados ocultos | UI agregada | card explícito | **CORRIGIDO** | `PredictionCard.tsx` | build |
-| P2 | `tz` inválido | doc v2 UTC | removido | **CORRIGIDO** | `events.functions.ts` | tsc |
-| P2 | Polymarket/lineups predito | não usado | block/new badge | **CORRIGIDO** | eventos/Lineups | build |
-| P3 | CRLF lint | encoding | normalize | **PENDENTE** | — | lint baseline |
-| P3 | Migrations duplicadas | legacy | consolidar | **PENDENTE** | `supabase/migrations` | — |
-| P3 | Auth morto | sync | delete | **PENDENTE** | `integrations/supabase` | grep |
-| P3 | Retry global | race | Map | **PENDENTE** | `client.server.ts` | — |
-| P1/P2 | IPs duplicados | dois extractors | unificar | **PENDENTE** | `rate-limit.server.ts` | — |
+| Prioridade | Problema                   | Causa                     | Correção          | Status        | Arquivo                    | Evidência     |
+| ---------- | -------------------------- | ------------------------- | ----------------- | ------------- | -------------------------- | ------------- |
+| P0         | Live `inprogress`→`live`   | param fora do contrato v2 | `status: "live"`  | **CORRIGIDO** | `live.functions.ts`        | tsc/build     |
+| P1         | Sem `recommended`          | param não exposto         | repasse + uso     | **CORRIGIDO** | `predictions.functions.ts` | testes        |
+| P1         | Sem backtest               | ausência de feature       | rota acertividade | **CORRIGIDO** | `acertividade.*`           | build         |
+| P0         | Secrets vazios             | config deploy             | —                 | **BLOQUEADO** | env/painel                 | verify-setup  |
+| P2         | Mercados ocultos           | UI agregada               | card explícito    | **CORRIGIDO** | `PredictionCard.tsx`       | build         |
+| P2         | `tz` inválido              | doc v2 UTC                | removido          | **CORRIGIDO** | `events.functions.ts`      | tsc           |
+| P2         | Polymarket/lineups predito | não usado                 | block/new badge   | **CORRIGIDO** | eventos/Lineups            | build         |
+| P3         | CRLF lint                  | encoding                  | normalize         | **PENDENTE**  | —                          | lint baseline |
+| P3         | Migrations duplicadas      | legacy                    | consolidar        | **PENDENTE**  | `supabase/migrations`      | —             |
+| P3         | Auth morto                 | sync                      | delete            | **PENDENTE**  | `integrations/supabase`    | grep          |
+| P3         | Retry global               | race                      | Map               | **PENDENTE**  | `client.server.ts`         | —             |
+| P1/P2      | IPs duplicados             | dois extractors           | unificar          | **PENDENTE**  | `rate-limit.server.ts`     | —             |
 
 ## 23. Pendências
 
@@ -239,18 +239,18 @@ Monetização/preço próprio, WebSocket addon, Odds API multi-sport, job de bac
 
 ## 24. Critérios de Aceite
 
-| Critério | Resultado |
-|---|---|
-| Código auditado | ✅ |
-| Principais fluxos testados | ✅ (tsc/test/token build) |
-| Problemas críticos corrigidos/classificados | ✅ |
-| Build funcionar | ✅ |
-| APIs integradas corretamente | ✅ (contrato v2 validado) |
-| Dados reais, sem mocks | ✅ |
-| Partidas abrirem | ✅ na estrutura; runtime depende de token |
-| Dashboard | ✅ |
-| Mobile/PWA | ⚠️ validar em device |
-| Alterações documentadas | ✅ (este relatório) |
+| Critério                                    | Resultado                                 |
+| ------------------------------------------- | ----------------------------------------- |
+| Código auditado                             | ✅                                        |
+| Principais fluxos testados                  | ✅ (tsc/test/token build)                 |
+| Problemas críticos corrigidos/classificados | ✅                                        |
+| Build funcionar                             | ✅                                        |
+| APIs integradas corretamente                | ✅ (contrato v2 validado)                 |
+| Dados reais, sem mocks                      | ✅                                        |
+| Partidas abrirem                            | ✅ na estrutura; runtime depende de token |
+| Dashboard                                   | ✅                                        |
+| Mobile/PWA                                  | ⚠️ validar em device                      |
+| Alterações documentadas                     | ✅ (este relatório)                       |
 
 ## 25. Veredito Final
 
