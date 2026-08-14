@@ -40,8 +40,47 @@ export interface LeagueAccuracy {
   /** Amostra crua (todos os mercados usam os mesmos picks). */
   sample: number;
   markets: Record<AccuracyMarket, MarketSummary>;
+  /** Calibração 1X2 por bucket de confiança do modelo (0-1). */
+  calibration: CalibrationBucket[];
   /** Resumo do mercado selecionado — apenas troca o dedo sem refetch. */
   market: AccuracyMarket;
+}
+
+export interface CalibrationBucket {
+  bucket: string;
+  total: number;
+  decided: number;
+  hits: number;
+  hit_rate: number | null;
+}
+
+/**
+ * Agrupa picks 1X2 por faixa de confiança do modelo e mede o acerto real por
+ * faixa. Se o modelo é calibrado, hit_rate ≈ confiança média do bucket.
+ */
+export function calibrationBuckets(picks: AccuracyPick[]): CalibrationBucket[] {
+  const bounds: { label: string; lo: number; hi: number }[] = [
+    { label: "<50%", lo: 0, hi: 0.5 },
+    { label: "50–60%", lo: 0.5, hi: 0.6 },
+    { label: "60–70%", lo: 0.6, hi: 0.7 },
+    { label: "70–80%", lo: 0.7, hi: 0.8 },
+    { label: "80%+", lo: 0.8, hi: 1.01 },
+  ];
+
+  return bounds.map(({ label, lo, hi }) => {
+    const inBucket = picks.filter(
+      (p) => p.confidence != null && p.confidence >= lo && p.confidence < hi,
+    );
+    const decided = inBucket.filter((p) => p.hit != null);
+    const hits = decided.filter((p) => p.hit).length;
+    return {
+      bucket: label,
+      total: inBucket.length,
+      decided: decided.length,
+      hits,
+      hit_rate: decided.length > 0 ? hits / decided.length : null,
+    };
+  });
 }
 
 function pctBinary<T extends string>(
@@ -107,7 +146,7 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
     const day = (offsetDays: number) =>
       new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
     const dateTo = day(-1);
-    const dateFrom = day(-8);
+    const dateFrom = day(-30);
 
     const predParams: Record<string, string | number | undefined> = {
       limit: data.limit,
@@ -116,13 +155,25 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
       date_to: dateTo,
     };
 
-    const predKey = await hashKey("accuracy:v2:predictions", predParams as Record<string, unknown>);
-
     // Scores live on /events/, which pages at 200 items — walk enough pages to
     // cover the same window so every prediction can be resolved.
     type EventRow = { id: number; home_score?: number | null; away_score?: number | null };
     const PAGE = 200;
     const MAX_PAGES = 6;
+
+    const fetchPredictionsPage = async (offset: number) => {
+      const predKey = await hashKey("accuracy:v2:predictions", { ...predParams, offset } as Record<
+        string,
+        unknown
+      >);
+      return bzzoiroCachedFetch<unknown>("/api/v2/predictions/", {
+        key: predKey,
+        ttlSeconds: 10 * 60,
+        params: { ...predParams, offset },
+        timeoutMs: 20_000,
+        retries: 2,
+      });
+    };
 
     const fetchEventsPage = async (offset: number) => {
       const evParams: Record<string, string | number | undefined> = {
@@ -143,14 +194,8 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
       });
     };
 
-    const [predRaw, firstEvRaw] = await Promise.all([
-      bzzoiroCachedFetch<unknown>("/api/v2/predictions/", {
-        key: predKey,
-        ttlSeconds: 10 * 60,
-        params: predParams,
-        timeoutMs: 20_000,
-        retries: 2,
-      }),
+    const [predFirst, firstEvRaw] = await Promise.all([
+      fetchPredictionsPage(0),
       fetchEventsPage(0),
     ]);
 
@@ -168,7 +213,16 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
       for (const page of rest) events.push(...normalizeList<EventRow>(page));
     }
 
-    const allPredictions = normalizeList<Prediction>(predRaw);
+    // v2/predictions devolve array puro (sem envelope count) — pagina até
+    // página vazia ou teto, alinhando a amostra com a cobertura de events.
+    const allPredictions = normalizeList<Prediction>(predFirst);
+    let offset = PAGE;
+    while (allPredictions.length >= PAGE && offset < PAGE * MAX_PAGES) {
+      const page = normalizeList<Prediction>(await fetchPredictionsPage(offset));
+      if (page.length === 0) break;
+      allPredictions.push(...page);
+      offset += PAGE;
+    }
 
     const scoreById = new Map<number, { home: number | null; away: number | null }>();
     for (const ev of events) {
@@ -228,6 +282,7 @@ export const getLeagueAccuracy = createServerFn({ method: "GET" })
       league_id: data.leagueId,
       sample: predictions.length,
       markets,
+      calibration: calibrationBuckets(picksAll),
       market: data.market,
     };
   });

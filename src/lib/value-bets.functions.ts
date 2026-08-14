@@ -43,7 +43,14 @@ function oddsByEvent(oddsBest: OddsBestEntry[]): Map<number, Map<string, number>
         outcomes.set(o.outcome.toUpperCase(), o.best_odds);
       }
     }
-    map.set(entry.event_id, outcomes);
+    // /api/v2/odds/best/ é chamado uma vez por mercado, então o mesmo evento
+    // aparece várias vezes com outcomes parciais — merge, não sobrescreve.
+    const existing = map.get(entry.event_id);
+    if (existing) {
+      for (const [outcome, odds] of outcomes) existing.set(outcome, odds);
+    } else {
+      map.set(entry.event_id, outcomes);
+    }
   }
   return map;
 }

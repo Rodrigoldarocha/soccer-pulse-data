@@ -7,6 +7,7 @@ import {
   getLeagueAccuracy,
   type AccuracyMarket,
   type AccuracyPick,
+  type CalibrationBucket,
   type MarketSummary,
 } from "@/lib/accuracy.functions";
 
@@ -61,8 +62,8 @@ function AccuracyPage() {
       <div className="mb-6 space-y-3">
         <h1 className="text-2xl font-bold">Acertividade por liga</h1>
         <p className="text-sm text-muted-foreground">
-          Backtest contra resultados reais — selecione o mercado. Partidas finalizadas dos últimos 7
-          dias.
+          Backtest contra resultados reais — selecione o mercado. Partidas finalizadas dos últimos
+          30 dias.
         </p>
         <div className="flex flex-wrap gap-2">
           <Suspense fallback={<div className="clay-sm h-11 w-40 animate-pulse rounded-xl" />}>
@@ -99,6 +100,10 @@ function AccuracyPage() {
 
       <Suspense fallback={<div className="clay h-40 animate-pulse" />}>
         <AccuracyData leagueId={leagueId} market={market} />
+      </Suspense>
+
+      <Suspense fallback={<div className="clay h-48 animate-pulse" />}>
+        <CalibrationTable leagueId={leagueId} market={market} />
       </Suspense>
 
       <Suspense fallback={<div className="clay h-64 animate-pulse" />}>
@@ -163,6 +168,47 @@ function AccuracyData({ leagueId, market }: { leagueId?: number; market?: Accura
           <div className="mt-1 text-2xl font-black">{st.value}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function CalibrationTable({ leagueId, market }: { leagueId?: number; market?: AccuracyMarket }) {
+  const { data } = useSuspenseQuery(accuracyQuery(leagueId, market));
+  const buckets: CalibrationBucket[] = data.calibration;
+  const decidedTotal = buckets.reduce((a, b) => a + b.decided, 0);
+
+  if (decidedTotal === 0) return null;
+
+  return (
+    <div className="clay mb-6 overflow-x-auto">
+      <div className="border-b border-border px-4 py-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+        Calibração 1X2 por confiança — modelo bem calibrado acerta ~igual à confiança declarada
+      </div>
+      <table className="w-full text-left text-sm">
+        <thead>
+          <tr className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
+            <th className="px-4 py-2">Confiança</th>
+            <th className="px-4 py-2">Picks</th>
+            <th className="px-4 py-2">Decididos</th>
+            <th className="px-4 py-2">Acertos</th>
+            <th className="px-4 py-2">Taxa real</th>
+          </tr>
+        </thead>
+        <tbody>
+          {buckets.map((b) => {
+            const rate = b.hit_rate != null ? (b.hit_rate * 100).toFixed(1) : "—";
+            return (
+              <tr key={b.bucket} className="border-b border-border/50 last:border-0">
+                <td className="px-4 py-2 font-semibold">{b.bucket}</td>
+                <td className="px-4 py-2 tabular-nums">{b.total}</td>
+                <td className="px-4 py-2 tabular-nums">{b.decided}</td>
+                <td className="px-4 py-2 tabular-nums">{b.hits}</td>
+                <td className="px-4 py-2 font-black tabular-nums">{rate}%</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

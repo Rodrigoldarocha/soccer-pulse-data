@@ -137,4 +137,22 @@ describe("computeValueBets", () => {
     const bets = computeValueBets([p], odds);
     expect(bets.map((b) => b.market)).toEqual(["1x2"]);
   });
+
+  it("merges outcomes across separate market entries for the same event", () => {
+    // Production shape: /api/v2/odds/best/ is called once per market, so the
+    // same event_id appears multiple times, each entry carrying only that
+    // market's outcomes. Overwriting would drop 1x2/OU bets.
+    const odds: OddsBestEntry[] = [
+      { event_id: 4, outcomes: [{ outcome: "HOME", best_odds: 2.5 }] },
+      { event_id: 4, outcomes: [{ outcome: "over", best_odds: 1.8 }] },
+      { event_id: 4, outcomes: [{ outcome: "yes", best_odds: 2.2 }] },
+    ];
+    const p = makePrediction(4, { probHome: 60, probOver25: 65, probBtts: 55 });
+
+    const bets = computeValueBets([p], odds);
+
+    // 0.60*2.5-1 = 0.50 ; 0.65*1.8-1 = 0.17 ; 0.55*2.2-1 = 0.21
+    expect(bets.map((b) => b.market).sort()).toEqual(["1x2", "btts", "over_under_25"]);
+    expect(bets[0].market).toBe("1x2");
+  });
 });
