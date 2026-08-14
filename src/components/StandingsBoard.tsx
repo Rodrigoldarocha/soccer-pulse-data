@@ -114,7 +114,7 @@ function StandingsBody({
   queryState,
   effectiveLeagueId,
 }: {
-  queryState: ReturnType<typeof useQuery<StandingGroup[]>>;
+  queryState: ReturnType<typeof useQuery<StandingGroup[], unknown>>;
   effectiveLeagueId: number | undefined;
 }) {
   const { isPending, isError, data, error, refetch, isFetching } = queryState;

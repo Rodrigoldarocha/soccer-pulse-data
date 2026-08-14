@@ -213,6 +213,7 @@ function row(partial: Partial<ValueBetRow>): ValueBetRow {
     league_name: null,
     status: "pending",
     settled_at: null,
+    notified_at: null,
     created_at: "2026-07-30T00:00:00Z",
     updated_at: "2026-07-30T00:00:00Z",
     ...partial,

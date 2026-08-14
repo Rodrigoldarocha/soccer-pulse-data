@@ -28,6 +28,7 @@ export interface ValueBetRow {
   league_name: string | null;
   status: ValueBetStatus;
   settled_at: string | null;
+  notified_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -254,6 +255,21 @@ export const getValueBets = createServerFn({ method: "GET" }).handler(
         await supabaseAdmin
           .from("value_bets")
           .upsert(snapshot, { onConflict: "event_id,market,outcome", ignoreDuplicates: true });
+
+        // Web push: avisa bets de alto valor ainda não notificados (dedup).
+        const { notifyHighValueBets } = await import("./push.functions");
+        const { data: freshRows } = await supabaseAdmin
+          .from("value_bets")
+          .select("*")
+          .eq("status", "pending")
+          .is("notified_at", null);
+        if (freshRows && freshRows.length > 0) {
+          try {
+            await notifyHighValueBets(freshRows as unknown as ValueBetRow[]);
+          } catch (pushError) {
+            console.warn("[value-bets] web push falhou:", pushError);
+          }
+        }
       }
     } catch (error) {
       console.warn("[value-bets] snapshot não persistido:", error);
@@ -324,8 +340,13 @@ async function settlePendingValueBets(): Promise<number> {
   }
 
   if (updates.length === 0) return 0;
-  const { error: updateError } = await supabaseAdmin.from("value_bets").upsert(updates);
-  if (updateError) throw updateError;
+  for (const u of updates) {
+    const { error } = await supabaseAdmin
+      .from("value_bets")
+      .update({ status: u.status, settled_at: u.settled_at })
+      .eq("id", u.id);
+    if (error) throw error;
+  }
   return updates.length;
 }
 

@@ -68,22 +68,24 @@ export type Database = {
           league_name: string | null;
           status: string;
           settled_at: string | null;
+          notified_at: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
-          event_id: number;
-          market: string;
-          outcome: string;
-          prob: number;
-          odds: number;
-          ev: number;
-          event_date: string;
-          home_team: string;
-          away_team: string;
+          event_id?: number;
+          market?: string;
+          outcome?: string;
+          prob?: number;
+          odds?: number;
+          ev?: number;
+          event_date?: string;
+          home_team?: string;
+          away_team?: string;
           league_name?: string | null;
           status?: string;
           settled_at?: string | null;
+          notified_at?: string | null;
         };
         Update: {
           event_id?: number;
@@ -98,6 +100,33 @@ export type Database = {
           league_name?: string | null;
           status?: string;
           settled_at?: string | null;
+          notified_at?: string | null;
+        };
+        Relationships: [];
+      };
+      push_subscriptions: {
+        Row: {
+          id: number;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          user_agent: string | null;
+          created_at: string;
+          last_seen_at: string;
+        };
+        Insert: {
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          user_agent?: string | null;
+          last_seen_at?: string;
+        };
+        Update: {
+          endpoint?: string;
+          p256dh?: string;
+          auth?: string;
+          user_agent?: string | null;
+          last_seen_at?: string;
         };
         Relationships: [];
       };

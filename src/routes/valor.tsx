@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 
 import {
   ValueBetsBoard,
@@ -8,6 +8,7 @@ import {
   type MarketFilter,
 } from "@/components/ValueBetsBoard";
 import { getValueBetsBacktest, type RoiStats, type ValueBetRow } from "@/lib/value-bets.functions";
+import { getPushConfig, registerPushSubscription, type PushConfig } from "@/lib/push.functions";
 
 function roiQuery() {
   return queryOptions({
@@ -15,6 +16,82 @@ function roiQuery() {
     queryFn: () => getValueBetsBacktest(),
     staleTime: 5 * 60_000,
   });
+}
+
+function PushToggle() {
+  const { data } = useSuspenseQuery(
+    queryOptions({
+      queryKey: ["push", "config"],
+      queryFn: () => getPushConfig(),
+      staleTime: 10 * 60_000,
+    }),
+  );
+  const config: PushConfig = data;
+  const [state, setState] = useState<"idle" | "working" | "done" | "unsupported">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  if (!config.enabled) return null;
+
+  const activate = async () => {
+    setError(null);
+    if (
+      typeof window === "undefined" ||
+      !("Notification" in window) ||
+      !("serviceWorker" in navigator)
+    ) {
+      setState("unsupported");
+      return;
+    }
+    try {
+      setState("working");
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        setState("idle");
+        setError("Permissão negada no navegador.");
+        return;
+      }
+      const registration = await navigator.serviceWorker.register("/sw.js");
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: config.publicKey as string,
+      });
+      await registerPushSubscription({
+        data: {
+          endpoint: subscription.endpoint,
+          p256dh: btoa(
+            String.fromCharCode(...new Uint8Array(subscription.getKey("p256dh") as ArrayBuffer)),
+          ),
+          auth: btoa(
+            String.fromCharCode(...new Uint8Array(subscription.getKey("auth") as ArrayBuffer)),
+          ),
+        },
+      });
+      setState("done");
+    } catch (err) {
+      setState("idle");
+      setError((err as Error).message ?? "Falha ao ativar notificações.");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 text-[10px]">
+      {state === "done" ? (
+        <span className="rounded-full bg-primary/10 px-2 py-1 font-semibold text-primary">
+          🔔 Notificações ativas
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={activate}
+          disabled={state === "working"}
+          className="clay-sm px-3 py-1.5 font-semibold text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+        >
+          {state === "working" ? "Ativando…" : "🔔 Ativar notificações"}
+        </button>
+      )}
+      {error && <span className="text-destructive">{error}</span>}
+    </div>
+  );
 }
 
 function RoiSection() {
@@ -38,9 +115,7 @@ function RoiSection() {
     <div className="mx-auto max-w-6xl px-4 pt-8">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-bold">📊 Backtest de value bets</h2>
-        <span className="text-[10px] text-muted-foreground">
-          Stake unitária 1 — settlement automático sob demanda
-        </span>
+        <PushToggle />
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {cards.map((c) => (
