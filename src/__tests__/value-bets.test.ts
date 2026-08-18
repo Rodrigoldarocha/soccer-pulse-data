@@ -3,11 +3,19 @@ import { describe, it, expect } from "vitest";
 import {
   computeValueBets,
   computeRoiStats,
+  normalizeOddsConsensus,
   settleOutcome,
   type RoiStats,
   type ValueBetRow,
 } from "../lib/value-bets.functions";
-import type { OddsBestEntry, Prediction } from "../lib/bzzoiro/types";
+import type { Prediction } from "../lib/bzzoiro/types";
+
+type OddsConsensusRow = {
+  event_id: number;
+  market: string;
+  outcome: string;
+  decimal_odds: number;
+};
 
 function makePrediction(
   id: number,
@@ -59,27 +67,22 @@ function makePrediction(
   };
 }
 
-const oddsBest: OddsBestEntry[] = [
-  {
-    event_id: 1,
-    outcomes: [
-      { outcome: "HOME", best_odds: 2.0 },
-      { outcome: "DRAW", best_odds: 3.5 },
-      { outcome: "AWAY", best_odds: 4.0 },
-    ],
-  },
+const oddsConsensus: OddsConsensusRow[] = [
+  { event_id: 1, market: "1x2", outcome: "HOME", decimal_odds: 2.0 },
+  { event_id: 1, market: "1x2", outcome: "DRAW", decimal_odds: 3.5 },
+  { event_id: 1, market: "1x2", outcome: "AWAY", decimal_odds: 4.0 },
 ];
 
 describe("computeValueBets", () => {
-  it("computes positive EV entry for 1x2 (prob 50% × odd 2.0 → EV 0)", () => {
+  it("excludes 1x2 entry at EV 0 (prob 50% × odd 2.0 → below MIN_EV)", () => {
     // 0.50 * 2.0 - 1 = 0.0 → below MIN_EV 0.05 → excluded
-    const bets = computeValueBets([makePrediction(1, { probHome: 50 })], oddsBest);
+    const bets = computeValueBets([makePrediction(1, { probHome: 50 })], oddsConsensus);
     expect(bets).toEqual([]);
   });
 
   it("includes bet with EV >= threshold", () => {
     // 0.60 * 2.0 - 1 = 0.20 → included
-    const bets = computeValueBets([makePrediction(1, { probHome: 60 })], oddsBest);
+    const bets = computeValueBets([makePrediction(1, { probHome: 60 })], oddsConsensus);
     expect(bets).toHaveLength(1);
     expect(bets[0]).toMatchObject({
       event_id: 1,
@@ -92,32 +95,62 @@ describe("computeValueBets", () => {
     });
   });
 
-  it("joins over_under_25 and btts markets when odds present", () => {
-    const odds: OddsBestEntry[] = [
-      {
-        event_id: 2,
-        outcomes: [
-          { outcome: "over", best_odds: 1.8 },
-          { outcome: "yes", best_odds: 2.1 },
-        ],
-      },
+  it("joins 1x2 and btts yes/no markets when odds present", () => {
+    const odds: OddsConsensusRow[] = [
+      { event_id: 2, market: "1x2", outcome: "HOME", decimal_odds: 2.2 },
+      { event_id: 2, market: "btts", outcome: "yes", decimal_odds: 2.1 },
+      { event_id: 2, market: "btts", outcome: "no", decimal_odds: 1.9 },
     ];
-    const bets = computeValueBets([makePrediction(2, { probOver25: 65, probBtts: 55 })], odds);
-    // over: 0.65*1.8-1 = 0.17 ✓ ; btts: 0.55*2.1-1 = 0.155 ✓
-    expect(bets.map((b) => b.market).sort()).toEqual(["btts", "over_under_25"]);
+    const bets = computeValueBets([makePrediction(2, { probHome: 55, probBtts: 55 })], odds);
+    // 1x2: 0.55*2.2-1 = 0.21 ✓ ; btts yes: 0.55*2.1-1 = 0.155 ✓ ; btts no: 0.45*1.9-1 < 0 ✗
+    expect(bets.map((b) => b.market).sort()).toEqual(["1x2", "btts"]);
     expect(bets[0].ev).toBeGreaterThan(bets[1].ev);
+  });
+
+  it("joins AWAY via prob_away", () => {
+    // 0.60 * 2.0 - 1 = 0.20 → included
+    const odds: OddsConsensusRow[] = [
+      { event_id: 5, market: "1x2", outcome: "AWAY", decimal_odds: 2.0 },
+    ];
+    const bets = computeValueBets([makePrediction(5, { probAway: 60 })], odds);
+    expect(bets).toHaveLength(1);
+    expect(bets[0]).toMatchObject({
+      event_id: 5,
+      market: "1x2",
+      outcome: "AWAY",
+      prob: 0.6,
+      odds: 2.0,
+      ev: 0.2,
+    });
+  });
+
+  it("joins btts no via 100 - prob_yes", () => {
+    // 0.60 * 1.8 - 1 = 0.08 → included
+    const odds: OddsConsensusRow[] = [
+      { event_id: 6, market: "btts", outcome: "no", decimal_odds: 1.8 },
+    ];
+    const bets = computeValueBets([makePrediction(6, { probBtts: 40 })], odds);
+    expect(bets).toHaveLength(1);
+    expect(bets[0]).toMatchObject({
+      event_id: 6,
+      market: "btts",
+      outcome: "no",
+      prob: 0.6,
+      odds: 1.8,
+      ev: 0.08,
+    });
   });
 
   it("excludes entries below EV threshold", () => {
     // 0.52 * 2.0 - 1 = 0.04 → below 0.05
-    const bets = computeValueBets([makePrediction(1, { probHome: 52 })], oddsBest);
+    const bets = computeValueBets([makePrediction(1, { probHome: 52 })], oddsConsensus);
     expect(bets).toEqual([]);
   });
 
   it("excludes odds outside [1.01, 50] range", () => {
     const bets = computeValueBets(
       [makePrediction(1, { probHome: 90 })],
-      [{ event_id: 1, outcomes: [{ outcome: "HOME", best_odds: 100 }] }],
+      [{ event_id: 1, market: "1x2", outcome: "HOME", decimal_odds: 100 }],
     );
     expect(bets).toEqual([]);
   });
@@ -125,41 +158,71 @@ describe("computeValueBets", () => {
   it("excludes null probs and null odds", () => {
     const bets = computeValueBets(
       [makePrediction(1, { probHome: null as unknown as number })],
-      [{ event_id: 1, outcomes: [{ outcome: "HOME", best_odds: null }] }],
+      [{ event_id: 1, market: "1x2", outcome: "HOME", decimal_odds: null as unknown as number }],
     );
     expect(bets).toEqual([]);
   });
 
   it("sorts by EV descending across markets", () => {
-    const odds: OddsBestEntry[] = [
-      { event_id: 3, outcomes: [{ outcome: "HOME", best_odds: 3.0 }] }, // 0.5*3-1=0.5
+    const odds: OddsConsensusRow[] = [
+      { event_id: 3, market: "1x2", outcome: "HOME", decimal_odds: 2.0 }, // 0.6*2-1=0.2
+      { event_id: 3, market: "btts", outcome: "yes", decimal_odds: 1.8 }, // 0.4*1.8-1<0 → excluded
+      { event_id: 3, market: "btts", outcome: "no", decimal_odds: 1.8 }, // 0.6*1.8-1=0.08
     ];
-    const p = makePrediction(3, { probHome: 50 });
-    p.markets.over_under.prob_over_25 = 80;
-    odds[0].outcomes = [
-      { outcome: "HOME", best_odds: 3.0 },
-      { outcome: "over", best_odds: 1.3 }, // 0.8*1.3-1=0.04 → excluded
-    ];
+    const p = makePrediction(3, { probHome: 60, probBtts: 40 });
     const bets = computeValueBets([p], odds);
-    expect(bets.map((b) => b.market)).toEqual(["1x2"]);
+    expect(bets.map((b) => b.market)).toEqual(["1x2", "btts"]);
+    expect(bets[0].ev).toBeGreaterThan(bets[1].ev);
   });
 
   it("merges outcomes across separate market entries for the same event", () => {
-    // Production shape: /api/v2/odds/best/ is called once per market, so the
-    // same event_id appears multiple times, each entry carrying only that
-    // market's outcomes. Overwriting would drop 1x2/OU bets.
-    const odds: OddsBestEntry[] = [
-      { event_id: 4, outcomes: [{ outcome: "HOME", best_odds: 2.5 }] },
-      { event_id: 4, outcomes: [{ outcome: "over", best_odds: 1.8 }] },
-      { event_id: 4, outcomes: [{ outcome: "yes", best_odds: 2.2 }] },
+    // Production shape: /api/v2/odds/ consensus rows can arrive in partial
+    // pages per market, same event_id repeated — composite key merges.
+    const odds: OddsConsensusRow[] = [
+      { event_id: 4, market: "1x2", outcome: "HOME", decimal_odds: 2.5 },
+      { event_id: 4, market: "btts", outcome: "yes", decimal_odds: 2.2 },
+      { event_id: 4, market: "btts", outcome: "no", decimal_odds: 1.9 },
     ];
-    const p = makePrediction(4, { probHome: 60, probOver25: 65, probBtts: 55 });
+    const p = makePrediction(4, { probHome: 60, probBtts: 55 });
 
     const bets = computeValueBets([p], odds);
 
-    // 0.60*2.5-1 = 0.50 ; 0.65*1.8-1 = 0.17 ; 0.55*2.2-1 = 0.21
-    expect(bets.map((b) => b.market).sort()).toEqual(["1x2", "btts", "over_under_25"]);
+    // 0.60*2.5-1 = 0.50 ; 0.55*2.2-1 = 0.21 ; 0.45*1.9-1 < 0
+    expect(bets.map((b) => b.market).sort()).toEqual(["1x2", "btts"]);
     expect(bets[0].market).toBe("1x2");
+  });
+});
+
+describe("normalizeOddsConsensus", () => {
+  it("flattens envelope {count, results}", () => {
+    const rows = normalizeOddsConsensus({
+      count: 2,
+      results: [
+        { event_id: 1, market: "1x2", outcome: "HOME", decimal_odds: 2.0 },
+        { event_id: 2, market: "btts", outcome: "no", decimal_odds: 1.9 },
+      ],
+    });
+    expect(rows).toEqual([
+      { event_id: 1, market: "1x2", outcome: "HOME", decimal_odds: 2.0 },
+      { event_id: 2, market: "btts", outcome: "no", decimal_odds: 1.9 },
+    ]);
+  });
+
+  it("accepts plain array", () => {
+    const rows = normalizeOddsConsensus([
+      { event_id: 1, market: "1x2", outcome: "HOME", decimal_odds: 2.0 },
+    ]);
+    expect(rows).toHaveLength(1);
+  });
+
+  it("filters rows without event_id or decimal_odds", () => {
+    const rows = normalizeOddsConsensus([
+      { market: "1x2", outcome: "HOME", decimal_odds: 2.0 },
+      { event_id: 2, market: "btts", outcome: "yes" },
+      { event_id: 3, market: "1x2", outcome: "AWAY", decimal_odds: 4.0 },
+      null,
+    ]);
+    expect(rows).toEqual([{ event_id: 3, market: "1x2", outcome: "AWAY", decimal_odds: 4.0 }]);
   });
 });
 

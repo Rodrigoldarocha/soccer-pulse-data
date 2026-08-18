@@ -3,12 +3,19 @@
 
 import { createServerFn } from "@tanstack/react-start";
 
-import type { OddsBestEntry, Prediction, ValueBet, ValueMarket } from "./bzzoiro/types";
+import type { Prediction, ValueBet, ValueMarket } from "./bzzoiro/types";
 
 // Limiares de valor. EV = prob × odd − 1.
 const MIN_EV = 0.05;
 const MIN_ODDS = 1.01;
 const MAX_ODDS = 50.0;
+
+interface OddsConsensusRow {
+  event_id: number;
+  market: string;
+  outcome: string;
+  decimal_odds: number;
+}
 
 // -------- Settlement (pure) --------
 
@@ -95,57 +102,83 @@ export function computeRoiStats(rows: ValueBetRow[]): RoiStats {
   };
 }
 
-/** Mercados com valor: prob do modelo ↔ melhor odd da casa. */
+/** Mercados com valor: prob do modelo ↔ odd consensus. */
 const MARKET_JOINS: {
   market: ValueMarket;
+  oddsMarket: string;
   oddsOutcome: string;
   pick: (p: Prediction) => number | null;
 }[] = [
-  { market: "1x2", oddsOutcome: "HOME", pick: (p) => p.markets.match_result.prob_home },
-  { market: "over_under_25", oddsOutcome: "over", pick: (p) => p.markets.over_under.prob_over_25 },
-  { market: "btts", oddsOutcome: "yes", pick: (p) => p.markets.btts.prob_yes },
+  {
+    market: "1x2",
+    oddsMarket: "1x2",
+    oddsOutcome: "HOME",
+    pick: (p) => p.markets.match_result.prob_home,
+  },
+  {
+    market: "1x2",
+    oddsMarket: "1x2",
+    oddsOutcome: "AWAY",
+    pick: (p) => p.markets.match_result.prob_away,
+  },
+  { market: "btts", oddsMarket: "btts", oddsOutcome: "yes", pick: (p) => p.markets.btts.prob_yes },
+  {
+    market: "btts",
+    oddsMarket: "btts",
+    oddsOutcome: "no",
+    pick: (p) => (p.markets.btts.prob_yes != null ? 100 - p.markets.btts.prob_yes : null),
+  },
 ];
 
 /**
- * Normaliza o shape de `/api/v2/odds/best/` defensivamente (array de eventos
- * com outcomes), tolerando variantes de wrapper — padrão predictions.
+ * Normaliza o shape de `/api/v2/odds/` (consensus, paginado em envelope
+ * {count, results}) para linhas planas. Descartadas: quotes sem event_id
+ * e sem decimal_odds.
  */
-export function normalizeOddsBest(raw: unknown): OddsBestEntry[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(
-    (e): e is OddsBestEntry =>
-      !!e && typeof e === "object" && typeof (e as OddsBestEntry).event_id === "number",
-  );
+export function normalizeOddsConsensus(raw: unknown): OddsConsensusRow[] {
+  const list = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === "object" && Array.isArray((raw as { results?: unknown }).results)
+      ? (raw as { results: unknown[] }).results
+      : [];
+  const rows: OddsConsensusRow[] = [];
+  for (const e of list) {
+    if (!e || typeof e !== "object") continue;
+    const o = e as Record<string, unknown>;
+    if (typeof o.event_id !== "number") continue;
+    if (typeof o.decimal_odds !== "number" || typeof o.outcome !== "string") continue;
+    rows.push({
+      event_id: o.event_id,
+      market: typeof o.market === "string" ? o.market : "",
+      outcome: o.outcome,
+      decimal_odds: o.decimal_odds,
+    });
+  }
+  return rows;
 }
 
-/** Entradas de melhor odd por evento, com outcome normalizado em uppercase. */
-function oddsByEvent(oddsBest: OddsBestEntry[]): Map<number, Map<string, number>> {
+/** Entradas de odd consensus por evento, chave composta market:outcome. */
+function oddsByEvent(rows: OddsConsensusRow[]): Map<number, Map<string, number>> {
   const map = new Map<number, Map<string, number>>();
-  for (const entry of oddsBest) {
-    const outcomes = new Map<string, number>();
-    for (const o of entry.outcomes ?? []) {
-      if (o.best_odds != null && o.outcome) {
-        outcomes.set(o.outcome.toUpperCase(), o.best_odds);
-      }
-    }
-    // /api/v2/odds/best/ é chamado uma vez por mercado, então o mesmo evento
-    // aparece várias vezes com outcomes parciais — merge, não sobrescreve.
-    const existing = map.get(entry.event_id);
-    if (existing) {
-      for (const [outcome, odds] of outcomes) existing.set(outcome, odds);
-    } else {
-      map.set(entry.event_id, outcomes);
-    }
+  for (const r of rows) {
+    const key = `${r.market}:${r.outcome.toUpperCase()}`;
+    const bucket = map.get(r.event_id) ?? new Map<string, number>();
+    const prev = bucket.get(key);
+    if (prev == null || r.decimal_odds > prev) bucket.set(key, r.decimal_odds);
+    map.set(r.event_id, bucket);
   }
   return map;
 }
 
 /**
- * Cruza predictions com melhores odds, calcula EV por mercado, filtra
+ * Cruza predictions com odds consensus, calcula EV por mercado, filtra
  * EV >= MIN_EV e odd em [MIN_ODDS, MAX_ODDS]. Ordena por EV desc.
  */
-export function computeValueBets(predictions: Prediction[], oddsBest: OddsBestEntry[]): ValueBet[] {
-  const oddsMap = oddsByEvent(oddsBest);
+export function computeValueBets(
+  predictions: Prediction[],
+  oddsRows: OddsConsensusRow[],
+): ValueBet[] {
+  const oddsMap = oddsByEvent(oddsRows);
   const bets: ValueBet[] = [];
 
   for (const p of predictions) {
@@ -154,7 +187,7 @@ export function computeValueBets(predictions: Prediction[], oddsBest: OddsBestEn
 
     for (const join of MARKET_JOINS) {
       const prob = join.pick(p);
-      const odds = outcomes.get(join.oddsOutcome.toUpperCase());
+      const odds = outcomes.get(`${join.oddsMarket}:${join.oddsOutcome.toUpperCase()}`);
       if (prob == null || odds == null) continue;
       if (odds < MIN_ODDS || odds > MAX_ODDS) continue;
 
@@ -178,6 +211,34 @@ export function computeValueBets(predictions: Prediction[], oddsBest: OddsBestEn
   }
 
   return bets.sort((a, b) => b.ev - a.ev);
+}
+
+const ODDS_PAGE = 200;
+const ODDS_MAX_PAGES = 8;
+
+/** Páginas de /api/v2/odds/ (consensus) para um mercado. Cache por página. */
+async function fetchOddsConsensusPages(market: string): Promise<OddsConsensusRow[]> {
+  const { bzzoiroCachedFetch } = await import("./bzzoiro/cache.server");
+  const out: OddsConsensusRow[] = [];
+  for (let page = 0; page < ODDS_MAX_PAGES; page++) {
+    const raw = await bzzoiroCachedFetch<unknown>("/api/v2/odds/", {
+      key: `value-bets:odds-consensus:${market}:${page}`,
+      ttlSeconds: 5 * 60,
+      params: { market, limit: ODDS_PAGE, offset: page * ODDS_PAGE },
+    });
+    const rows = normalizeOddsConsensus(raw);
+    out.push(...rows);
+    const envelope = raw as { count?: unknown } | null;
+    const total = envelope && typeof envelope.count === "number" ? envelope.count : null;
+    // Prefere o count do envelope: rows.filtered pode ser < página cheia por
+    // causa de event_id null, o que não significa fim da paginação.
+    if (total != null) {
+      if ((page + 1) * ODDS_PAGE >= total) break;
+    } else if (rows.length < ODDS_PAGE) {
+      break;
+    }
+  }
+  return out;
 }
 
 export const getValueBets = createServerFn({ method: "GET" }).handler(
@@ -213,19 +274,14 @@ export const getValueBets = createServerFn({ method: "GET" }).handler(
       predictions = [];
     }
 
-    // 2. Melhores odds por mercado (1 call por mercado, sem N+1 por jogo).
-    const markets: ValueMarket[] = ["1x2", "over_under_25", "btts"];
-    const oddsEntries: OddsBestEntry[] = [];
-    for (const market of markets) {
-      const rawOdds = await bzzoiroCachedFetch<unknown>("/api/v2/odds/best/", {
-        key: `value-bets:odds-best:${market}`,
-        ttlSeconds: 5 * 60,
-        params: { market },
-      });
-      oddsEntries.push(...normalizeOddsBest(rawOdds));
+    // 2. Odds consensus por mercado (1 call por página; paginado até cobrir o
+    // recorte ou teto de páginas — dump sem filtro de data é grande).
+    const oddsMarkets = [...new Set(MARKET_JOINS.map((j) => j.oddsMarket))];
+    const oddsRows: OddsConsensusRow[] = [];
+    for (const market of oddsMarkets) {
+      oddsRows.push(...(await fetchOddsConsensusPages(market)));
     }
-
-    const bets = computeValueBets(predictions, oddsEntries);
+    const bets = computeValueBets(predictions, oddsRows);
 
     // Settlement do feed: liquida vencidas a cada consulta — o ROI anda sem
     // depender do usuário abrir o backtest. Falha só loga.
