@@ -261,6 +261,12 @@ O projeto tem finalidade **analítica e experimental**.
 
 ---
 
+## 👨‍💻 Autor
+
+**Rodrigo Rocha** — [GitHub](https://github.com/Rodrigoldarocha) · [LinkedIn](https://www.linkedin.com/in/rodrigo-rocha-19249170/)
+
+---
+
 <p align="center">
 
 ⚽ **Zagueiro**
