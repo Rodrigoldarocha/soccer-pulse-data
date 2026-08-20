@@ -116,6 +116,39 @@ function log(...args: unknown[]) {
   console.log(...args);
 }
 
+interface Prediction {
+  id: number;
+  created_at?: string;
+  event?: { id: number };
+  markets?: {
+    corners?: { prob_over_85?: number; prob_over_95?: number; prob_over_105?: number };
+    over_under?: { prob_over_15?: number; prob_over_25?: number; prob_over_35?: number };
+    expected_goals?: { home?: number; away?: number };
+    btts?: { prob_yes?: number };
+  };
+}
+
+interface SoccerEvent {
+  id: number;
+  home_score?: number;
+  away_score?: number;
+}
+
+interface StatsSide {
+  corner_kicks?: unknown;
+}
+
+interface StatsResponse {
+  stats?: { home?: StatsSide; away?: StatsSide };
+}
+
+interface OddsRow {
+  line?: number;
+  outcome?: string;
+  implied_probability?: number;
+  decimal_odds?: number;
+}
+
 // -------- Coleta --------
 
 async function main() {
@@ -123,14 +156,14 @@ async function main() {
   const dateTo = new Date(Date.now() - 1 * 86_400_000).toISOString().slice(0, 10);
   log(`Janela: ${dateFrom}..${dateTo} UTC`);
 
-  const preds = await fetchList<any>("predictions/", {
+  const preds = await fetchList<Prediction>("predictions/", {
     date_from: dateFrom,
     date_to: dateTo,
     status: "all",
   });
   log(`predictions no recorte: ${preds.length}`);
 
-  const events = await fetchList<any>("events/", {
+  const events = await fetchList<SoccerEvent>("events/", {
     date_from: dateFrom,
     date_to: dateTo,
     status: "finished",
@@ -147,10 +180,12 @@ async function main() {
   log(`predictions com resultado: ${matched.length}`);
 
   // 1 predição por evento (a mais recente vence)
-  const byEvent = new Map<number, any>();
+  const byEvent = new Map<number, Prediction>();
   for (const p of matched) {
-    const cur = byEvent.get(p.event.id);
-    if (!cur || (p.created_at ?? "") > (cur.created_at ?? "")) byEvent.set(p.event.id, p);
+    const eid = p.event?.id;
+    if (eid == null) continue;
+    const cur = byEvent.get(eid);
+    if (!cur || (p.created_at ?? "") > (cur.created_at ?? "")) byEvent.set(eid, p);
   }
   const picks = [...byEvent.values()];
   log(`amostra deduplicada: ${picks.length}`);
@@ -159,7 +194,7 @@ async function main() {
   const cornersById = new Map<number, number>();
   for (const id of [...byEvent.keys()].slice(0, MAX_STATS)) {
     try {
-      const j = await api<any>(`/api/v2/events/${id}/stats/`);
+      const j = await api<StatsResponse>(`/api/v2/events/${id}/stats/`);
       const h = statNum(j?.stats?.home?.corner_kicks);
       const a = statNum(j?.stats?.away?.corner_kicks);
       if (!Number.isNaN(h) && !Number.isNaN(a)) cornersById.set(id, h + a);
@@ -300,13 +335,17 @@ async function main() {
   log(`taxa real de 0-0: ${pct(zeroZero, goalRows.length)} (n=${zeroZero}/${goalRows.length})`);
 
   const meanU05Model = goalRows.reduce((a, r) => a + r.under05Model, 0) / goalRows.length;
-  const meanU05Xg = goalRows.reduce((a, r) => a + (Number.isNaN(r.under05Xg) ? 0 : r.under05Xg), 0) / goalRows.length;
-  log(`P(under 0.5) média — λ do modelo: ${meanU05Model.toFixed(2)}% | λ xG: ${meanU05Xg.toFixed(2)}%`);
+  const meanU05Xg =
+    goalRows.reduce((a, r) => a + (Number.isNaN(r.under05Xg) ? 0 : r.under05Xg), 0) /
+    goalRows.length;
+  log(
+    `P(under 0.5) média — λ do modelo: ${meanU05Model.toFixed(2)}% | λ xG: ${meanU05Xg.toFixed(2)}%`,
+  );
 
-  for (const [line, key, th] of [
-    ["1.5", "p15", 2],
-    ["2.5", "p25", 3],
-    ["3.5", "p35", 4],
+  for (const [line, key] of [
+    ["1.5", "p15"],
+    ["2.5", "p25"],
+    ["3.5", "p35"],
   ] as const) {
     const overTh = Number(line) + 1;
     const picksOver = goalRows.filter((r) => r[key] >= 50).length;
@@ -330,14 +369,14 @@ async function main() {
 
   log("\n=== D) ODDS CONSENSUS total_corners (amostra atual) ===");
   try {
-    const odds: any[] = [];
+    const odds: OddsRow[] = [];
     for (let page = 0; page < 3; page++) {
       const q = new URLSearchParams({
         market: "total_corners",
         limit: "200",
         offset: String(page * 200),
       });
-      const j = await api<any>(`/api/v2/odds/?${q}`);
+      const j = await api<{ results?: OddsRow[] }>(`/api/v2/odds/?${q}`);
       const rows = j.results ?? [];
       odds.push(...rows);
       if (rows.length < 200) break;
