@@ -1,10 +1,10 @@
 <!-- Sync Impact Report:
-- Version change: 0.0.0 (template) → 1.0.0
-- Modified principles: none (initial adoption)
-- Added sections: Core Principles (I–V), Technology Stack Constraints,
-  Development Workflow & Quality Gates, Governance
+- Version change: 1.0.0 → 1.1.0
+- Modified principles: none
+- Added sections: Core Principles (VI–XI) Design System,
+  Source of Truth
 - Removed sections: none
-- Follow-up TODOs: none
+- Follow-up TODOs: specify remaining DS components incrementally
 -->
 
 # Zagueiro Constitution
@@ -46,11 +46,54 @@ bundle or be committed to git; `.env` is gitignored and `.env.example` is the on
 template. The Supabase `service_role` client is server-only. SSR must set security
 headers. Any credential leak is a critical incident.
 
+### VI. Design Tokens (NON-NEGOTIABLE)
+
+Recurring visual values MUST use tokens, never hardcoded values. Tokens live in
+`src/styles.css` (primitive/semantic layers via `@theme inline`). New semantic
+color = register in `:root` + `.dark` + `@theme inline`. No component consumes a
+primitive value directly when a semantic token exists.
+
+### VII. Consistency & Reuse
+
+Similar components share behavior, naming and API. No duplicated components
+without justification. Variants exist only with a documented use case.
+
+### VIII. Accessibility (NON-NEGOTIABLE)
+
+Components MUST meet WCAG 2.1 AA: semantic HTML, keyboard navigation, focus
+visibility, ARIA where needed, contrast ≥ 4.5:1, touch target ≥ 44px.
+
+### IX. Responsiveness
+
+Components MUST behave correctly at all defined breakpoints. Responsive ≠
+shrinking: states, layout and touch targets adapt.
+
+### X. Spec-First for UI (Design ↔ Code)
+
+Every public component/pattern requires a spec in `specs/` before
+implementation. Spec is the shared source of truth for design and dev.
+
+### XI. API Predictability & Compatibility
+
+Props, variants and states use predictable naming. Breaking changes (prop
+removal, rename, behavior change) MUST be flagged in spec as MAJOR with
+migration path.
+
 ## Technology Stack Constraints
 
 Runtime: Node.js 22 / Bun. Framework: TanStack Start + React 19 + TypeScript 5.8.
 Styling: Tailwind CSS v4 + shadcn/ui. Database/cache: Supabase (PostgreSQL 14.5).
 Deploy: Cloudflare Workers (Nitro build output in `.output/`).
+
+## Source of Truth
+
+- Spec Kit (`specs/`) → intent, requirements, decisions
+- Design files → exploration (none active yet)
+- Design tokens (`src/styles.css`) → official values
+- Component code (`src/components/`) → implementation
+- Docs (`docs/`) → narrative documentation
+- Git → history & versioning
+- CI → validation
 
 Lockfile: `bun.lock` is authoritative; `package.json` scripts are the only entry
 points (`dev`, `build`, `test`, `lint`, `format`).
@@ -80,4 +123,4 @@ clarification/typo), and `LAST_AMENDED_DATE` updated to today.
 Compliance is verified in every code review and CI run. Runtime development
 guidance lives in `AGENTS.md`; spec workflow state lives in `.specify/`.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-14
+**Version**: 1.1.0 | **Ratified**: 2026-08-14 | **Last Amended**: 2026-08-20
