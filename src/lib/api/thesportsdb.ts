@@ -85,19 +85,14 @@ export async function fetchTeamBadge(teamName: string): Promise<string | null> {
     return cached.badge || null;
   }
 
-  try {
-    const query = encodeURIComponent(teamName);
-    const res = await fetch(`${BASE}/searchteams.php?t=${query}`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { teams?: Array<{ strBadge?: string }> };
-    const badge = data.teams?.[0]?.strBadge ?? null;
-    logoCache.set(key, { badge: badge ?? "", timestamp: Date.now() });
-    return badge;
-  } catch {
-    return null;
-  }
+  const query = encodeURIComponent(teamName);
+  const data = await tsdbJson<{ teams?: Array<{ strBadge?: string }> }>(
+    `searchteams.php?t=${query}`,
+    { ttlMs: LOGO_CACHE_TTL, timeoutMs: 5000 },
+  );
+  const badge = data?.teams?.[0]?.strBadge ?? null;
+  if (data) logoCache.set(key, { badge: badge ?? "", timestamp: Date.now() });
+  return badge;
 }
 
 export function clearLogoCache(): void {
