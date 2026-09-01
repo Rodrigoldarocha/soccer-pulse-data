@@ -14,24 +14,135 @@ export type Database = {
   }
   public: {
     Tables: {
-      api_cache: {
+      bzzoiro_cache: {
         Row: {
-          created_at: string
+          cache_key: string
           expires_at: string
-          key: string
+          fetched_at: string
           payload: Json
         }
         Insert: {
-          created_at?: string
+          cache_key: string
           expires_at: string
-          key: string
+          fetched_at?: string
           payload: Json
         }
         Update: {
-          created_at?: string
+          cache_key?: string
           expires_at?: string
-          key?: string
+          fetched_at?: string
           payload?: Json
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: number
+          last_seen_at: string
+          p256dh: string
+          user_agent: string | null
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: never
+          last_seen_at?: string
+          p256dh: string
+          user_agent?: string | null
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: never
+          last_seen_at?: string
+          p256dh?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      rate_limits: {
+        Row: {
+          count: number
+          created_at: string
+          identifier: string
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          identifier: string
+          updated_at?: string
+          window_start?: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          identifier?: string
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
+      value_bets: {
+        Row: {
+          away_team: string
+          created_at: string
+          ev: number
+          event_date: string
+          event_id: number
+          home_team: string
+          id: number
+          league_name: string | null
+          market: string
+          notified_at: string | null
+          odds: number
+          outcome: string
+          prob: number
+          settled_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          away_team: string
+          created_at?: string
+          ev: number
+          event_date: string
+          event_id: number
+          home_team: string
+          id?: never
+          league_name?: string | null
+          market: string
+          notified_at?: string | null
+          odds: number
+          outcome: string
+          prob: number
+          settled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          away_team?: string
+          created_at?: string
+          ev?: number
+          event_date?: string
+          event_id?: number
+          home_team?: string
+          id?: never
+          league_name?: string | null
+          market?: string
+          notified_at?: string | null
+          odds?: number
+          outcome?: string
+          prob?: number
+          settled_at?: string | null
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -40,7 +151,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_rate_limit: {
+        Args: {
+          p_identifier: string
+          p_max: number
+          p_window_ms: number
+          p_window_start: string
+        }
+        Returns: {
+          current_count: number
+          exceeded: boolean
+        }[]
+      }
+      purge_expired_cache: { Args: never; Returns: number }
     }
     Enums: {
       [_ in never]: never
