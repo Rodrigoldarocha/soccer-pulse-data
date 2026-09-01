@@ -58,8 +58,8 @@ export async function getCachedOrGenerate<T>(key: string, ttlSeconds: number, fa
   return fresh;
 }
 
-export async function getRealMatches(_dateISO: string): Promise<MatchPrediction[]> {
-  return fetchTodayMatches();
+export async function getRealMatches(dateISO: string): Promise<MatchPrediction[]> {
+  return fetchMatchesForDate(dateISO);
 }
 
 export async function getRealLiveMatches(_dateISO: string): Promise<MatchPrediction[]> {
