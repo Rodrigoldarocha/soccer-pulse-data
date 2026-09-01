@@ -12,6 +12,7 @@ export interface PredictionInput {
   id: string;
   league: LeagueId;
   leagueLabel: string;
+  apiLeagueId: string; // raw idLeague from TheSportsDB API
   homeTeam: string;
   awayTeam: string;
   eventDate: string;
@@ -199,6 +200,7 @@ export async function generatePredictions(): Promise<PredictionInput[]> {
       id: ev.idEvent,
       league: leagueId,
       leagueLabel,
+      apiLeagueId: ev.idLeague, // pass raw API league ID for historical data fetch
       homeTeam: ev.strHomeTeam,
       awayTeam: ev.strAwayTeam,
       eventDate: `${ev.dateEvent}T${ev.strTime ?? "00:00:00"}`,
@@ -217,8 +219,11 @@ export async function computePrediction(
   homeTeam: string,
   awayTeam: string,
   leagueId: LeagueId,
+  apiLeagueId?: string,
 ): Promise<PredictionResult> {
-  const tsdbLeagueId = LEAGUE_IDS[leagueId];
+  // Use the raw API league ID directly for fetching past events
+  // Falls back to our mapping if apiLeagueId not provided
+  const tsdbLeagueId = apiLeagueId ?? LEAGUE_IDS[leagueId];
 
   // Get historical events for this league
   const events = tsdbLeagueId ? await getLeagueEvents(tsdbLeagueId) : [];

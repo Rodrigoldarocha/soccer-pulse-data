@@ -69,6 +69,8 @@ export interface TsdbStandingResponse {
 
 // ─── League ID mapping ───────────────────────────────────────────────
 
+// TheSportsDB league IDs — these are the ACTUAL IDs returned by the API
+// Map is from our internal slug → API idLeague. Used only for league name lookup.
 export const LEAGUE_IDS: Record<string, string> = {
   "premier-league": "4328",
   "la-liga": "4335",
@@ -85,7 +87,8 @@ export const LEAGUE_IDS: Record<string, string> = {
   "russian-premier-league": "4332",
   "liga-mx": "4339",
   "mls": "4314",
-  "liga-argentina": "4342",
+  "liga-argentina": "4406",
+  "argentina-b": "4616",
   "a-league": "4345",
   "saudi-pro-league": "4347",
   "j-league": "4346",
@@ -104,6 +107,7 @@ export const LEAGUE_IDS: Record<string, string> = {
   "la-liga-2": "4357",
   "bundesliga-2": "4358",
   "ligue-2": "4359",
+  "usl-championship": "4684",
 };
 
 export const LEAGUE_NAMES: Record<string, string> = {

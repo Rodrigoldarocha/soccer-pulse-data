@@ -42,7 +42,7 @@ export async function fetchTodayMatches(): Promise<MatchPrediction[]> {
   // Step 2: For each event, compute prediction
   const results = await Promise.allSettled(
     events.map(async (ev) => {
-      const prediction = await computePrediction(ev.homeTeam, ev.awayTeam, ev.league);
+      const prediction = await computePrediction(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId);
       const footballEvent = eventToFootballEvent(ev);
       const predictionData: PredictionData = prediction;
       return buildPrediction(footballEvent, predictionData, { id: ev.league, name: ev.leagueLabel });
