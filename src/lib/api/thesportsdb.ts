@@ -1,5 +1,78 @@
 const BASE = "https://www.thesportsdb.com/api/v1/json/3";
 
+// ─── Shared JSON client (rate-limit aware) ───────────────────────────
+// A chave pública do TheSportsDB é fortemente limitada (HTTP 429).
+// Requests são serializados, espaçados, repetidos com backoff e
+// memoizados em memória para evitar respostas vazias.
+
+const responseCache = new Map<string, { data: unknown; timestamp: number }>();
+let chain: Promise<unknown> = Promise.resolve();
+let lastCall = 0;
+const MIN_GAP_MS = 350;
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function tsdbJson<T>(
+  path: string,
+  opts: { ttlMs?: number; timeoutMs?: number; retries?: number } = {},
+): Promise<T | null> {
+  const { ttlMs = 5 * 60 * 1000, timeoutMs = 8000, retries = 3 } = opts;
+  const url = `${BASE}/${path}`;
+
+  const cached = responseCache.get(url);
+  if (cached && Date.now() - cached.timestamp < ttlMs) return cached.data as T;
+
+  const run = async (): Promise<T | null> => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const gap = Date.now() - lastCall;
+      if (gap < MIN_GAP_MS) await sleep(MIN_GAP_MS - gap);
+      lastCall = Date.now();
+      try {
+        const res = await fetch(url, {
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+        if (res.status === 429 || res.status >= 500) {
+          if (attempt < retries) {
+            await sleep(600 * Math.pow(2, attempt));
+            continue;
+          }
+          return null;
+        }
+        if (!res.ok) return null;
+        const text = await res.text();
+        if (!text.trim().startsWith("{") && !text.trim().startsWith("[")) {
+          if (attempt < retries) {
+            await sleep(600 * Math.pow(2, attempt));
+            continue;
+          }
+          return null;
+        }
+        const data = JSON.parse(text) as T;
+        responseCache.set(url, { data, timestamp: Date.now() });
+        return data;
+      } catch {
+        if (attempt < retries) {
+          await sleep(600 * Math.pow(2, attempt));
+          continue;
+        }
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const queued = chain.then(run, run) as Promise<T | null>;
+  chain = queued.catch(() => undefined);
+  return queued;
+}
+
+export function clearTsdbCache(): void {
+  responseCache.clear();
+}
+
 // ─── Logo cache ──────────────────────────────────────────────────────
 
 const logoCache = new Map<string, { badge: string; timestamp: number }>();
