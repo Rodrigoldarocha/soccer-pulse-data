@@ -3,6 +3,7 @@ import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getTodayMatches } from "@/lib/matches.functions";
 import { useMemo } from "react";
+import { motion } from "framer-motion";
 import {
   BarChart,
   Bar,
@@ -60,57 +61,65 @@ function AnalyticsPage() {
     return buckets;
   }, [data.matches]);
 
+  const cards = [
+    { title: "Jogos por liga", content: (
+      <ResponsiveContainer>
+        <PieChart>
+          <Pie data={byLeague} dataKey="value" nameKey="name" outerRadius={90} label>
+            {byLeague.map((_, i) => (
+              <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            ))}
+          </Pie>
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    )},
+    { title: "Distribuição de odds sugeridas", content: (
+      <ResponsiveContainer>
+        <BarChart data={oddsBuckets}>
+          <XAxis dataKey="name" stroke="oklch(0.6 0.02 260)" fontSize={12} />
+          <YAxis stroke="oklch(0.6 0.02 260)" fontSize={12} allowDecimals={false} />
+          <Tooltip cursor={{ fill: "oklch(0.22 0.02 260 / 0.3)" }} />
+          <Bar dataKey="count" fill="#22c55e" radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    )},
+    { title: "Mercados sugeridos", span: true, content: (
+      <ResponsiveContainer>
+        <BarChart data={byMarket}>
+          <XAxis dataKey="name" stroke="oklch(0.6 0.02 260)" fontSize={12} />
+          <YAxis stroke="oklch(0.6 0.02 260)" fontSize={12} allowDecimals={false} />
+          <Tooltip cursor={{ fill: "oklch(0.22 0.02 260 / 0.3)" }} />
+          <Bar dataKey="count" fill="#38bdf8" radius={[6, 6, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    )},
+  ];
+
   return (
     <div className="space-y-6">
-      <header>
+      <motion.header
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      >
         <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">Analytics</h1>
-        <p className="text-sm text-muted-foreground">Distribuições calculadas a partir dos jogos de hoje.</p>
-      </header>
+        <p className="mt-1 text-sm text-muted-foreground/60">Distribuições calculadas a partir dos jogos de hoje.</p>
+      </motion.header>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="card-elevated p-5">
-          <h2 className="font-display text-sm font-semibold text-foreground">Jogos por liga</h2>
-          <div className="mt-3 h-64">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie data={byLeague} dataKey="value" nameKey="name" outerRadius={90} label>
-                  {byLeague.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="card-elevated p-5">
-          <h2 className="font-display text-sm font-semibold text-foreground">Distribuição de odds sugeridas</h2>
-          <div className="mt-3 h-64">
-            <ResponsiveContainer>
-              <BarChart data={oddsBuckets}>
-                <XAxis dataKey="name" stroke="oklch(0.62 0.02 260)" fontSize={12} />
-                <YAxis stroke="oklch(0.62 0.02 260)" fontSize={12} allowDecimals={false} />
-                <Tooltip cursor={{ fill: "oklch(0.22 0.02 260 / 0.5)" }} />
-                <Bar dataKey="count" fill="#22c55e" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="card-elevated p-5 lg:col-span-2">
-          <h2 className="font-display text-sm font-semibold text-foreground">Mercados sugeridos</h2>
-          <div className="mt-3 h-64">
-            <ResponsiveContainer>
-              <BarChart data={byMarket}>
-                <XAxis dataKey="name" stroke="oklch(0.62 0.02 260)" fontSize={12} />
-                <YAxis stroke="oklch(0.62 0.02 260)" fontSize={12} allowDecimals={false} />
-                <Tooltip cursor={{ fill: "oklch(0.22 0.02 260 / 0.5)" }} />
-                <Bar dataKey="count" fill="#38bdf8" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        {cards.map((card, i) => (
+          <motion.div
+            key={card.title}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 + i * 0.08, ease: [0.16, 1, 0.3, 1] }}
+            className={`card-premium p-5 ${card.span ? "lg:col-span-2" : ""}`}
+          >
+            <h2 className="font-display text-sm font-semibold text-foreground">{card.title}</h2>
+            <div className="mt-3 h-64">{card.content}</div>
+          </motion.div>
+        ))}
       </div>
     </div>
   );

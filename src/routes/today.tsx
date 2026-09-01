@@ -49,26 +49,36 @@ function TodayPage() {
     return d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
   };
 
+  const tabs = [
+    { id: "today" as Tab, label: "Hoje", icon: CalendarDays, date: todayData.date },
+    { id: "tomorrow" as Tab, label: "Amanhã", icon: CalendarClock, date: tomorrowData.date },
+  ];
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div>
-        <header className="mb-5">
+        <motion.header
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="mb-5"
+        >
           <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
             Palpites
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground/60">
             {data.matches.length} partidas com predição — 3 mercados por card.
           </p>
-        </header>
+        </motion.header>
 
-        {/* Tabs Hoje / Amanhã */}
-        <div className="mb-4 inline-flex rounded-xl border border-border bg-card p-1 shadow-sm">
-          {(
-            [
-              { id: "today" as Tab, label: "Hoje", icon: CalendarDays, date: todayData.date },
-              { id: "tomorrow" as Tab, label: "Amanhã", icon: CalendarClock, date: tomorrowData.date },
-            ]
-          ).map((t) => {
+        {/* Tabs */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="mb-4 inline-flex rounded-xl border border-border/50 bg-card p-1 shadow-sm"
+        >
+          {tabs.map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
@@ -76,47 +86,61 @@ function TodayPage() {
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200",
-                  active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/5",
+                  "inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-300",
+                  active
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                    : "text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.04]",
                 )}
               >
                 <Icon className="h-4 w-4" />
                 {t.label}
-                <span className="ml-1 text-[10px] opacity-70">{formatDate(t.date)}</span>
+                <span className="ml-1 text-[10px] opacity-50 tabular-nums">{formatDate(t.date)}</span>
               </button>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* Search */}
-        <div className="relative mb-4">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.15 }}
+          className="relative mb-4"
+        >
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/30" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar time ou liga"
-            className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
+            className="w-full rounded-xl border border-border/50 bg-card py-2.5 pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/15 transition-all duration-200"
           />
-        </div>
+        </motion.div>
 
-        {/* Match grid */}
+        {/* Grid */}
         <AnimatePresence mode="wait">
           <motion.div
             key={tab}
-            initial={{ opacity: 0, y: 6 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
             className="grid gap-3 sm:grid-cols-2"
           >
-            {filtered.map((m) => (
-              <MatchCard key={m.id} match={m} />
+            {filtered.map((m, i) => (
+              <motion.div
+                key={m.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3), ease: [0.16, 1, 0.3, 1] }}
+              >
+                <MatchCard match={m} />
+              </motion.div>
             ))}
-            {filtered.length === 0 ? (
-              <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
+            {filtered.length === 0 && (
+              <p className="col-span-full py-12 text-center text-sm text-muted-foreground/40">
                 Nenhuma partida encontrada.
               </p>
-            ) : null}
+            )}
           </motion.div>
         </AnimatePresence>
       </div>

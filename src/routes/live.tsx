@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getLiveMatches } from "@/lib/matches.functions";
 import { MatchCard } from "@/components/MatchCard";
 import { Radio } from "lucide-react";
+import { motion } from "framer-motion";
 
 export const Route = createFileRoute("/live")({
   head: () => ({
@@ -26,8 +27,13 @@ function LivePage() {
   );
   return (
     <div>
-      <header className="mb-5 flex items-center gap-2">
-        <span className="flex items-center gap-2 rounded-full bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-400">
+      <motion.header
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        className="mb-5 flex items-center gap-3"
+      >
+        <span className="flex items-center gap-2 rounded-full bg-rose-500/10 border border-rose-500/20 px-3 py-1 text-xs font-semibold text-rose-400">
           <span className="h-2 w-2 animate-pulse rounded-full bg-rose-500" />
           Ao vivo
         </span>
@@ -35,12 +41,24 @@ function LivePage() {
           <Radio className="mr-2 inline h-6 w-6 text-primary" />
           Partidas em andamento
         </h1>
-      </header>
+      </motion.header>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {data.matches.map((m) => (
-          <MatchCard key={m.id} match={m} live />
+        {data.matches.map((m, i) => (
+          <motion.div
+            key={m.id}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3), ease: [0.16, 1, 0.3, 1] }}
+          >
+            <MatchCard match={m} live />
+          </motion.div>
         ))}
       </div>
+      {data.matches.length === 0 && (
+        <p className="py-12 text-center text-sm text-muted-foreground/40">
+          Nenhuma partida ao vivo no momento.
+        </p>
+      )}
     </div>
   );
 }

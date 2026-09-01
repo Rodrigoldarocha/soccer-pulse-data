@@ -24,10 +24,10 @@ export const Route = createFileRoute("/multiples")({
 
 function riskChipCls(id: ParlaySuggestion["id"]) {
   return id === "safe"
-    ? "bg-emerald-500/15 text-emerald-400"
+    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
     : id === "moderate"
-    ? "bg-sky-500/15 text-sky-400"
-    : "bg-rose-500/15 text-rose-400";
+      ? "bg-sky-500/15 text-sky-400 border-sky-500/20"
+      : "bg-rose-500/15 text-rose-400 border-rose-500/20";
 }
 
 function SuggestionCard({ s, matches }: { s: ParlaySuggestion; matches: { id: string; home: { name: string; short: string }; away: { name: string; short: string }; leagueLabel: string }[] }) {
@@ -48,32 +48,33 @@ function SuggestionCard({ s, matches }: { s: ParlaySuggestion; matches: { id: st
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="card-elevated flex flex-col p-5"
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className="card-premium flex flex-col p-5"
     >
       <div className="flex items-center justify-between">
-        <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide", riskChipCls(s.id))}>
+        <span className={cn("rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide", riskChipCls(s.id))}>
           {s.riskText}
         </span>
         <div className="text-right">
           <div className="font-display text-xl font-bold text-foreground tabular-nums">{s.totalOdds.toFixed(2)}</div>
-          <div className="text-[10px] font-medium text-muted-foreground">{(s.totalProbability * 100).toFixed(1)}% real</div>
+          <div className="text-[10px] font-medium text-muted-foreground/50 tabular-nums">{(s.totalProbability * 100).toFixed(1)}% real</div>
         </div>
       </div>
-      <h3 className="mt-2 font-display text-base font-semibold text-foreground">{s.title}</h3>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{s.explanation}</p>
+      <h3 className="mt-3 font-display text-base font-semibold text-foreground">{s.title}</h3>
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground/60">{s.explanation}</p>
 
       <ul className="mt-3 space-y-2">
         {s.legs.map((l) => {
           const m = matches.find((x) => x.id === l.matchId);
           return (
-            <li key={`${l.matchId}-${l.market}`} className="rounded-xl bg-white/5 px-3 py-2 text-xs">
+            <li key={`${l.matchId}-${l.market}`} className="rounded-xl bg-white/[0.03] border border-border/30 px-3 py-2 text-xs">
               <div className="font-medium text-foreground">
                 {m ? `${m.home.short} × ${m.away.short}` : l.matchId}
-                <span className="ml-2 text-muted-foreground">{m?.leagueLabel}</span>
+                <span className="ml-2 text-muted-foreground/50">{m?.leagueLabel}</span>
               </div>
-              <div className="mt-0.5 flex items-center justify-between text-muted-foreground">
+              <div className="mt-0.5 flex items-center justify-between text-muted-foreground/60">
                 <span>{l.marketLabel}</span>
                 <span className="font-display font-semibold text-foreground tabular-nums">{l.odds.toFixed(2)}</span>
               </div>
@@ -84,7 +85,7 @@ function SuggestionCard({ s, matches }: { s: ParlaySuggestion; matches: { id: st
 
       <button
         onClick={use}
-        className="mt-4 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-200 hover:bg-primary/90 active:scale-95 glow-green"
+        className="mt-4 inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-all duration-300 hover:bg-primary/90 active:scale-[0.97] shadow-sm shadow-primary/20"
       >
         Usar no construtor <ArrowRight className="h-4 w-4" />
       </button>
@@ -112,23 +113,31 @@ function MultiplesPage() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div>
-        <header className="mb-4">
+        <motion.header
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          className="mb-4"
+        >
           <h1 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
             Múltiplas inteligentes
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground/60">
             Combine sugestões de IA com um construtor matemático — todas as odds e probabilidades
             são recalculadas no servidor.
           </p>
-        </header>
+        </motion.header>
 
-        <div className="mb-5 inline-flex rounded-xl border border-border bg-card p-1 shadow-sm">
-          {(
-            [
-              { id: "ai", label: "Sugestões da IA", icon: Sparkles },
-              { id: "builder", label: "Criar múltipla", icon: Layers3 },
-            ] as const
-          ).map((t) => {
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="mb-5 inline-flex rounded-xl border border-border/50 bg-card p-1 shadow-sm"
+        >
+          {([
+            { id: "ai", label: "Sugestões da IA", icon: Sparkles },
+            { id: "builder", label: "Criar múltipla", icon: Layers3 },
+          ] as const).map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
             return (
@@ -136,48 +145,64 @@ function MultiplesPage() {
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200",
-                  active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/5",
+                  "inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-300",
+                  active
+                    ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
+                    : "text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.04]",
                 )}
               >
                 <Icon className="h-4 w-4" /> {t.label}
               </button>
             );
           })}
-        </div>
+        </motion.div>
 
         <AnimatePresence mode="wait">
           {tab === "ai" ? (
             <motion.section
               key="ai"
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              className="grid gap-4 lg:grid-cols-1 xl:grid-cols-1"
+              exit={{ opacity: 0, y: -8 }}
+              className="grid gap-4"
             >
-              {aiData.suggestions.map((s) => (
-                <SuggestionCard key={s.id} s={s} matches={aiData.matches} />
+              {aiData.suggestions.map((s, i) => (
+                <motion.div
+                  key={s.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: i * 0.08 }}
+                >
+                  <SuggestionCard s={s} matches={aiData.matches} />
+                </motion.div>
               ))}
             </motion.section>
           ) : (
             <motion.section
               key="builder"
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
+              exit={{ opacity: 0, y: -8 }}
             >
               <div className="relative mb-4">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/30" />
                 <input
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   placeholder="Buscar time ou liga"
-                  className="w-full rounded-xl border border-border bg-card py-2.5 pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/40 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
+                  className="w-full rounded-xl border border-border/50 bg-card py-2.5 pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/30 focus:border-primary/50 focus:ring-2 focus:ring-primary/15 transition-all duration-200"
                 />
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                {filtered.map((m) => (
-                  <MatchCard key={m.id} match={m} />
+                {filtered.map((m, i) => (
+                  <motion.div
+                    key={m.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}
+                  >
+                    <MatchCard match={m} />
+                  </motion.div>
                 ))}
               </div>
             </motion.section>
