@@ -46,7 +46,9 @@ export async function getCachedOrGenerate<T>(key: string, ttlSeconds: number, fa
   }
 
   const fresh = await factory();
-  if (supabase) {
+  // Não cachear resultado vazio (falha/limite da API upstream)
+  const isEmpty = Array.isArray(fresh) && fresh.length === 0;
+  if (supabase && !isEmpty) {
     try {
       const now = Date.now();
       const expires_at = new Date(now + ttlSeconds * 1000).toISOString();
