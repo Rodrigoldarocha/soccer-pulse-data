@@ -58,7 +58,11 @@ export async function fetchMatchesForDate(dateISO?: string): Promise<MatchPredic
   return succeeded.map((r) => r.value);
 }
 
+export async function fetchTodayMatches(): Promise<MatchPrediction[]> {
+  return fetchMatchesForDate();
+}
+
 export async function fetchLiveMatches(): Promise<MatchPrediction[]> {
-  const all = await fetchTodayMatches();
-  return all.filter((m) => m.status === "live");
+  const all = await fetchMatchesForDate();
+  return all.filter((m: MatchPrediction) => m.status === "live");
 }
