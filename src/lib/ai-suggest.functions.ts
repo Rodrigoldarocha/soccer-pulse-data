@@ -3,9 +3,13 @@ import { getRealMatches, marketLabelFor } from "./matches.server";
 import type { MatchPrediction, MarketId, ParlayLeg, ParlaySuggestion } from "./types";
 
 function todayISO() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  const now = new Date(Date.now());
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
 }
 
 function buildLegs(matches: MatchPrediction[], picks: { matchId: string; market: MarketId }[]): ParlayLeg[] {

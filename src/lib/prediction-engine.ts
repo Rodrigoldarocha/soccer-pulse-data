@@ -187,11 +187,21 @@ export async function generatePredictions(dateISO?: string): Promise<PredictionI
       ? league[1].charAt(0).toUpperCase() + league[1].slice(1).replace(/-/g, " ")
       : ev.strLeague || "Liga";
 
-    // Parse status
+    // Parse status — handle all API statuses:
+    // finished, Match Finished, FT, notstarted, Not Started,
+    // 1H, 2H, HT, 1st_half, 2nd_half, halftime, live, in progress
     let status: PredictionInput["status"] = "scheduled";
     const s = ev.strStatus?.toLowerCase() ?? "";
-    if (s.includes("finished") || s === "ft") status = "finished";
-    else if (s.includes("1h") || s.includes("2h") || s.includes("ht") || s.includes("live") || s === "in progress") status = "live";
+    if (s.includes("finished") || s === "ft" || s === "match finished") {
+      status = "finished";
+    } else if (
+      s === "1h" || s === "2h" || s === "ht" ||
+      s.includes("1st_half") || s.includes("2nd_half") ||
+      s.includes("halftime") || s.includes("live") ||
+      s === "in progress" || s === "inprogress"
+    ) {
+      status = "live";
+    }
 
     const homeScore = ev.intHomeScore ? parseInt(ev.intHomeScore, 10) : undefined;
     const awayScore = ev.intAwayScore ? parseInt(ev.intAwayScore, 10) : undefined;

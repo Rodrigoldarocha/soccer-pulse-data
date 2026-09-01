@@ -245,19 +245,27 @@ function mapBzzoiroEvent(ev: BzzoiroEvent): TsdbEvent {
   const timePart = dt.slice(11, 19) || "00:00:00";
 
   // Map Bzzoiro status to our display status
+  // API returns: "finished", "notstarted", "1st_half", "2nd_half", "halftime"
   let strStatus: string;
-  switch (ev.status) {
-    case "finished":
-      strStatus = "Match Finished";
-      break;
-    case "inprogress":
-      strStatus = ev.period === "1H" ? "1H" : ev.period === "2H" ? "2H" : "HT";
-      break;
-    case "notstarted":
-      strStatus = "Not Started";
-      break;
-    default:
-      strStatus = ev.status;
+  const rawStatus = (ev.status ?? "").toLowerCase();
+  if (rawStatus === "finished") {
+    strStatus = "Match Finished";
+  } else if (rawStatus === "notstarted") {
+    strStatus = "Not Started";
+  } else if (
+    rawStatus === "1st_half" ||
+    rawStatus === "2nd_half" ||
+    rawStatus === "halftime" ||
+    rawStatus === "inprogress"
+  ) {
+    // Live: map period to standard display
+    const p = (ev.period ?? "").toUpperCase();
+    if (p === "1H" || p === "1T") strStatus = "1H";
+    else if (p === "2H" || p === "2T") strStatus = "2H";
+    else if (p === "HT") strStatus = "HT";
+    else strStatus = "1H"; // default live
+  } else {
+    strStatus = ev.status;
   }
 
   const leagueId = String(ev.league_id);
