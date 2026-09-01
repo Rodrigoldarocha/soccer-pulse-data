@@ -1,17 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRealMatches, getRealLiveMatches, getCachedOrGenerate } from "./matches.server";
 
+// Datas ancoradas no fuso de São Paulo para hoje/amanhã coerentes
+function spDateISO(offsetDays = 0) {
+  const now = new Date(Date.now() + offsetDays * 86400000);
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
 function todayISO() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  return spDateISO(0);
 }
 
 function tomorrowISO() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  return spDateISO(1);
 }
 
 export const getMatchesByDate = createServerFn({ method: "GET" })

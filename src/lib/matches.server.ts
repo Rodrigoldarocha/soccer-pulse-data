@@ -1,5 +1,5 @@
 import type { MatchPrediction, MarketId } from "./types";
-import { fetchTodayMatches, fetchLiveMatches } from "./data-pipeline";
+import { fetchMatchesForDate, fetchLiveMatches } from "./data-pipeline";
 
 async function getSupabaseAdmin() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
@@ -46,7 +46,9 @@ export async function getCachedOrGenerate<T>(key: string, ttlSeconds: number, fa
   }
 
   const fresh = await factory();
-  if (supabase) {
+  // Não cachear resultado vazio (falha/limite da API upstream)
+  const isEmpty = Array.isArray(fresh) && fresh.length === 0;
+  if (supabase && !isEmpty) {
     try {
       const now = Date.now();
       const expires_at = new Date(now + ttlSeconds * 1000).toISOString();
@@ -58,8 +60,8 @@ export async function getCachedOrGenerate<T>(key: string, ttlSeconds: number, fa
   return fresh;
 }
 
-export async function getRealMatches(_dateISO: string): Promise<MatchPrediction[]> {
-  return fetchTodayMatches();
+export async function getRealMatches(dateISO: string): Promise<MatchPrediction[]> {
+  return fetchMatchesForDate(dateISO);
 }
 
 export async function getRealLiveMatches(_dateISO: string): Promise<MatchPrediction[]> {

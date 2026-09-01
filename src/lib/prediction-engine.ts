@@ -168,10 +168,10 @@ async function getLeagueEvents(leagueId: string): Promise<TsdbEvent[]> {
 
 // ─── Main: generate predictions for today's events ───────────────────
 
-export async function generatePredictions(): Promise<PredictionInput[]> {
+export async function generatePredictions(dateISO?: string): Promise<PredictionInput[]> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const dateStr = today.toISOString().slice(0, 10);
+  const dateStr = dateISO ?? today.toISOString().slice(0, 10);
 
   // Fetch today's events from TheSportsDB
   const allEvents = await fetchEventsByDate(dateStr);

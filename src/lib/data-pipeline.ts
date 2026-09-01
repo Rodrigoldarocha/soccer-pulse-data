@@ -30,11 +30,11 @@ function eventToFootballEvent(ev: {
 
 // ─── Main pipeline ───────────────────────────────────────────────────
 
-export async function fetchTodayMatches(): Promise<MatchPrediction[]> {
-  console.log("[data-pipeline] Fetching today's events from TheSportsDB...");
+export async function fetchMatchesForDate(dateISO?: string): Promise<MatchPrediction[]> {
+  console.log(`[data-pipeline] Fetching events for ${dateISO ?? "today"} from TheSportsDB...`);
 
-  // Step 1: Get today's events
-  const events = await generatePredictions();
+  // Step 1: Get events for the requested date
+  const events = await generatePredictions(dateISO);
   console.log(`[data-pipeline] Found ${events.length} events in supported leagues`);
 
   if (events.length === 0) return [];
@@ -58,7 +58,11 @@ export async function fetchTodayMatches(): Promise<MatchPrediction[]> {
   return succeeded.map((r) => r.value);
 }
 
+export async function fetchTodayMatches(): Promise<MatchPrediction[]> {
+  return fetchMatchesForDate();
+}
+
 export async function fetchLiveMatches(): Promise<MatchPrediction[]> {
-  const all = await fetchTodayMatches();
-  return all.filter((m) => m.status === "live");
+  const all = await fetchMatchesForDate();
+  return all.filter((m: MatchPrediction) => m.status === "live");
 }

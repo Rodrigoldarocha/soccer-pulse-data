@@ -1,5 +1,78 @@
 const BASE = "https://www.thesportsdb.com/api/v1/json/3";
 
+// ─── Shared JSON client (rate-limit aware) ───────────────────────────
+// A chave pública do TheSportsDB é fortemente limitada (HTTP 429).
+// Requests são serializados, espaçados, repetidos com backoff e
+// memoizados em memória para evitar respostas vazias.
+
+const responseCache = new Map<string, { data: unknown; timestamp: number }>();
+let chain: Promise<unknown> = Promise.resolve();
+let lastCall = 0;
+const MIN_GAP_MS = 350;
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+async function tsdbJson<T>(
+  path: string,
+  opts: { ttlMs?: number; timeoutMs?: number; retries?: number } = {},
+): Promise<T | null> {
+  const { ttlMs = 5 * 60 * 1000, timeoutMs = 8000, retries = 3 } = opts;
+  const url = `${BASE}/${path}`;
+
+  const cached = responseCache.get(url);
+  if (cached && Date.now() - cached.timestamp < ttlMs) return cached.data as T;
+
+  const run = async (): Promise<T | null> => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const gap = Date.now() - lastCall;
+      if (gap < MIN_GAP_MS) await sleep(MIN_GAP_MS - gap);
+      lastCall = Date.now();
+      try {
+        const res = await fetch(url, {
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+        if (res.status === 429 || res.status >= 500) {
+          if (attempt < retries) {
+            await sleep(600 * Math.pow(2, attempt));
+            continue;
+          }
+          return null;
+        }
+        if (!res.ok) return null;
+        const text = await res.text();
+        if (!text.trim().startsWith("{") && !text.trim().startsWith("[")) {
+          if (attempt < retries) {
+            await sleep(600 * Math.pow(2, attempt));
+            continue;
+          }
+          return null;
+        }
+        const data = JSON.parse(text) as T;
+        responseCache.set(url, { data, timestamp: Date.now() });
+        return data;
+      } catch {
+        if (attempt < retries) {
+          await sleep(600 * Math.pow(2, attempt));
+          continue;
+        }
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const queued = chain.then(run, run) as Promise<T | null>;
+  chain = queued.catch(() => undefined);
+  return queued;
+}
+
+export function clearTsdbCache(): void {
+  responseCache.clear();
+}
+
 // ─── Logo cache ──────────────────────────────────────────────────────
 
 const logoCache = new Map<string, { badge: string; timestamp: number }>();
@@ -12,19 +85,14 @@ export async function fetchTeamBadge(teamName: string): Promise<string | null> {
     return cached.badge || null;
   }
 
-  try {
-    const query = encodeURIComponent(teamName);
-    const res = await fetch(`${BASE}/searchteams.php?t=${query}`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { teams?: Array<{ strBadge?: string }> };
-    const badge = data.teams?.[0]?.strBadge ?? null;
-    logoCache.set(key, { badge: badge ?? "", timestamp: Date.now() });
-    return badge;
-  } catch {
-    return null;
-  }
+  const query = encodeURIComponent(teamName);
+  const data = await tsdbJson<{ teams?: Array<{ strBadge?: string }> }>(
+    `searchteams.php?t=${query}`,
+    { ttlMs: LOGO_CACHE_TTL, timeoutMs: 5000 },
+  );
+  const badge = data?.teams?.[0]?.strBadge ?? null;
+  if (data) logoCache.set(key, { badge: badge ?? "", timestamp: Date.now() });
+  return badge;
 }
 
 export function clearLogoCache(): void {
@@ -124,77 +192,49 @@ export const LEAGUE_NAMES: Record<string, string> = {
 // ─── Events by date ──────────────────────────────────────────────────
 
 export async function fetchEventsByDate(date: string): Promise<TsdbEvent[]> {
-  try {
-    const res = await fetch(`${BASE}/eventsday.php?d=${date}&s=Soccer`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { events?: TsdbEvent[] | null };
-    return data.events ?? [];
-  } catch {
-    return [];
-  }
+  const data = await tsdbJson<{ events?: TsdbEvent[] | null }>(
+    `eventsday.php?d=${date}&s=Soccer`,
+    { ttlMs: 10 * 60 * 1000 },
+  );
+  return data?.events ?? [];
 }
 
 // ─── League standings ────────────────────────────────────────────────
 
 export async function fetchLeagueStandings(leagueId: string): Promise<TsdbStanding[]> {
   const tsdbId = LEAGUE_IDS[leagueId] ?? leagueId;
-  try {
-    const res = await fetch(`${BASE}/lookuptable.php?l=${tsdbId}`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { table?: TsdbStanding[] };
-    return data.table ?? [];
-  } catch {
-    return [];
-  }
+  const data = await tsdbJson<{ table?: TsdbStanding[] }>(`lookuptable.php?l=${tsdbId}`, {
+    ttlMs: 60 * 60 * 1000,
+  });
+  return data?.table ?? [];
 }
 
 // ─── Past league events (for computing team stats) ───────────────────
 
 export async function fetchLeaguePastEvents(leagueId: string): Promise<TsdbEvent[]> {
   const tsdbId = LEAGUE_IDS[leagueId] ?? leagueId;
-  try {
-    const res = await fetch(`${BASE}/eventspastleague.php?id=${tsdbId}`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { events?: TsdbEvent[] };
-    return data.events ?? [];
-  } catch {
-    return [];
-  }
+  const data = await tsdbJson<{ events?: TsdbEvent[] }>(`eventspastleague.php?id=${tsdbId}`, {
+    ttlMs: 60 * 60 * 1000,
+  });
+  return data?.events ?? [];
 }
 
 // ─── Team last results ───────────────────────────────────────────────
 
 export async function fetchTeamLastResults(tsdbTeamId: string): Promise<TsdbEvent[]> {
-  try {
-    const res = await fetch(`${BASE}/eventslast.php?id=${tsdbTeamId}`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { results?: TsdbEvent[] };
-    return data.results ?? [];
-  } catch {
-    return [];
-  }
+  const data = await tsdbJson<{ results?: TsdbEvent[] }>(`eventslast.php?id=${tsdbTeamId}`, {
+    ttlMs: 60 * 60 * 1000,
+  });
+  return data?.results ?? [];
 }
 
 // ─── Search team by name ─────────────────────────────────────────────
 
 export async function fetchTeamId(teamName: string): Promise<string | null> {
-  try {
-    const query = encodeURIComponent(teamName);
-    const res = await fetch(`${BASE}/searchteams.php?t=${query}`, {
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { teams?: Array<{ idTeam: string }> };
-    return data.teams?.[0]?.idTeam ?? null;
-  } catch {
-    return null;
-  }
+  const query = encodeURIComponent(teamName);
+  const data = await tsdbJson<{ teams?: Array<{ idTeam: string }> }>(
+    `searchteams.php?t=${query}`,
+    { ttlMs: 24 * 60 * 60 * 1000 },
+  );
+  return data?.teams?.[0]?.idTeam ?? null;
 }
