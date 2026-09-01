@@ -1,5 +1,5 @@
 import type { MatchPrediction, MarketId } from "./types";
-import { fetchTodayMatches, fetchLiveMatches } from "./data-pipeline";
+import { fetchMatchesForDate, fetchLiveMatches } from "./data-pipeline";
 
 async function getSupabaseAdmin() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
