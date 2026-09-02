@@ -38,6 +38,18 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+// ─── Fallback (modelo médio de liga) ────────────────────────────────
+
+const FALLBACK_PREDICTION: PredictionData = {
+  xgHome: 1.56,
+  xgAway: 1.1,
+  probHome: 0.4408,
+  probDraw: 0.2506,
+  probAway: 0.3086,
+  probOver25: 0.4901,
+  probBtts: 0.5137,
+};
+
 // ─── Main pipeline ───────────────────────────────────────────────────
 
 export async function fetchMatchesForDate(dateISO?: string): Promise<MatchPrediction[]> {
@@ -78,10 +90,14 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
     8_000,
   ).catch(() => console.log("[data-pipeline] Cache warm-up timed out, using defaults"));
 
-  // Step 5: Compute predictions for each event (league cache is now warm)
+  // Step 5: Compute predictions for each event (league cache is now warm).
+  // Nunca deixar uma previsão lenta derrubar o pipeline: cai no modelo médio.
   const results = await Promise.allSettled(
     events.map(async (ev) => {
-      const prediction = await computePrediction(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId);
+      const prediction = await withTimeout(
+        computePrediction(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId),
+        6_000,
+      ).catch(() => FALLBACK_PREDICTION);
       const footballEvent = eventToFootballEvent(ev);
       const predictionData: PredictionData = prediction;
       return buildPrediction(footballEvent, predictionData, { id: ev.apiLeagueId, name: ev.leagueLabel });
