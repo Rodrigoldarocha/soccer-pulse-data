@@ -213,7 +213,7 @@ export async function generatePredictions(dateISO?: string): Promise<PredictionI
       apiLeagueId: ev.idLeague, // pass raw API league ID for historical data fetch
       homeTeam: ev.strHomeTeam,
       awayTeam: ev.strAwayTeam,
-      eventDate: `${ev.dateEvent}T${ev.strTime ?? "00:00:00"}`,
+      eventDate: `${ev.dateEvent}T${ev.strTime ?? "00:00:00"}${ev.strTimezone ?? "Z"}`,
       status,
       homeScore: Number.isNaN(homeScore) ? undefined : homeScore,
       awayScore: Number.isNaN(awayScore) ? undefined : awayScore,

@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRealMatches, getRealLiveMatches, getCachedOrGenerate } from "./matches.server";
+import { getRealMatches, getRealLiveMatches, getUpcomingMatches as fetchUpcoming, getCachedOrGenerate } from "./matches.server";
 
 // Datas ancoradas no fuso de São Paulo para hoje/amanhã coerentes
 function spDateISO(offsetDays = 0) {
@@ -18,6 +18,10 @@ function todayISO() {
 
 function tomorrowISO() {
   return spDateISO(1);
+}
+
+function upcomingISO() {
+  return spDateISO(7);
 }
 
 export const getMatchesByDate = createServerFn({ method: "GET" })
@@ -58,6 +62,20 @@ export const getTomorrowMatches = createServerFn({ method: "GET" }).handler(asyn
   } catch (error) {
     console.error("[getTomorrowMatches]", error);
     return { date: tomorrowISO(), matches: [] };
+  }
+});
+
+export const getUpcomingMatchesFn = createServerFn({ method: "GET" }).handler(async () => {
+  try {
+    const from = todayISO();
+    const to = upcomingISO();
+    const matches = await getCachedOrGenerate(`upcoming:${from}:${to}`, 60 * 15, () =>
+      fetchUpcoming(from, to),
+    );
+    return { from, to, matches };
+  } catch (error) {
+    console.error("[getUpcomingMatches]", error);
+    return { from: todayISO(), to: upcomingISO(), matches: [] };
   }
 });
 

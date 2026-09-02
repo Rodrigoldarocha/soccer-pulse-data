@@ -1,5 +1,5 @@
 import type { MatchPrediction, MarketId } from "./types";
-import { fetchMatchesForDate, fetchLiveMatches } from "./data-pipeline";
+import { fetchMatchesForDate, fetchLiveMatches, fetchUpcomingMatches } from "./data-pipeline";
 
 async function getSupabaseAdmin() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
@@ -66,6 +66,10 @@ export async function getRealMatches(dateISO: string): Promise<MatchPrediction[]
 
 export async function getRealLiveMatches(_dateISO: string): Promise<MatchPrediction[]> {
   return fetchLiveMatches();
+}
+
+export async function getUpcomingMatches(fromISO: string, toISO: string): Promise<MatchPrediction[]> {
+  return fetchUpcomingMatches(fromISO, toISO);
 }
 
 export function marketLabelFor(match: MatchPrediction, market: MarketId): { label: string; odds: number; probability: number } {

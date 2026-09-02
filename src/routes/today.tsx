@@ -3,10 +3,10 @@ import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { getTodayMatches, getTomorrowMatches } from "@/lib/matches.functions";
+import { getTodayMatches, getTomorrowMatches, getUpcomingMatchesFn } from "@/lib/matches.functions";
 import { MatchCard } from "@/components/MatchCard";
 import { BetSlipDesktop, BetSlipMobileFloating } from "@/components/BetSlip";
-import { Search, CalendarDays, CalendarClock } from "lucide-react";
+import { Search, CalendarDays, CalendarClock, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/today")({
@@ -19,22 +19,26 @@ export const Route = createFileRoute("/today")({
   component: TodayPage,
 });
 
-type Tab = "today" | "tomorrow";
+type Tab = "today" | "tomorrow" | "upcoming";
 
 function TodayPage() {
   const todayFn = useServerFn(getTodayMatches);
   const tomorrowFn = useServerFn(getTomorrowMatches);
+  const upcomingFn = useServerFn(getUpcomingMatchesFn);
   const { data: todayData } = useSuspenseQuery(
     queryOptions({ queryKey: ["today"], queryFn: todayFn }),
   );
   const { data: tomorrowData } = useSuspenseQuery(
     queryOptions({ queryKey: ["tomorrow"], queryFn: tomorrowFn }),
   );
+  const { data: upcomingData } = useSuspenseQuery(
+    queryOptions({ queryKey: ["upcoming"], queryFn: upcomingFn }),
+  );
 
   const [tab, setTab] = useState<Tab>("today");
   const [q, setQ] = useState("");
 
-  const data = tab === "today" ? todayData : tomorrowData;
+  const data = tab === "today" ? todayData : tab === "tomorrow" ? tomorrowData : { date: `${upcomingData.from} → ${upcomingData.to}`, matches: upcomingData.matches };
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -52,6 +56,7 @@ function TodayPage() {
   const tabs = [
     { id: "today" as Tab, label: "Hoje", icon: CalendarDays, date: todayData.date },
     { id: "tomorrow" as Tab, label: "Amanhã", icon: CalendarClock, date: tomorrowData.date },
+    { id: "upcoming" as Tab, label: "Próximos", icon: TrendingUp, date: `${upcomingData.from} → ${upcomingData.to}` },
   ];
 
   return (

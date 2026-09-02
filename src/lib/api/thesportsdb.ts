@@ -124,6 +124,7 @@ export interface TsdbEvent {
   strStatus: string; // "Not Started", "Match Finished", "1H", "2H", "HT", "FT", etc.
   dateEvent: string;
   strTime: string;
+  strTimezone: string; // e.g. "+00:00" or "Z"
   idLeague: string;
   strLeague: string;
 }
@@ -181,7 +182,7 @@ export const LEAGUE_IDS: Record<string, string> = {
   "brasileirao-serie-b": "34",
   "serie-b-italy": "38",
   "la-liga-2": "38",
-  "bundesliga-2": "89",
+  "bundesliga-2": "104",
   "ligue-2": "89",
   "usl-championship": "57",
   "veikkausliiga": "55",
@@ -211,15 +212,31 @@ export const LEAGUE_NAMES: Record<string, string> = {
   "26": "Allsvenskan",
   "34": "Brasileirão Serie B",
   "38": "La Liga 2",
+  "42": "Coppa Italia",
   "49": "J1 League",
   "50": "K League 1",
   "52": "Chinese Super League",
   "54": "Eliteserien",
   "55": "Veikkausliiga",
   "57": "USL Championship",
-  "70": "NPL Queensland",
+  "70": "A-League",
   "84": "Danish Superliga",
+  "87": "League One",
   "89": "Ligue 2",
+  "91": "National League",
+  "92": "League Two",
+  "93": "Serie B",
+  "94": "EFL Trophy",
+  "95": "FA Cup",
+  "96": "League Cup",
+  "97": "DFB Pokal",
+  "98": "Coupe de France",
+  "99": "Copa del Rey",
+  "100": "Taça de Portugal",
+  "101": "FA Trophy",
+  "102": "Conference League",
+  "103": "Super Lig",
+  "104": "Bundesliga 2",
 };
 
 // ─── Bzzoiro event → TsdbEvent mapping ───────────────────────────────
@@ -243,6 +260,7 @@ function mapBzzoiroEvent(ev: BzzoiroEvent): TsdbEvent {
   const dt = ev.event_date ?? "";
   const datePart = dt.slice(0, 10);
   const timePart = dt.slice(11, 19) || "00:00:00";
+  const tzPart = dt.slice(19) || "Z";
 
   // Map Bzzoiro status to our display status
   // API returns: "finished", "notstarted", "1st_half", "2nd_half", "halftime"
@@ -281,6 +299,7 @@ function mapBzzoiroEvent(ev: BzzoiroEvent): TsdbEvent {
     strStatus,
     dateEvent: datePart,
     strTime: timePart,
+    strTimezone: tzPart,
     idLeague: leagueId,
     strLeague: leagueName,
   };
@@ -296,8 +315,13 @@ interface BzzoiroPaginated<T> {
 }
 
 export async function fetchEventsByDate(date: string): Promise<TsdbEvent[]> {
+  return fetchEventsByDateRange(date, date);
+}
+
+export async function fetchEventsByDateRange(from: string, to: string): Promise<TsdbEvent[]> {
+  const seen = new Set<string>();
   const allEvents: TsdbEvent[] = [];
-  let pageUrl: string | null = `events/?date_from=${date}&date_to=${date}&limit=200`;
+  let pageUrl: string | null = `events/?date_from=${from}&date_to=${to}&limit=200`;
 
   // Paginate through all results
   while (pageUrl) {
@@ -305,7 +329,12 @@ export async function fetchEventsByDate(date: string): Promise<TsdbEvent[]> {
       ttlMs: 10 * 60 * 1000,
     });
     if (!page?.results) break;
-    allEvents.push(...page.results.map(mapBzzoiroEvent));
+    for (const ev of page.results.map(mapBzzoiroEvent)) {
+      if (!seen.has(ev.idEvent)) {
+        seen.add(ev.idEvent);
+        allEvents.push(ev);
+      }
+    }
     pageUrl = page.next ? page.next.replace(`${BASE}/`, "") : null;
   }
 
@@ -361,6 +390,7 @@ export async function fetchLeagueStandings(leagueId: string): Promise<TsdbStandi
 
 export async function fetchLeaguePastEvents(leagueId: string): Promise<TsdbEvent[]> {
   const tsdbId = LEAGUE_IDS[leagueId] ?? leagueId;
+  const seen = new Set<string>();
   const allEvents: TsdbEvent[] = [];
   let offset = 0;
   const limit = 200;
@@ -372,7 +402,12 @@ export async function fetchLeaguePastEvents(leagueId: string): Promise<TsdbEvent
       { ttlMs: 60 * 60 * 1000 },
     );
     if (!page?.results) break;
-    allEvents.push(...page.results.map(mapBzzoiroEvent));
+    for (const ev of page.results.map(mapBzzoiroEvent)) {
+      if (!seen.has(ev.idEvent)) {
+        seen.add(ev.idEvent);
+        allEvents.push(ev);
+      }
+    }
     if (!page.next || page.results.length < limit) break;
     offset += limit;
   }
@@ -383,6 +418,7 @@ export async function fetchLeaguePastEvents(leagueId: string): Promise<TsdbEvent
 // ─── Team last results ───────────────────────────────────────────────
 
 export async function fetchTeamLastResults(tsdbTeamId: string): Promise<TsdbEvent[]> {
+  const seen = new Set<string>();
   const allEvents: TsdbEvent[] = [];
   let offset = 0;
   const limit = 20;
@@ -393,7 +429,12 @@ export async function fetchTeamLastResults(tsdbTeamId: string): Promise<TsdbEven
       { ttlMs: 60 * 60 * 1000 },
     );
     if (!page?.results) break;
-    allEvents.push(...page.results.map(mapBzzoiroEvent));
+    for (const ev of page.results.map(mapBzzoiroEvent)) {
+      if (!seen.has(ev.idEvent)) {
+        seen.add(ev.idEvent);
+        allEvents.push(ev);
+      }
+    }
     if (!page.next || page.results.length < limit) break;
     offset += limit;
   }
