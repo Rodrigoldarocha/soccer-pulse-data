@@ -392,13 +392,13 @@ export async function fetchLeaguePastEvents(leagueId: string): Promise<TsdbEvent
   const tsdbId = LEAGUE_IDS[leagueId] ?? leagueId;
   const seen = new Set<string>();
   const allEvents: TsdbEvent[] = [];
-  let offset = 0;
   const limit = 200;
+  const MAX_PAGES = 2; // histórico recente é suficiente para estimar força dos times
+  let offset = 0;
 
-  // Fetch finished events, paginating through all results
-  while (true) {
+  for (let p = 0; p < MAX_PAGES; p++) {
     const page = await apiJson<BzzoiroPaginated<BzzoiroEvent>>(
-      `events/?league_id=${tsdbId}&status=finished&limit=${limit}&offset=${offset}`,
+      `events/?league_id=${tsdbId}&status=finished&ordering=-date&limit=${limit}&offset=${offset}`,
       { ttlMs: 60 * 60 * 1000 },
     );
     if (!page?.results) break;
