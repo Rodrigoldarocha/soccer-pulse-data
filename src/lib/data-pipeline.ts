@@ -38,6 +38,18 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+// ─── Fallback (modelo médio de liga) ────────────────────────────────
+
+const FALLBACK_PREDICTION: PredictionData = {
+  xgHome: 1.56,
+  xgAway: 1.1,
+  probHome: 0.4408,
+  probDraw: 0.2506,
+  probAway: 0.3086,
+  probOver25: 0.4901,
+  probBtts: 0.5137,
+};
+
 // ─── Main pipeline ───────────────────────────────────────────────────
 
 export async function fetchMatchesForDate(dateISO?: string): Promise<MatchPrediction[]> {
