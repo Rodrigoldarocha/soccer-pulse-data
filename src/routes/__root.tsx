@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { Suspense, useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -118,6 +118,35 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="h-8 w-48 rounded-lg bg-white/[0.06]" />
+      <div className="h-4 w-72 rounded-lg bg-white/[0.04]" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="card-premium p-4 space-y-3">
+            <div className="flex justify-between">
+              <div className="h-3 w-20 rounded bg-white/[0.06]" />
+              <div className="h-3 w-12 rounded bg-white/[0.04]" />
+            </div>
+            <div className="flex justify-between items-center">
+              <div className="h-4 w-24 rounded bg-white/[0.06]" />
+              <div className="h-4 w-8 rounded bg-white/[0.04]" />
+              <div className="h-4 w-24 rounded bg-white/[0.06]" />
+            </div>
+            <div className="grid grid-cols-3 gap-1">
+              {[1, 2, 3].map((j) => (
+                <div key={j} className="h-14 rounded-lg bg-white/[0.03]" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
@@ -125,7 +154,9 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <BetSlipProvider>
         <AppLayout>
-          <Outlet />
+          <Suspense fallback={<LoadingSkeleton />}>
+            <Outlet />
+          </Suspense>
         </AppLayout>
       </BetSlipProvider>
     </QueryClientProvider>

@@ -17,6 +17,25 @@ import {
   Legend,
 } from "recharts";
 
+function PendingSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div>
+        <div className="h-8 w-32 rounded-lg bg-white/[0.06]" />
+        <div className="mt-1 h-4 w-56 rounded-lg bg-white/[0.04]" />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {[1, 2].map((i) => (
+          <div key={i} className="rounded-2xl border border-border/50 bg-card p-5">
+            <div className="h-4 w-32 rounded bg-white/[0.06]" />
+            <div className="mt-3 h-64 rounded-lg bg-white/[0.03]" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/analytics")({
   head: () => ({
     meta: [
@@ -24,6 +43,7 @@ export const Route = createFileRoute("/analytics")({
       { name: "description", content: "Distribuição de confiança, odds e mercados." },
     ],
   }),
+  pendingComponent: PendingSkeleton,
   component: AnalyticsPage,
 });
 

@@ -15,6 +15,23 @@ function aiQuery(fn: () => Promise<Awaited<ReturnType<typeof getAiSuggestions>>>
   return queryOptions({ queryKey: ["ai-suggest"], queryFn: fn });
 }
 
+function PendingSkeleton() {
+  return (
+    <div className="space-y-8 animate-pulse">
+      <div className="h-10 w-40 rounded-lg bg-white/[0.06]" />
+      <div className="h-4 w-64 rounded-lg bg-white/[0.04]" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="rounded-2xl border border-border/50 bg-card p-4">
+            <div className="h-3 w-20 rounded bg-white/[0.06]" />
+            <div className="mt-2 h-7 w-12 rounded bg-white/[0.04]" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -22,6 +39,7 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Visão geral das partidas do dia, predições e sugestões de múltiplas com IA." },
     ],
   }),
+  pendingComponent: PendingSkeleton,
   component: Index,
 });
 

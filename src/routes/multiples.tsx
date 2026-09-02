@@ -12,6 +12,26 @@ import { useBetSlip, type SlipLeg } from "@/lib/bet-slip";
 import type { ParlaySuggestion } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+function PendingSkeleton() {
+  return (
+    <div className="space-y-5 animate-pulse">
+      <div className="h-8 w-48 rounded-lg bg-white/[0.06]" />
+      <div className="h-4 w-72 rounded-lg bg-white/[0.04]" />
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="rounded-2xl border border-border/50 bg-card p-5 space-y-3">
+            <div className="flex justify-between">
+              <div className="h-5 w-20 rounded-full bg-white/[0.06]" />
+              <div className="h-5 w-16 rounded bg-white/[0.04]" />
+            </div>
+            <div className="h-4 w-48 rounded bg-white/[0.06]" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/multiples")({
   head: () => ({
     meta: [
@@ -19,6 +39,7 @@ export const Route = createFileRoute("/multiples")({
       { name: "description", content: "Sugestões de parlays geradas por IA e construtor matemático de múltiplas." },
     ],
   }),
+  pendingComponent: PendingSkeleton,
   component: MultiplesPage,
 });
 
