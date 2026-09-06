@@ -119,7 +119,7 @@ const MarketButton = memo(function MarketButton({
       {isRecommended && !selected && (
         <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
       )}
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between gap-1">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
           {option.shortLabel}
         </span>
@@ -133,7 +133,7 @@ const MarketButton = memo(function MarketButton({
           </span>
         )}
       </div>
-      <div className="font-display text-xl font-bold tabular-nums tracking-tight">
+      <div className="font-display text-lg sm:text-xl font-bold tabular-nums tracking-tight text-center">
         {option.odds.toFixed(2)}
       </div>
       <div className={cn(
@@ -141,14 +141,13 @@ const MarketButton = memo(function MarketButton({
         best,
       )}>
         {(option.probability * 100).toFixed(1)}%
-      </div>
-      <button
-        onClick={onSelect}
-        className={cn(
-          "mt-2 w-full rounded-lg py-1 text-[10px] font-semibold uppercase tracking-wider transition-all duration-200 active:scale-[0.96]",
-          selected ? "bg-primary/20 text-primary" : "bg-white/5 text-muted-foreground/60 hover:bg-white/10 hover:text-foreground",
-        )}
-      >
+      </div>        <button
+          onClick={onSelect}
+          className={cn(
+            "mt-2 w-full rounded-lg py-1 text-[10px] font-semibold uppercase tracking-wider text-center transition-all duration-200 active:scale-[0.96]",
+            selected ? "bg-primary/20 text-primary" : "bg-white/5 text-muted-foreground/60 hover:bg-white/10 hover:text-foreground",
+          )}
+        >
         {selected ? "Selecionado" : "Adicionar"}
       </button>
     </div>
@@ -290,7 +289,7 @@ const MarketButton = memo(function MarketButton({
         <div className="grid grid-cols-3 gap-2">
           {marketGroups.map((group) => (
             <div key={group.key} className="space-y-1.5">
-              <div className="px-1 py-0.5 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
+              <div className="px-1 py-0.5 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap text-muted-foreground/40">
                 {group.title}
               </div>
               <div className="grid grid-cols-1 gap-1">
