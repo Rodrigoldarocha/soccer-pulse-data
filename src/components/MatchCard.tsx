@@ -139,9 +139,9 @@ const MarketButton = memo(function MarketButton({
       <div className={cn(
         "mt-1 text-[11px] font-semibold tabular-nums",
         best,
-      )}>
-        {(option.probability * 100).toFixed(1)}%
-      </div>        <button
+      )}>        {(option.probability * 100).toFixed(1)}%
+      </div>
+      <button
           onClick={onSelect}
           className={cn(
             "mt-2 w-full rounded-lg py-1 text-[10px] font-semibold uppercase tracking-wider text-center transition-all duration-200 active:scale-[0.96]",
@@ -152,7 +152,8 @@ const MarketButton = memo(function MarketButton({
       </button>
     </div>
   );
-});export function MatchCard({ match, live = false }: { match: MatchPrediction; live?: boolean }) {
+});
+export function MatchCard({ match, live = false }: { match: MatchPrediction; live?: boolean }) {
   const { addLeg, removeLeg, hasLeg } = useBetSlip();
   const confidence = confidenceConfig(match.confidence);
   const ConfidenceIcon = confidence.icon;
@@ -203,13 +204,11 @@ const MarketButton = memo(function MarketButton({
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border/30 px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
         <div className="truncate">
-          <span className="block truncate">{match.leagueLabel}</span>
-          <span className="block text-[11px] text-muted-foreground/40 mt-0.5 leading-tight">
-            {match.home.name} × {match.away.name}
-          </span>
-          <span className="block text-[11px] text-muted-foreground/30 mt-0.5">
-            {fmtTime(match.kickoff)}
-          </span>
+          <span className="block truncate">{match.leagueLabel}</span>              <span className="block text-[11px] text-muted-foreground/40 mt-0.5 leading-tight truncate">
+                {match.home.name} × {match.away.name}
+              </span>              <span className="block text-[11px] text-muted-foreground/30 mt-0.5 truncate">
+                {fmtTime(match.kickoff)}
+              </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {live && (
