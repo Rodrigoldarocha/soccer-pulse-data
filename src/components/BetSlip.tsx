@@ -41,9 +41,9 @@ function BetSlipCard({ compact = false }: { compact?: boolean }) {
           </div>
           <div>
             <div className="font-display text-sm font-semibold text-foreground">Bilhete</div>
-            <div className="text-xs text-muted-foreground/60 tabular-nums">
-              {legs.length} seleç{legs.length === 1 ? "ão" : "ões"}
-            </div>
+          <div className="text-xs sm:text-sm text-muted-foreground/60 tabular-nums">
+            {legs.length} seleç{legs.length === 1 ? "ão" : "ões"}
+          </div>
           </div>
         </div>
         {legs.length > 0 && (
@@ -107,21 +107,21 @@ function BetSlipCard({ compact = false }: { compact?: boolean }) {
       <div className="space-y-3 border-t border-border/50 bg-white/[0.015] p-5">
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-white/[0.03] p-3">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground/40">Odds combinadas</div>
-            <div className="mt-1 font-display text-lg font-bold text-foreground tabular-nums">
+            <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground/40">Odds combinadas</div>
+            <div className="mt-1 font-display text-base sm:text-lg font-bold text-foreground tabular-nums">
               {legs.length ? totals.odds.toFixed(2) : "—"}
             </div>
           </div>
           <div className="rounded-xl bg-white/[0.03] p-3">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground/40">Prob. real</div>
-            <div className="mt-1 font-display text-lg font-bold text-foreground tabular-nums">
+            <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground/40">Prob. real</div>
+            <div className="mt-1 font-display text-base sm:text-lg font-bold text-foreground tabular-nums">
               {legs.length ? `${(totals.probability * 100).toFixed(1)}%` : "—"}
             </div>
           </div>
         </div>
 
         <label className="block">
-          <span className="text-xs font-medium text-muted-foreground/60">Aporte (R$)</span>
+          <span className="text-xs sm:text-sm font-medium text-muted-foreground/60">Aporte (R$)</span>
           <input
             type="number"
             min={1}
@@ -134,22 +134,22 @@ function BetSlipCard({ compact = false }: { compact?: boolean }) {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-white/[0.03] p-3">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground/40">Retorno</div>
-            <div className="mt-1 flex items-center gap-1.5 font-display text-base font-bold text-foreground tabular-nums">
+            <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground/40">Retorno</div>
+            <div className="mt-1 flex items-center gap-1.5 font-display text-sm sm:text-base font-bold text-foreground tabular-nums">
               <Trophy className="h-3.5 w-3.5 text-primary" />
               R$ {totals.ret.toFixed(2)}
             </div>
           </div>
           <div className="rounded-xl bg-white/[0.03] p-3">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground/40">Lucro</div>
-            <div className="mt-1 flex items-center gap-1.5 font-display text-base font-bold text-emerald-400 tabular-nums">
+            <div className="text-[10px] sm:text-[11px] uppercase tracking-wide text-muted-foreground/40">Lucro</div>
+            <div className="mt-1 flex items-center gap-1.5 font-display text-sm sm:text-base font-bold text-emerald-400 tabular-nums">
               <TrendingUp className="h-3.5 w-3.5" />
               R$ {totals.profit.toFixed(2)}
             </div>
           </div>
         </div>
 
-        <div className={cn("flex items-start gap-2 rounded-xl border p-3 text-xs", riskTone)}>
+        <div className={cn("flex items-start gap-2 rounded-xl border p-2.5 sm:p-3 text-xs sm:text-sm", riskTone)}>
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <div className="font-semibold">{risk.label}</div>
@@ -180,16 +180,16 @@ export function BetSlipMobileFloating() {
         onClick={() => setOpen(true)}
         whileTap={{ scale: 0.96 }}
         className={cn(
-          "fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 glow-green lg:hidden",
+          "fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2.5 rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all duration-300 glow-green lg:hidden",
           legs.length === 0 && "opacity-80",
         )}
         aria-label="Abrir bilhete"
       >
         <Wallet className="h-4 w-4" />
-        <span className="tabular-nums">
+        <span className="text-xs sm:text-sm tabular-nums">
           {legs.length} seleç{legs.length === 1 ? "ão" : "ões"}
         </span>
-        <span className="rounded-full bg-white/20 px-3 py-0.5 font-display text-xs tabular-nums">
+        <span className="rounded-full bg-white/20 px-2 py-0.5 font-display text-xs tabular-nums">
           {legs.length ? totals.odds.toFixed(2) : "—"}
         </span>
       </motion.button>
@@ -212,12 +212,12 @@ export function BetSlipMobileFloating() {
               className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-card border-t border-border/50 lg:hidden"
             >
               <div className="flex justify-center py-2">
-                <div className="h-1 w-10 rounded-full bg-border/60" />
+                <div className="h-1 w-8 rounded-full bg-border/60" />
               </div>
               <BetSlipCard compact />
               <button
                 onClick={() => setOpen(false)}
-                className="mx-5 mb-4 mt-2 w-[calc(100%-2.5rem)] rounded-xl border border-border/50 py-2.5 text-sm font-medium text-muted-foreground/60 hover:bg-white/[0.04] transition-all duration-200"
+                className="mx-3 mb-4 mt-2 w-full rounded-xl border border-border/50 py-2.5 text-sm font-medium text-muted-foreground/60 hover:bg-white/[0.04] transition-all duration-200"
               >
                 Fechar
               </button>

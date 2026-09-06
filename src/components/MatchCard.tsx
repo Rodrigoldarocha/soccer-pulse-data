@@ -197,7 +197,7 @@ const MarketButton = memo(function MarketButton({
       whileHover={{ y: live ? 0 : -2 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        "card-premium group overflow-hidden",
+        "card-premium group overflow-hidden w-full",
         selectedCount > 0 && "ring-1 ring-primary/20 border-primary/30",
       )}
     >
@@ -205,10 +205,10 @@ const MarketButton = memo(function MarketButton({
       <div className="flex items-center justify-between border-b border-border/30 px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
         <div className="truncate">
           <span className="block truncate">{match.leagueLabel}</span>
-          <span className="block text-[10px] text-muted-foreground/40 mt-0.5">
+          <span className="block text-[11px] text-muted-foreground/40 mt-0.5 leading-tight">
             {match.home.name} × {match.away.name}
           </span>
-          <span className="block text-[10px] text-muted-foreground/30 mt-0.5">
+          <span className="block text-[11px] text-muted-foreground/30 mt-0.5">
             {fmtTime(match.kickoff)}
           </span>
         </div>
@@ -238,48 +238,46 @@ const MarketButton = memo(function MarketButton({
       </div>
 
       {/* Teams */}
-      <div className="mx-4 my-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+      <div className="mx-3 my-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:mx-4 sm:my-4 sm:gap-3">
         <div className="text-right">
-          <div className="text-3xl leading-none">{match.home.logo}</div>
-          <div className="mt-1.5 font-display text-base font-semibold text-foreground truncate">
+          <div className="text-2xl sm:text-3xl leading-none">{match.home.logo}</div>
+          <div className="mt-1 font-display text-sm sm:text-base font-semibold text-foreground truncate">
             {match.home.name}
-          </div>
-          <div className="mt-2 text-[11px] tabular-nums text-muted-foreground/40">
+          </div>          <div className="mt-1 sm:mt-2 text-[10px] sm:text-[11px] tabular-nums text-muted-foreground/40">
             xG {match.home.xg}
           </div>
         </div>
         <div className="flex flex-col items-center gap-1">
           {live ? (
-            <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 text-center">
-              <div className="font-display text-xl font-bold text-rose-400 tabular-nums">
+            <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-2 py-1 sm:px-3 sm:py-1.5 text-center">
+              <div className="font-display text-lg sm:text-xl font-bold text-rose-400 tabular-nums">
                 {match.scoreHome ?? "-"}
               </div>
-              <div className="text-[10px] text-muted-foreground/50 mt-0.5">×</div>
-              <div className="font-display text-xl font-bold text-rose-400 tabular-nums">
+              <div className="text-[9px] sm:text-[10px] text-muted-foreground/50 mt-0.5">×</div>
+              <div className="font-display text-lg sm:text-xl font-bold text-rose-400 tabular-nums">
                 {match.scoreAway ?? "-"}
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-1.5">
-              <div className="h-px w-5 bg-border/60" />
-              <span className="text-[11px] font-semibold text-muted-foreground/40">vs</span>
-              <div className="h-px w-5 bg-border/60" />
+              <div className="h-px w-3 sm:w-5 bg-border/60" />
+              <span className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground/40">vs</span>
+              <div className="h-px w-3 sm:w-5 bg-border/60" />
             </div>
           )}
         </div>
         <div className="text-left">
-          <div className="text-3xl leading-none">{match.away.logo}</div>
-          <div className="mt-1.5 font-display text-base font-semibold text-foreground truncate">
+          <div className="text-2xl sm:text-3xl leading-none">{match.away.logo}</div>
+          <div className="mt-1 font-display text-sm sm:text-base font-semibold text-foreground truncate">
             {match.away.name}
-          </div>
-          <div className="mt-2 text-[11px] tabular-nums text-muted-foreground/40">
+          </div>          <div className="mt-1 sm:mt-2 text-[10px] sm:text-[11px] tabular-nums text-muted-foreground/40">
             xG {match.away.xg}
           </div>
         </div>
       </div>
 
       {/* Markets */}
-      <div className="px-4 pb-4 pt-2">
+      <div className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4 sm:pt-2">
         <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
           <span>Mercados principais</span>
           {live && updatedAgo && (
@@ -292,7 +290,7 @@ const MarketButton = memo(function MarketButton({
         <div className="grid grid-cols-3 gap-2">
           {marketGroups.map((group) => (
             <div key={group.key} className="space-y-1.5">
-              <div className="px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/40">
+              <div className="px-1 py-0.5 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
                 {group.title}
               </div>
               <div className="grid grid-cols-1 gap-1">
@@ -314,10 +312,9 @@ const MarketButton = memo(function MarketButton({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between border-t border-border/30 px-4 py-3">
-        <span className="text-[11px] text-muted-foreground/50 tabular-nums">
-          {selectedCount} selecionado{selectedCount !== 1 ? "s" : ""}
-        </span>
+      <div className="flex items-center justify-between border-t border-border/30 px-3 py-3 sm:px-4 sm:py-3">          <span className="text-[10px] sm:text-[11px] text-muted-foreground/50 tabular-nums">
+            {selectedCount} selecionado{selectedCount !== 1 ? "s" : ""}
+          </span>
         <button
           onClick={() => {
             if (bestOption) handleMarketSelect(bestOption);
