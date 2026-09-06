@@ -110,7 +110,10 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
 
   console.log(`[data-pipeline] Generated ${succeeded.length} predictions from ${events.length} events`);
 
-  return succeeded.map((r) => r.value);
+  return succeeded.map((r) => ({
+    ...r.value,
+    oddsUpdatedAt: r.value.oddsUpdatedAt ?? new Date().toISOString(),
+  }));
 }
 
 export async function fetchTodayMatches(): Promise<MatchPrediction[]> {

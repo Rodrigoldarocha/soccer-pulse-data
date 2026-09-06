@@ -1,12 +1,39 @@
 import { memo, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Check, Plus, Shield, Zap, Flame } from "lucide-react";
+import { Check, Plus, Shield, Zap, Flame, Clock, RefreshCw } from "lucide-react";
 import type { MatchPrediction, MarketId } from "@/lib/types";
 import { useBetSlip } from "@/lib/bet-slip";
 import { cn } from "@/lib/utils";
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function fmtLiveAgo(iso: string) {
+  const d = new Date(iso);
+  const diff = Math.max(0, Date.now() - d.getTime());
+  const sec = Math.floor(diff / 1000);
+  if (sec < 60) return `há ${sec}s`;
+  const m = Math.floor(sec / 60);
+  if (m < 60) return `há ${m}min`;
+  return `há ${Math.floor(m / 60)}h`;
+}
+
+function liveStatusText(minute: number | undefined) {
+  if (minute === undefined) return "—";
+  return `${minute}'`;
+}
+
+function liveLabel(isLive: boolean) {
+  return isLive ? "AO VIVO" : "PRÓXIMO";
+}
+
+type LiveStatus = "live" | "scheduled" | "finished";
+
+function matchStatusLabel(status: string): string {
+  if (status === "live") return "AO VIVO";
+  if (status === "finished") return "ENCERRADO";
+  return "AGENDADO";
 }
 
 function confidenceConfig(c: MatchPrediction["confidence"]) {
@@ -26,66 +53,112 @@ interface MarketOption {
   probability: number;
 }
 
-function getMarkets(match: MatchPrediction): MarketOption[] {
+interface MarketGroup {
+  title: string;
+  key: string;
+  options: MarketOption[];
+}
+
+function getMarkets(match: MatchPrediction): MarketGroup[] {
+  const p = match.odds;
+  const pr = match.probabilities;
   return [
-    { id: "1X2_HOME", label: `Vitória ${match.home.short}`, shortLabel: match.home.short, odds: match.odds.home, probability: match.probabilities.home },
-    { id: "DRAW", label: "Empate", shortLabel: "EMP", odds: match.odds.draw, probability: match.probabilities.draw },
-    { id: "1X2_AWAY", label: `Vitória ${match.away.short}`, shortLabel: match.away.short, odds: match.odds.away, probability: match.probabilities.away },
-    { id: "OVER_2_5", label: "Mais de 2.5 gols", shortLabel: "O2.5", odds: match.odds.over25, probability: match.probabilities.over25 },
-    { id: "BTTS", label: "Ambas marcam", shortLabel: "BTTS", odds: match.odds.btts, probability: match.probabilities.btts },
+    {
+      title: "1X2",
+      key: "1x2",
+      options: [
+        { id: "1X2_HOME", label: `Vitória ${match.home.short}`, shortLabel: match.home.short, odds: p.home, probability: pr.home },
+        { id: "DRAW", label: "Empate", shortLabel: "EMP", odds: p.draw, probability: pr.draw },
+        { id: "1X2_AWAY", label: `Vitória ${match.away.short}`, shortLabel: match.away.short, odds: p.away, probability: pr.away },
+      ],
+    },
+    {
+      title: "BTTS",
+      key: "btts",
+      options: [
+        { id: "BTTS", label: "Ambas marcam", shortLabel: "SIM", odds: p.btts, probability: pr.btts },
+      ],
+    },
+    {
+      title: "O/U 2.5",
+      key: "ou25",
+      options: [
+        { id: "OVER_2_5", label: "Mais de 2.5 gols", shortLabel: "OVER", odds: p.over25, probability: pr.over25 },
+      ],
+    },
   ];
 }
 
-const MarketButton = memo(function MarketButton({
-  market,
-  selected,
-  onSelect,
-  isRecommended,
-}: {
-  market: MarketOption;
+interface MarketButtonProps {
+  option: MarketOption;
   selected: boolean;
   onSelect: () => void;
   isRecommended?: boolean;
-}) {
+  isLive?: boolean;
+  updatedAgo: string;
+}
+
+const MarketButton = memo(function MarketButton({
+  option,
+  selected,
+  onSelect,
+  isRecommended,
+  isLive,
+  updatedAgo,
+}: MarketButtonProps) {
+  const best = option.probability >= 0.5 ? "text-emerald-400" : option.probability >= 0.35 ? "text-amber-400" : "text-muted-foreground/50";
+  const pulse = isLive ? "animate-pulse" : "";
+
   return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        "relative flex flex-col items-center gap-1 rounded-xl px-3 py-2.5 text-center transition-all duration-300",
-        "active:scale-[0.97]",
-        selected
-          ? "bg-primary/20 text-primary ring-1 ring-primary/40 shadow-sm shadow-primary/10"
-          : isRecommended
-            ? "bg-primary/[0.06] text-primary/70 ring-1 ring-primary/10 hover:bg-primary/10"
-            : "bg-white/[0.03] text-muted-foreground/70 hover:bg-white/[0.06] hover:text-foreground",
-      )}
-    >
+    <div className={cn(
+      "relative rounded-xl border p-2.5 transition-all duration-300",
+      selected && "border-primary/40 bg-primary/10",
+      isRecommended && !selected && "border-primary/20 bg-primary/[0.04]",
+      !selected && "border-border/40 bg-white/[0.02]",
+    )}>
       {isRecommended && !selected && (
         <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
       )}
-      <span className="text-[10px] font-medium uppercase tracking-wide opacity-60">
-        {market.shortLabel}
-      </span>
-      <span className="font-display text-sm font-bold tabular-nums">
-        {market.odds.toFixed(2)}
-      </span>
-      <span
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+          {option.shortLabel}
+        </span>
+        {updatedAgo && (
+          <span className={cn(
+            "flex items-center gap-1 text-[10px] text-muted-foreground/40",
+            pulse && "text-rose-400",
+          )}>
+            <Clock className="h-3 w-3" />
+            {updatedAgo}
+          </span>
+        )}
+      </div>
+      <div className="font-display text-xl font-bold tabular-nums tracking-tight">
+        {option.odds.toFixed(2)}
+      </div>
+      <div className={cn(
+        "mt-1 text-[11px] font-semibold tabular-nums",
+        best,
+      )}>
+        {(option.probability * 100).toFixed(1)}%
+      </div>
+      <button
+        onClick={onSelect}
         className={cn(
-          "text-[10px] font-semibold tabular-nums",
-          market.probability >= 0.5 ? "text-emerald-400" : market.probability >= 0.35 ? "text-amber-400" : "text-muted-foreground/50",
+          "mt-2 w-full rounded-lg py-1 text-[10px] font-semibold uppercase tracking-wider transition-all duration-200 active:scale-[0.96]",
+          selected ? "bg-primary/20 text-primary" : "bg-white/5 text-muted-foreground/60 hover:bg-white/10 hover:text-foreground",
         )}
       >
-        {(market.probability * 100).toFixed(0)}%
-      </span>
-    </button>
+        {selected ? "Selecionado" : "Adicionar"}
+      </button>
+    </div>
   );
-});
-
-export function MatchCard({ match, live = false }: { match: MatchPrediction; live?: boolean }) {
+});export function MatchCard({ match, live = false }: { match: MatchPrediction; live?: boolean }) {
   const { addLeg, removeLeg, hasLeg } = useBetSlip();
   const confidence = confidenceConfig(match.confidence);
   const ConfidenceIcon = confidence.icon;
-  const markets = getMarkets(match);
+  const marketGroups = getMarkets(match);
+  const updatedAgo = live ? fmtLiveAgo(match.oddsUpdatedAt) : "";
 
   const isMarketSelected = useCallback(
     (marketId: MarketId) => hasLeg(match.id, marketId),
@@ -93,16 +166,16 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
   );
 
   const handleMarketSelect = useCallback(
-    (market: MarketOption) => {
-      if (isMarketSelected(market.id)) {
+    (option: MarketOption) => {
+      if (isMarketSelected(option.id)) {
         removeLeg(match.id);
       } else {
         addLeg({
           matchId: match.id,
-          market: market.id,
-          marketLabel: market.label,
-          odds: market.odds,
-          probability: market.probability,
+          market: option.id,
+          marketLabel: option.label,
+          odds: option.odds,
+          probability: option.probability,
           matchLabel: `${match.home.name} × ${match.away.name}`,
           leagueLabel: match.leagueLabel,
         });
@@ -111,36 +184,53 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
     [isMarketSelected, removeLeg, addLeg, match],
   );
 
-  const anySelected = markets.some((m) => isMarketSelected(m.id));
-  const selectedCount = markets.filter((m) => isMarketSelected(m.id)).length;
+  const selectedCount = marketGroups.reduce(
+    (acc, g) => acc + g.options.filter((o) => isMarketSelected(o.id)).length,
+    0,
+  );
+
+  const bestOption = marketGroups.flatMap((g) => g.options).find((o) => o.id === match.suggestedMarket);
 
   return (
     <motion.div
       layout
-      whileHover={{ y: -2 }}
+      whileHover={{ y: live ? 0 : -2 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        "card-premium group p-4",
-        anySelected && "ring-1 ring-primary/20 border-primary/30",
+        "card-premium group overflow-hidden",
+        selectedCount > 0 && "ring-1 ring-primary/20 border-primary/30",
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
-        <span className="truncate">{match.leagueLabel}</span>
+      <div className="flex items-center justify-between border-b border-border/30 px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
+        <div className="truncate">
+          <span className="block truncate">{match.leagueLabel}</span>
+          <span className="block text-[10px] text-muted-foreground/40 mt-0.5">
+            {match.home.name} × {match.away.name}
+          </span>
+          <span className="block text-[10px] text-muted-foreground/30 mt-0.5">
+            {fmtTime(match.kickoff)}
+          </span>
+        </div>
         <div className="flex items-center gap-2 shrink-0">
+          {live && (
+            <span className="flex items-center gap-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 text-rose-400">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
+              {liveLabel(live)}
+            </span>
+          )}
           <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5", confidence.bg)}>
             <ConfidenceIcon className={cn("h-3 w-3", confidence.color)} />
             <span className={cn("text-[10px] font-semibold", confidence.color)}>
               {confidence.label}
             </span>
           </span>
-          <span>
+          <span className="tabular-nums text-muted-foreground/60">
             {live ? (
               <span className="inline-flex items-center gap-1 text-rose-400 font-semibold">
-                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
-                {match.minute}&apos;
-              </span>
-            ) : (
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500 inline-block" />
+                {liveStatusText(match.minute)}
+              </span>            ) : (
               <span className="tabular-nums">{fmtTime(match.kickoff)}</span>
             )}
           </span>
@@ -148,76 +238,89 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
       </div>
 
       {/* Teams */}
-      <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+      <div className="mx-4 my-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div className="text-right">
-          <div className="text-2xl leading-none">{match.home.logo}</div>
-          <div className="mt-1.5 font-display text-sm font-semibold text-foreground truncate">
+          <div className="text-3xl leading-none">{match.home.logo}</div>
+          <div className="mt-1.5 font-display text-base font-semibold text-foreground truncate">
             {match.home.name}
           </div>
-          <div className="text-[10px] tabular-nums text-muted-foreground/50">xG {match.home.xg}</div>
+          <div className="mt-2 text-[11px] tabular-nums text-muted-foreground/40">
+            xG {match.home.xg}
+          </div>
         </div>
         <div className="flex flex-col items-center gap-1">
           {live ? (
-            <div className="rounded-xl bg-primary/10 px-3 py-1.5 font-display text-lg font-bold text-primary tabular-nums">
-              {match.scoreHome}–{match.scoreAway}
+            <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-1.5 text-center">
+              <div className="font-display text-xl font-bold text-rose-400 tabular-nums">
+                {match.scoreHome ?? "-"}
+              </div>
+              <div className="text-[10px] text-muted-foreground/50 mt-0.5">×</div>
+              <div className="font-display text-xl font-bold text-rose-400 tabular-nums">
+                {match.scoreAway ?? "-"}
+              </div>
             </div>
           ) : (
             <div className="flex items-center gap-1.5">
-              <div className="h-px w-4 bg-border/60" />
+              <div className="h-px w-5 bg-border/60" />
               <span className="text-[11px] font-semibold text-muted-foreground/40">vs</span>
-              <div className="h-px w-4 bg-border/60" />
+              <div className="h-px w-5 bg-border/60" />
             </div>
           )}
         </div>
         <div className="text-left">
-          <div className="text-2xl leading-none">{match.away.logo}</div>
-          <div className="mt-1.5 font-display text-sm font-semibold text-foreground truncate">
+          <div className="text-3xl leading-none">{match.away.logo}</div>
+          <div className="mt-1.5 font-display text-base font-semibold text-foreground truncate">
             {match.away.name}
           </div>
-          <div className="text-[10px] tabular-nums text-muted-foreground/50">xG {match.away.xg}</div>
+          <div className="mt-2 text-[11px] tabular-nums text-muted-foreground/40">
+            xG {match.away.xg}
+          </div>
         </div>
       </div>
 
       {/* Markets */}
-      <div className="mt-4 rounded-xl bg-white/[0.02] border border-border/30 p-1.5">
-        <div className="mb-1">
-          <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
-            1X2
-          </div>
-          <div className="grid grid-cols-3 gap-1">
-            {markets.slice(0, 3).map((m) => (
-              <MarketButton
-                key={m.id}
-                market={m}
-                selected={isMarketSelected(m.id)}
-                onSelect={() => handleMarketSelect(m)}
-                isRecommended={m.id === match.suggestedMarket}
-              />
-            ))}
-          </div>
+      <div className="px-4 pb-4 pt-2">
+        <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
+          <span>Mercados principais</span>
+          {live && updatedAgo && (
+            <span className="flex items-center gap-1 text-rose-400/80">
+              <RefreshCw className="h-3 w-3 animate-spin" />
+              {updatedAgo}
+            </span>
+          )}
         </div>
-        <div className="grid grid-cols-2 gap-1">
-          {markets.slice(3).map((m) => (
-            <MarketButton
-              key={m.id}
-              market={m}
-              selected={isMarketSelected(m.id)}
-              onSelect={() => handleMarketSelect(m)}
-              isRecommended={m.id === match.suggestedMarket}
-            />
+        <div className="grid grid-cols-3 gap-2">
+          {marketGroups.map((group) => (
+            <div key={group.key} className="space-y-1.5">
+              <div className="px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/40">
+                {group.title}
+              </div>
+              <div className="grid grid-cols-1 gap-1">
+                {group.options.map((option) => (
+                  <MarketButton
+                    key={option.id}
+                    option={option}
+                    selected={isMarketSelected(option.id)}
+                    onSelect={() => handleMarketSelect(option)}
+                    isRecommended={option.id === match.suggestedMarket}
+                    isLive={live}
+                    updatedAgo={updatedAgo}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>
 
       {/* Footer */}
-      <div className="mt-3 flex items-center justify-between">
+      <div className="flex items-center justify-between border-t border-border/30 px-4 py-3">
         <span className="text-[11px] text-muted-foreground/50 tabular-nums">
           {selectedCount} selecionado{selectedCount !== 1 ? "s" : ""}
         </span>
         <button
           onClick={() => {
-            const rec = markets.find((m) => m.id === match.suggestedMarket);
-            if (rec) handleMarketSelect(rec);
+            if (bestOption) handleMarketSelect(bestOption);
           }}
           className={cn(
             "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-300 active:scale-[0.96]",

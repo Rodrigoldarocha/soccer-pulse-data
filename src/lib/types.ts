@@ -79,6 +79,7 @@ export interface MatchPrediction {
     btts: number;
     doubleChance1X: number;
   };
+  oddsUpdatedAt: string;
   suggestedMarket: MarketId;
   suggestedProbability: number;
   suggestedOdds: number;

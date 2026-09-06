@@ -128,11 +128,13 @@ export async function buildPrediction(
         btts: pBtts.odds,
         doubleChance1X: pDc1x.odds,
       },
+      oddsUpdatedAt: new Date().toISOString(),
       suggestedMarket: best.market,
       suggestedProbability: +best.probability.toFixed(3),
       suggestedOdds: best.odds,
       suggestedLabel: best.label,
       confidence: best.confidence,
+      oddsUpdatedAt: new Date().toISOString(),
     };
   }
 

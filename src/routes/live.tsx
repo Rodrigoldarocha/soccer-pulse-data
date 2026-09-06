@@ -3,7 +3,7 @@ import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getLiveMatches } from "@/lib/matches.functions";
 import { MatchCard } from "@/components/MatchCard";
-import { Radio } from "lucide-react";
+import { Radio, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 
 function PendingSkeleton() {
@@ -46,7 +46,7 @@ function LivePage() {
     queryOptions({
       queryKey: ["live"],
       queryFn: fn,
-      refetchInterval: 60_000,
+      refetchInterval: 30_000,
     }),
   );
   return (
@@ -65,6 +65,10 @@ function LivePage() {
           <Radio className="mr-2 inline h-6 w-6 text-primary" />
           Partidas em andamento
         </h1>
+        <span className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground/40">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          atualiza a cada 30s
+        </span>
       </motion.header>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {data.matches.map((m, i) => (
