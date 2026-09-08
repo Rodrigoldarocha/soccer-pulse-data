@@ -54,7 +54,7 @@ const FALLBACK_PREDICTION: PredictionData = {
 
 export async function fetchMatchesForDate(dateISO?: string): Promise<MatchPrediction[]> {
   // Hard timeout: entire pipeline must finish within 25 seconds
-  return withTimeout(runPipeline(dateISO), 25_000).catch(() => {
+  return withTimeout(runPipeline(dateISO), 40_000).catch(() => {
     console.log(`[data-pipeline] Pipeline timed out for ${dateISO ?? "today"}`);
     return [] as MatchPrediction[];
   });
@@ -74,7 +74,7 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
   if (activeEvents.length === 0) return [];
 
   // Step 3: Limit for SSR performance
-  const events = activeEvents.slice(0, 60);
+  const events = activeEvents.slice(0, 40);
 
 
   // Step 4: Pre-warm league events cache — fetch all unique leagues in one batch
@@ -127,7 +127,7 @@ export async function fetchLiveMatches(): Promise<MatchPrediction[]> {
 }
 
 export async function fetchUpcomingMatches(fromISO: string, toISO: string): Promise<MatchPrediction[]> {
-  return withTimeout(runUpcomingPipeline(fromISO, toISO), 25_000).catch(() => {
+  return withTimeout(runUpcomingPipeline(fromISO, toISO), 40_000).catch(() => {
     console.log(`[data-pipeline] Upcoming pipeline timed out`);
     return [] as MatchPrediction[];
   });
@@ -157,7 +157,7 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Matc
   const upcoming = uniqueEvents.filter((ev) => ev.strStatus !== "Match Finished");
 
   // Limit for SSR performance
-  const limited = upcoming.slice(0, 60);
+  const limited = upcoming.slice(0, 40);
 
 
   // Map TsdbEvent to PredictionInput-compatible format
