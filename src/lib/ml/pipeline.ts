@@ -134,7 +134,7 @@ export async function buildPrediction(
       suggestedOdds: best.odds,
       suggestedLabel: best.label,
       confidence: best.confidence,
-      oddsUpdatedAt: new Date().toISOString(),
+
     };
   }
 
