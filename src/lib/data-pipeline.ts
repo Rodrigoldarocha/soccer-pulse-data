@@ -197,11 +197,15 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Matc
 
   const results = await Promise.allSettled(
     predictionInputs.map(async (ev) => {
-      const prediction = await computePred(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId);
+      const prediction = await withTimeout(
+        computePred(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId),
+        6_000,
+      ).catch(() => FALLBACK_PREDICTION);
       const footballEvent = eventToFootballEvent(ev);
       return buildPred(footballEvent, prediction, { id: ev.apiLeagueId, name: ev.leagueLabel });
     }),
   );
+
 
   const succeeded = results.filter(
     (r): r is PromiseFulfilledResult<MatchPrediction> => r.status === "fulfilled",
