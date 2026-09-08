@@ -73,8 +73,9 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
 
   if (activeEvents.length === 0) return [];
 
-  // Step 3: Limit to 20 events for SSR performance
-  const events = activeEvents.slice(0, 20);
+  // Step 3: Limit for SSR performance
+  const events = activeEvents.slice(0, 60);
+
 
   // Step 4: Pre-warm league events cache — fetch all unique leagues in one batch
   const uniqueLeagueIds = [...new Set(events.map((ev) => ev.apiLeagueId).filter(Boolean))];
@@ -155,8 +156,9 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Matc
   // Filter out already-finished events
   const upcoming = uniqueEvents.filter((ev) => ev.strStatus !== "Match Finished");
 
-  // Limit to 20 matches max for SSR performance
-  const limited = upcoming.slice(0, 20);
+  // Limit for SSR performance
+  const limited = upcoming.slice(0, 60);
+
 
   // Map TsdbEvent to PredictionInput-compatible format
   const predictionInputs = limited.map((ev) => {
