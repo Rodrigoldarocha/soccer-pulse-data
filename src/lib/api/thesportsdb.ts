@@ -337,7 +337,9 @@ export async function fetchEventsByDate(date: string): Promise<TsdbEvent[]> {
 
 
 export async function fetchEventsByDateRange(from: string, to: string): Promise<TsdbEvent[]> {
+  await ensureLeagueNames();
   const seen = new Set<string>();
+
   const allEvents: TsdbEvent[] = [];
   let pageUrl: string | null = `events/?date_from=${from}&date_to=${to}&limit=200`;
 
