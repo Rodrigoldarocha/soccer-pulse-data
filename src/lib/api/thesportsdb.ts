@@ -287,7 +287,9 @@ function mapBzzoiroEvent(ev: BzzoiroEvent): TsdbEvent {
   }
 
   const leagueId = String(ev.league_id);
-  const leagueName = LEAGUE_NAMES[leagueId] ?? `League ${leagueId}`;
+  const leagueName =
+    dynamicLeagueNames.get(leagueId) ?? LEAGUE_NAMES[leagueId] ?? `League ${leagueId}`;
+
 
   return {
     idEvent: String(ev.id),
