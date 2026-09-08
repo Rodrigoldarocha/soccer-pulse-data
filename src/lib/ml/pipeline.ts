@@ -78,7 +78,12 @@ export async function buildPrediction(
 
         const weights = getEnsembleWeights(undefined); // default 70/30
         const ensemble = ensembleProbability(calResult, poissonProb, weights);
-        const confidence = computeEnsembleConfidence(calResult, ensemble.probability, weights);
+        let confidence = computeEnsembleConfidence(calResult, ensemble.probability, weights);
+        // Sem histórico de calibração, derivar confiança da força da probabilidade
+        if (calResult.calibrationSource === "none") {
+          confidence =
+            ensemble.probability >= 0.72 ? "high" : ensemble.probability >= 0.58 ? "medium" : "low";
+        }
         const o = marginOdds(ensemble.probability);
 
         return {
@@ -91,9 +96,13 @@ export async function buildPrediction(
       }),
     );
 
-    const candidates = processed.filter((p) => p.market !== "DRAW");
+    // Sugerir o melhor mercado com odd minimamente relevante (evita sempre dupla chance)
+    const nonDraw = processed.filter((p) => p.market !== "DRAW");
+    const withValue = nonDraw.filter((p) => p.odds >= 1.3);
+    const candidates = (withValue.length > 0 ? withValue : nonDraw).slice();
     candidates.sort((a, b) => b.probability - a.probability);
     const best = candidates[0];
+
 
     const pHome = processed.find((p) => p.market === "1X2_HOME")!;
     const pDraw = processed.find((p) => p.market === "DRAW")!;
