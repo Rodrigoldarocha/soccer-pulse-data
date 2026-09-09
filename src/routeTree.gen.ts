@@ -9,13 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TomorrowRouteImport } from './routes/tomorrow'
 import { Route as TodayRouteImport } from './routes/today'
 import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as MultiplesRouteImport } from './routes/multiples'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TomorrowRoute = TomorrowRouteImport.update({
+  id: '/tomorrow',
+  path: '/tomorrow',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TodayRoute = TodayRouteImport.update({
   id: '/today',
   path: '/today',
@@ -24,11 +29,6 @@ const TodayRoute = TodayRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MultiplesRoute = MultiplesRouteImport.update({
-  id: '/multiples',
-  path: '/multiples',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LiveRoute = LiveRouteImport.update({
@@ -51,54 +51,60 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/live': typeof LiveRoute
-  '/multiples': typeof MultiplesRoute
   '/settings': typeof SettingsRoute
   '/today': typeof TodayRoute
+  '/tomorrow': typeof TomorrowRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/live': typeof LiveRoute
-  '/multiples': typeof MultiplesRoute
   '/settings': typeof SettingsRoute
   '/today': typeof TodayRoute
+  '/tomorrow': typeof TomorrowRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/analytics': typeof AnalyticsRoute
   '/live': typeof LiveRoute
-  '/multiples': typeof MultiplesRoute
   '/settings': typeof SettingsRoute
   '/today': typeof TodayRoute
+  '/tomorrow': typeof TomorrowRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    '/' | '/analytics' | '/live' | '/multiples' | '/settings' | '/today'
+  fullPaths: '/' | '/analytics' | '/live' | '/settings' | '/today' | '/tomorrow'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analytics' | '/live' | '/multiples' | '/settings' | '/today'
+  to: '/' | '/analytics' | '/live' | '/settings' | '/today' | '/tomorrow'
   id:
     | '__root__'
     | '/'
     | '/analytics'
     | '/live'
-    | '/multiples'
     | '/settings'
     | '/today'
+    | '/tomorrow'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AnalyticsRoute: typeof AnalyticsRoute
   LiveRoute: typeof LiveRoute
-  MultiplesRoute: typeof MultiplesRoute
   SettingsRoute: typeof SettingsRoute
   TodayRoute: typeof TodayRoute
+  TomorrowRoute: typeof TomorrowRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tomorrow': {
+      id: '/tomorrow'
+      path: '/tomorrow'
+      fullPath: '/tomorrow'
+      preLoaderRoute: typeof TomorrowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/today': {
       id: '/today'
       path: '/today'
@@ -111,13 +117,6 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/multiples': {
-      id: '/multiples'
-      path: '/multiples'
-      fullPath: '/multiples'
-      preLoaderRoute: typeof MultiplesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/live': {
@@ -148,9 +147,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AnalyticsRoute: AnalyticsRoute,
   LiveRoute: LiveRoute,
-  MultiplesRoute: MultiplesRoute,
   SettingsRoute: SettingsRoute,
   TodayRoute: TodayRoute,
+  TomorrowRoute: TomorrowRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

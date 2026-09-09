@@ -3,23 +3,24 @@ import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { getTodayMatches } from "@/lib/matches.functions";
+import { getTomorrowMatches } from "@/lib/matches.functions";
 import { fmtDateSP } from "@/lib/match-dates";
 import { MatchCard } from "@/components/MatchCard";
-import { Search, CalendarDays } from "lucide-react";
+import { Search, CalendarClock } from "lucide-react";
 import type { MatchPrediction } from "@/lib/types";
 
-export const Route = createFileRoute("/today")({
+export const Route = createFileRoute("/tomorrow")({
   head: () => ({
     meta: [
-      { title: "Hoje — PulseLab" },
+      { title: "Amanhã — PulseLab" },
       {
         name: "description",
-        content: "Probabilidades de futebol para as partidas de hoje: BTTS, 1X2 e Over/Under 2.5.",
+        content:
+          "Probabilidades de futebol para as partidas de amanhã: BTTS, 1X2 e Over/Under 2.5.",
       },
     ],
   }),
-  component: TodayPage,
+  component: TomorrowPage,
 });
 
 function filterMatches(matches: MatchPrediction[], q: string) {
@@ -30,9 +31,9 @@ function filterMatches(matches: MatchPrediction[], q: string) {
   );
 }
 
-function TodayPage() {
-  const todayFn = useServerFn(getTodayMatches);
-  const { data } = useSuspenseQuery(queryOptions({ queryKey: ["today"], queryFn: todayFn }));
+function TomorrowPage() {
+  const tomorrowFn = useServerFn(getTomorrowMatches);
+  const { data } = useSuspenseQuery(queryOptions({ queryKey: ["tomorrow"], queryFn: tomorrowFn }));
 
   const [q, setQ] = useState("");
   const filtered = useMemo(() => filterMatches(data.matches, q), [q, data.matches]);
@@ -46,8 +47,8 @@ function TodayPage() {
         className="mb-5"
       >
         <h1 className="flex items-center gap-2 font-display text-2xl font-bold text-foreground sm:text-3xl">
-          <CalendarDays className="h-6 w-6 text-primary" />
-          Hoje
+          <CalendarClock className="h-6 w-6 text-primary" />
+          Amanhã
         </h1>
         <p className="mt-1 text-sm text-muted-foreground/60">
           {fmtDateSP(data.date)} — {filtered.length} partida{filtered.length !== 1 ? "s" : ""} ·
@@ -78,7 +79,7 @@ function TodayPage() {
         ))}
         {filtered.length === 0 && (
           <p className="col-span-full py-12 text-center text-sm text-muted-foreground/40">
-            Nenhuma partida encontrada para hoje.
+            Nenhuma partida encontrada para amanhã.
           </p>
         )}
       </div>

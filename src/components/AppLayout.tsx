@@ -1,8 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard,
   CalendarDays,
-  Layers3,
+  CalendarClock,
   Radio,
   LineChart,
   Settings as SettingsIcon,
@@ -16,9 +15,8 @@ import { memo, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/today", label: "Palpites do Dia", icon: CalendarDays },
-  { to: "/multiples", label: "Múltiplas", icon: Layers3 },
+  { to: "/today", label: "Hoje", icon: CalendarDays },
+  { to: "/tomorrow", label: "Amanhã", icon: CalendarClock },
   { to: "/live", label: "Ao Vivo", icon: Radio },
   { to: "/analytics", label: "Analytics", icon: LineChart },
   { to: "/settings", label: "Configurações", icon: SettingsIcon },
@@ -75,7 +73,7 @@ function Brand() {
           Pulse<span className="text-gradient">Lab</span>
         </span>
         <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/50">
-          Soccer Analytics
+          Probability Dashboard
         </span>
       </div>
     </div>
@@ -96,9 +94,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
             <div className="text-[11px] font-medium uppercase tracking-widest text-primary/70">
               ML Engine
             </div>
-            <div className="mt-1 text-xs text-muted-foreground/60">
-              Poisson + Ensemble v2.5
-            </div>
+            <div className="mt-1 text-xs text-muted-foreground/60">Poisson + Ensemble v2.5</div>
           </div>
         </div>
       </aside>
@@ -159,9 +155,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       </AnimatePresence>
 
       <main className="lg:pl-64">
-        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:px-8 lg:py-10">
-          {children}
-        </div>
+        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 lg:px-8 lg:py-10">{children}</div>
       </main>
     </div>
   );

@@ -1,220 +1,100 @@
-import { memo, useCallback } from "react";
+import { memo } from "react";
 import { motion } from "framer-motion";
-import { Check, Plus, Shield, Zap, Flame, Clock, RefreshCw } from "lucide-react";
-import type { MatchPrediction, MarketId } from "@/lib/types";
-import { useBetSlip } from "@/lib/bet-slip";
+import { Shield, Zap, Flame } from "lucide-react";
+import type { MatchPrediction } from "@/lib/types";
+import { fmtTimeSP } from "@/lib/match-dates";
+import { probGroupsFor, type ProbLevel, type ProbRow } from "@/lib/probability-view";
 import { cn } from "@/lib/utils";
-
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-}
-
-function fmtLiveAgo(iso: string) {
-  const d = new Date(iso);
-  const diff = Math.max(0, Date.now() - d.getTime());
-  const sec = Math.floor(diff / 1000);
-  if (sec < 60) return `há ${sec}s`;
-  const m = Math.floor(sec / 60);
-  if (m < 60) return `há ${m}min`;
-  return `há ${Math.floor(m / 60)}h`;
-}
-
-function liveStatusText(minute: number | undefined) {
-  if (minute === undefined) return "—";
-  return `${minute}'`;
-}
-
-function liveLabel(isLive: boolean) {
-  return isLive ? "AO VIVO" : "PRÓXIMO";
-}
-
-type LiveStatus = "live" | "scheduled" | "finished";
-
-function matchStatusLabel(status: string): string {
-  if (status === "live") return "AO VIVO";
-  if (status === "finished") return "ENCERRADO";
-  return "AGENDADO";
-}
 
 function confidenceConfig(c: MatchPrediction["confidence"]) {
   const map = {
-    high: { label: "Alta", icon: Shield, color: "text-emerald-400", bg: "bg-emerald-500/10", glow: "shadow-emerald-500/10" },
-    medium: { label: "Média", icon: Zap, color: "text-amber-400", bg: "bg-amber-500/10", glow: "shadow-amber-500/10" },
-    low: { label: "Baixa", icon: Flame, color: "text-rose-400", bg: "bg-rose-500/10", glow: "shadow-rose-500/10" },
+    high: { label: "Alta", icon: Shield, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+    medium: { label: "Média", icon: Zap, color: "text-amber-400", bg: "bg-amber-500/10" },
+    low: { label: "Baixa", icon: Flame, color: "text-rose-400", bg: "bg-rose-500/10" },
   } as const;
   return map[c];
 }
 
-interface MarketOption {
-  id: MarketId;
-  label: string;
-  shortLabel: string;
-  odds: number;
-  probability: number;
-}
+const LEVEL_BAR: Record<ProbLevel, string> = {
+  strong: "bg-emerald-500/70",
+  moderate: "bg-amber-500/60",
+  neutral: "bg-white/10",
+};
 
-interface MarketGroup {
-  title: string;
-  key: string;
-  options: MarketOption[];
-}
+const LEVEL_PCT: Record<ProbLevel, string> = {
+  strong: "text-emerald-400",
+  moderate: "text-amber-400",
+  neutral: "text-muted-foreground/70",
+};
 
-function getMarkets(match: MatchPrediction): MarketGroup[] {
-  const p = match.odds;
-  const pr = match.probabilities;
-  return [
-    {
-      title: "1X2",
-      key: "1x2",
-      options: [
-        { id: "1X2_HOME", label: `Vitória ${match.home.short}`, shortLabel: match.home.short, odds: p.home, probability: pr.home },
-        { id: "DRAW", label: "Empate", shortLabel: "EMP", odds: p.draw, probability: pr.draw },
-        { id: "1X2_AWAY", label: `Vitória ${match.away.short}`, shortLabel: match.away.short, odds: p.away, probability: pr.away },
-      ],
-    },
-    {
-      title: "BTTS",
-      key: "btts",
-      options: [
-        { id: "BTTS", label: "Ambas marcam", shortLabel: "SIM", odds: p.btts, probability: pr.btts },
-      ],
-    },
-    {
-      title: "O/U 2.5",
-      key: "ou25",
-      options: [
-        { id: "OVER_2_5", label: "Mais de 2.5 gols", shortLabel: "OVER", odds: p.over25, probability: pr.over25 },
-      ],
-    },
-  ];
-}
-
-interface MarketButtonProps {
-  option: MarketOption;
-  selected: boolean;
-  onSelect: () => void;
-  isRecommended?: boolean;
-  isLive?: boolean;
-  updatedAgo: string;
-}
-
-const MarketButton = memo(function MarketButton({
-  option,
-  selected,
-  onSelect,
-  isRecommended,
-  isLive,
-  updatedAgo,
-}: MarketButtonProps) {
-  const best = option.probability >= 0.5 ? "text-emerald-400" : option.probability >= 0.35 ? "text-amber-400" : "text-muted-foreground/50";
-  const pulse = isLive ? "animate-pulse" : "";
-
+const ProbLine = memo(function ProbLine({ row }: { row: ProbRow }) {
+  const width = `${Math.round(row.p * 100)}%`;
   return (
-    <div className={cn(
-      "relative rounded-xl border p-2.5 transition-all duration-300",
-      selected && "border-primary/40 bg-primary/10",
-      isRecommended && !selected && "border-primary/20 bg-primary/[0.04]",
-      !selected && "border-border/40 bg-white/[0.02]",
-    )}>
-      {isRecommended && !selected && (
-        <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
-      )}
-      <div className="mb-1 flex items-center justify-between gap-1">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-          {option.shortLabel}
+    <div className="relative overflow-hidden rounded-xl border border-border/40 bg-white/[0.02] px-3 py-2">
+      <div
+        aria-hidden
+        className={cn("absolute inset-y-0 left-0 opacity-20", LEVEL_BAR[row.level])}
+        style={{ width }}
+      />
+      <div className="relative flex items-center justify-between gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          {row.label}
         </span>
-        {updatedAgo && (
-          <span className={cn(
-            "flex items-center gap-1 text-[10px] text-muted-foreground/40",
-            pulse && "text-rose-400",
-          )}>
-            <Clock className="h-3 w-3" />
-            {updatedAgo}
-          </span>
-        )}
-      </div>
-      <div className="font-display text-lg sm:text-xl font-bold tabular-nums tracking-tight text-center">
-        {option.odds.toFixed(2)}
-      </div>
-      <div className={cn(
-        "mt-1 text-[11px] font-semibold tabular-nums",
-        best,
-      )}>        {(option.probability * 100).toFixed(1)}%
-      </div>
-      <button
-          onClick={onSelect}
+        <span
           className={cn(
-            "mt-2 w-full rounded-lg py-1 text-[10px] font-semibold uppercase tracking-wider text-center transition-all duration-200 active:scale-[0.96]",
-            selected ? "bg-primary/20 text-primary" : "bg-white/5 text-muted-foreground/60 hover:bg-white/10 hover:text-foreground",
+            "font-display text-xl font-bold tabular-nums tracking-tight",
+            LEVEL_PCT[row.level],
           )}
         >
-        {selected ? "Selecionado" : "Adicionar"}
-      </button>
+          {row.pct}
+        </span>
+      </div>
     </div>
   );
 });
+
+function ProbGroup({ title, rows }: { title: string; rows: ProbRow[] }) {
+  return (
+    <section aria-label={title}>
+      <h3 className="px-1 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
+        {title}
+      </h3>
+      <div className="grid gap-1.5">
+        {rows.map((r) => (
+          <ProbLine key={r.label} row={r} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function MatchCard({ match, live = false }: { match: MatchPrediction; live?: boolean }) {
-  const { addLeg, removeLeg, hasLeg } = useBetSlip();
   const confidence = confidenceConfig(match.confidence);
   const ConfidenceIcon = confidence.icon;
-  const marketGroups = getMarkets(match);
-  const updatedAgo = live ? fmtLiveAgo(match.oddsUpdatedAt) : "";
-
-  const isMarketSelected = useCallback(
-    (marketId: MarketId) => hasLeg(match.id, marketId),
-    [hasLeg, match.id],
-  );
-
-  const handleMarketSelect = useCallback(
-    (option: MarketOption) => {
-      if (isMarketSelected(option.id)) {
-        removeLeg(match.id);
-      } else {
-        addLeg({
-          matchId: match.id,
-          market: option.id,
-          marketLabel: option.label,
-          odds: option.odds,
-          probability: option.probability,
-          matchLabel: `${match.home.name} × ${match.away.name}`,
-          leagueLabel: match.leagueLabel,
-        });
-      }
-    },
-    [isMarketSelected, removeLeg, addLeg, match],
-  );
-
-  const selectedCount = marketGroups.reduce(
-    (acc, g) => acc + g.options.filter((o) => isMarketSelected(o.id)).length,
-    0,
-  );
-
-  const bestOption = marketGroups.flatMap((g) => g.options).find((o) => o.id === match.suggestedMarket);
+  const groups = probGroupsFor(match);
+  const isLive = live || match.status === "live";
 
   return (
-    <motion.div
+    <motion.article
       layout
-      whileHover={{ y: live ? 0 : -2 }}
       transition={{ duration: 0.2 }}
-      className={cn(
-        "card-premium group overflow-hidden w-full",
-        selectedCount > 0 && "ring-1 ring-primary/20 border-primary/30",
-      )}
+      className="card-premium group w-full overflow-hidden"
     >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border/30 px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground/60">
-        <div className="truncate">
-          <span className="block truncate">{match.leagueLabel}</span>              <span className="block text-[11px] text-muted-foreground/40 mt-0.5 leading-tight truncate">
-                {match.home.name} × {match.away.name}
-              </span>              <span className="block text-[11px] text-muted-foreground/30 mt-0.5 truncate">
-                {fmtTime(match.kickoff)}
-              </span>
+      {/* Header: liga + horário */}
+      <div className="flex items-center justify-between gap-2 border-b border-border/30 px-4 py-3">
+        <div className="min-w-0">
+          <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">
+            {match.leagueLabel}
+          </p>
+          <p className="mt-0.5 tabular-nums text-[11px] text-muted-foreground/40">
+            {fmtTimeSP(match.kickoff)}
+          </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {live && (
-            <span className="flex items-center gap-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 text-rose-400">
+        <div className="flex shrink-0 items-center gap-2">
+          {isLive && (
+            <span className="flex items-center gap-1.5 rounded-full border border-rose-500/20 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold text-rose-400">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
-              {liveLabel(live)}
+              AO VIVO
             </span>
           )}
           <span className={cn("flex items-center gap-1 rounded-full px-2 py-0.5", confidence.bg)}>
@@ -223,120 +103,60 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
               {confidence.label}
             </span>
           </span>
-          <span className="tabular-nums text-muted-foreground/60">
-            {live ? (
-              <span className="inline-flex items-center gap-1 text-rose-400 font-semibold">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500 inline-block" />
-                {liveStatusText(match.minute)}
-              </span>            ) : (
-              <span className="tabular-nums">{fmtTime(match.kickoff)}</span>
-            )}
-          </span>
         </div>
       </div>
 
-      {/* Teams */}
+      {/* Confronto */}
       <div className="mx-3 my-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:mx-4 sm:my-4 sm:gap-3">
         <div className="text-right">
-          <div className="text-2xl sm:text-3xl leading-none">{match.home.logo}</div>
-          <div className="mt-1 font-display text-sm sm:text-base font-semibold text-foreground truncate">
+          <div className="text-2xl leading-none sm:text-3xl">{match.home.logo}</div>
+          <div className="mt-1 truncate font-display text-sm font-semibold text-foreground sm:text-base">
             {match.home.name}
-          </div>          <div className="mt-1 sm:mt-2 text-[10px] sm:text-[11px] tabular-nums text-muted-foreground/40">
-            xG {match.home.xg}
           </div>
         </div>
-        <div className="flex flex-col items-center gap-1">
-          {live ? (
-            <div className="rounded-xl bg-rose-500/10 border border-rose-500/20 px-2 py-1 sm:px-3 sm:py-1.5 text-center">
-              <div className="font-display text-lg sm:text-xl font-bold text-rose-400 tabular-nums">
+        <div className="flex flex-col items-center">
+          {isLive ? (
+            <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-2 py-1 text-center sm:px-3 sm:py-1.5">
+              <div className="font-display text-lg font-bold tabular-nums text-rose-400 sm:text-xl">
                 {match.scoreHome ?? "-"}
               </div>
-              <div className="text-[9px] sm:text-[10px] text-muted-foreground/50 mt-0.5">×</div>
-              <div className="font-display text-lg sm:text-xl font-bold text-rose-400 tabular-nums">
+              <div className="mt-0.5 text-[9px] text-muted-foreground/50 sm:text-[10px]">×</div>
+              <div className="font-display text-lg font-bold tabular-nums text-rose-400 sm:text-xl">
                 {match.scoreAway ?? "-"}
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-1.5">
-              <div className="h-px w-3 sm:w-5 bg-border/60" />
-              <span className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground/40">vs</span>
-              <div className="h-px w-3 sm:w-5 bg-border/60" />
+              <div className="h-px w-3 bg-border/60 sm:w-5" />
+              <span className="text-[10px] font-semibold text-muted-foreground/40 sm:text-[11px]">
+                ×
+              </span>
+              <div className="h-px w-3 bg-border/60 sm:w-5" />
             </div>
           )}
         </div>
         <div className="text-left">
-          <div className="text-2xl sm:text-3xl leading-none">{match.away.logo}</div>
-          <div className="mt-1 font-display text-sm sm:text-base font-semibold text-foreground truncate">
+          <div className="text-2xl leading-none sm:text-3xl">{match.away.logo}</div>
+          <div className="mt-1 truncate font-display text-sm font-semibold text-foreground sm:text-base">
             {match.away.name}
-          </div>          <div className="mt-1 sm:mt-2 text-[10px] sm:text-[11px] tabular-nums text-muted-foreground/40">
-            xG {match.away.xg}
           </div>
         </div>
       </div>
 
-      {/* Markets */}
-      <div className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4 sm:pt-2">
-        <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/40">
-          <span>Mercados principais</span>
-          {live && updatedAgo && (
-            <span className="flex items-center gap-1 text-rose-400/80">
-              <RefreshCw className="h-3 w-3 animate-spin" />
-              {updatedAgo}
-            </span>
-          )}
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {marketGroups.map((group) => (
-            <div key={group.key} className="space-y-1.5">
-              <div className="px-1 py-0.5 text-[9px] sm:text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap text-muted-foreground/40">
-                {group.title}
-              </div>
-              <div className="grid grid-cols-1 gap-1">
-                {group.options.map((option) => (
-                  <MarketButton
-                    key={option.id}
-                    option={option}
-                    selected={isMarketSelected(option.id)}
-                    onSelect={() => handleMarketSelect(option)}
-                    isRecommended={option.id === match.suggestedMarket}
-                    isLive={live}
-                    updatedAgo={updatedAgo}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Probabilidades */}
+      <div className="space-y-2.5 px-3 pb-3 sm:px-4 sm:pb-4">
+        <ProbGroup title="BTTS" rows={[...groups.btts]} />
+        <ProbGroup title="1X2" rows={[...groups.x12]} />
+        <ProbGroup title="Over / Under 2.5" rows={[...groups.overUnder]} />
       </div>
 
-      {/* Footer */}
-      <div className="flex items-center justify-between border-t border-border/30 px-3 py-3 sm:px-4 sm:py-3">          <span className="text-[10px] sm:text-[11px] text-muted-foreground/50 tabular-nums">
-            {selectedCount} selecionado{selectedCount !== 1 ? "s" : ""}
-          </span>
-        <button
-          onClick={() => {
-            if (bestOption) handleMarketSelect(bestOption);
-          }}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-300 active:scale-[0.96]",
-            isMarketSelected(match.suggestedMarket)
-              ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20"
-              : "bg-white/[0.06] text-foreground/80 hover:bg-white/[0.1]",
-          )}
-        >
-          {isMarketSelected(match.suggestedMarket) ? (
-            <>
-              <Check className="h-3.5 w-3.5" />
-              Selecionado
-            </>
-          ) : (
-            <>
-              <Plus className="h-3.5 w-3.5" />
-              Sugerido
-            </>
-          )}
-        </button>
+      {/* Footer: confiança do modelo */}
+      <div className="flex items-center justify-center border-t border-border/30 px-3 py-2.5 sm:px-4">
+        <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/40 sm:text-[11px]">
+          Confiança do modelo:{" "}
+          <span className={cn("font-semibold", confidence.color)}>{confidence.label}</span>
+        </span>
       </div>
-    </motion.div>
+    </motion.article>
   );
 }

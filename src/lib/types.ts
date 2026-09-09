@@ -87,22 +87,6 @@ export interface MatchPrediction {
   confidence: "low" | "medium" | "high";
 }
 
-export interface ParlayLeg {
-  matchId: string;
-  market: MarketId;
-  marketLabel: string;
-  odds: number;
-  probability: number;
-}
-
-export interface ParlaySuggestion {
-  id: "safe" | "moderate" | "aggressive";
-  type: string;
-  title: string;
-  riskText: "Segura" | "Moderada" | "Ousada";
-  explanation: string;
-  totalOdds: number;
-  totalProbability: number;
-  selectionIds: string[];
-  legs: ParlayLeg[];
-}
+// NOTA: campos odds/suggested* continuam preenchidos pelo pipeline ML
+// (src/lib/ml/pipeline.ts) para compatibilidade do motor e do accuracy store.
+// A UI de probabilidades não os exibe.

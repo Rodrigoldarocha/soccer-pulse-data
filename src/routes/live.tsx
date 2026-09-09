@@ -33,7 +33,10 @@ export const Route = createFileRoute("/live")({
   head: () => ({
     meta: [
       { title: "Ao Vivo — PulseLab" },
-      { name: "description", content: "Partidas em andamento com placar, xG e mercado sugerido." },
+      {
+        name: "description",
+        content: "Partidas em andamento com placar e probabilidades BTTS, 1X2 e Over/Under 2.5.",
+      },
     ],
   }),
   pendingComponent: PendingSkeleton,

@@ -11,7 +11,6 @@ import { Suspense, useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { BetSlipProvider } from "@/lib/bet-slip";
 import { AppLayout } from "@/components/AppLayout";
 
 function NotFoundComponent() {
@@ -47,13 +46,21 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center animate-fade-in-up">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
-          <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+          <svg
+            className="h-8 w-8"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+            />
           </svg>
         </div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          Algo deu errado
-        </h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Algo deu errado</h1>
         <p className="mt-2 text-sm text-muted-foreground/60">
           Ocorreu um erro ao carregar a página. Tente recarregar ou volte ao início.
         </p>
@@ -84,14 +91,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Dashboard — PulseLab" },
-      { name: "description", content: "Visão geral das partidas do dia, predições e sugestões de múltiplas com IA." },
-      { property: "og:title", content: "Dashboard — PulseLab" },
-      { property: "og:description", content: "Visão geral das partidas do dia, predições e sugestões de múltiplas com IA." },
+      { title: "PulseLab — Probabilidades de Futebol" },
+      {
+        name: "description",
+        content: "Dashboard de probabilidades de futebol: BTTS, 1X2 e Over/Under 2.5.",
+      },
+      { property: "og:title", content: "PulseLab — Probabilidades de Futebol" },
+      {
+        property: "og:description",
+        content: "Dashboard de probabilidades de futebol: BTTS, 1X2 e Over/Under 2.5.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Dashboard — PulseLab" },
-      { name: "twitter:description", content: "Visão geral das partidas do dia, predições e sugestões de múltiplas com IA." },
+      { name: "twitter:title", content: "PulseLab — Probabilidades de Futebol" },
+      {
+        name: "twitter:description",
+        content: "Dashboard de probabilidades de futebol: BTTS, 1X2 e Over/Under 2.5.",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -152,13 +168,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BetSlipProvider>
-        <AppLayout>
-          <Suspense fallback={<LoadingSkeleton />}>
-            <Outlet />
-          </Suspense>
-        </AppLayout>
-      </BetSlipProvider>
+      <AppLayout>
+        <Suspense fallback={<LoadingSkeleton />}>
+          <Outlet />
+        </Suspense>
+      </AppLayout>
     </QueryClientProvider>
   );
 }
