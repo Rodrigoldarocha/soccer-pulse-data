@@ -74,7 +74,16 @@ function AnalyticsPage() {
     return Array.from(g, ([key, value]) => ({ name: CONF_LABEL[key] ?? key, value }));
   }, [data.matches]);
 
-  const metrics = acc?.metrics ?? [];
+  const metrics = useMemo(() => acc?.metrics ?? [], [acc]);
+
+  const summary = useMemo(() => {
+    if (metrics.length === 0) return null;
+    const total = metrics.reduce((a, m) => a + m.totalPredictions, 0);
+    const correct = metrics.reduce((a, m) => a + m.correctPredictions, 0);
+    const brier =
+      metrics.reduce((a, m) => a + m.brierScore * m.totalPredictions, 0) / Math.max(1, total);
+    return { total, correct, accuracy: total > 0 ? correct / total : 0, brier };
+  }, [metrics]);
 
   return (
     <div className="space-y-6">
@@ -134,37 +143,60 @@ function AnalyticsPage() {
             predições.
           </p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-xs tabular-nums">
-              <thead>
-                <tr className="text-[11px] uppercase tracking-wider text-muted-foreground/50">
-                  <th className="pb-2 pr-3 font-medium">Liga</th>
-                  <th className="pb-2 pr-3 font-medium">Mercado</th>
-                  <th className="pb-2 pr-3 font-medium">Amostras</th>
-                  <th className="pb-2 pr-3 font-medium">Acurácia</th>
-                  <th className="pb-2 pr-3 font-medium">Brier</th>
-                  <th className="pb-2 pr-3 font-medium">Log Loss</th>
-                  <th className="pb-2 font-medium">Cal. Error</th>
-                </tr>
-              </thead>
-              <tbody>
-                {metrics.map((m) => (
-                  <tr
-                    key={`${m.leagueId}:${m.market}`}
-                    className="border-t border-border/30 text-muted-foreground/80"
+          <>
+            {summary && (
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {[
+                  { label: "Resolvidas", value: String(summary.total) },
+                  { label: "Taxa de acerto", value: `${(summary.accuracy * 100).toFixed(1)}%` },
+                  { label: "Brier médio", value: summary.brier.toFixed(3) },
+                ].map((s) => (
+                  <div
+                    key={s.label}
+                    className="rounded-xl border border-border/40 bg-white/[0.02] px-3 py-2 text-center"
                   >
-                    <td className="py-2 pr-3 text-foreground">{m.leagueName || m.leagueId}</td>
-                    <td className="py-2 pr-3">{m.market}</td>
-                    <td className="py-2 pr-3">{m.totalPredictions}</td>
-                    <td className="py-2 pr-3">{(m.accuracy * 100).toFixed(1)}%</td>
-                    <td className="py-2 pr-3">{m.brierScore.toFixed(3)}</td>
-                    <td className="py-2 pr-3">{m.logLoss.toFixed(3)}</td>
-                    <td className="py-2">{m.calibrationError.toFixed(3)}</td>
-                  </tr>
+                    <div className="font-display text-lg font-bold tabular-nums text-foreground">
+                      {s.value}
+                    </div>
+                    <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50">
+                      {s.label}
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            )}
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-xs tabular-nums">
+                <thead>
+                  <tr className="text-[11px] uppercase tracking-wider text-muted-foreground/50">
+                    <th className="pb-2 pr-3 font-medium">Liga</th>
+                    <th className="pb-2 pr-3 font-medium">Mercado</th>
+                    <th className="pb-2 pr-3 font-medium">Amostras</th>
+                    <th className="pb-2 pr-3 font-medium">Acurácia</th>
+                    <th className="pb-2 pr-3 font-medium">Brier</th>
+                    <th className="pb-2 pr-3 font-medium">Log Loss</th>
+                    <th className="pb-2 font-medium">Cal. Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.map((m) => (
+                    <tr
+                      key={`${m.leagueId}:${m.market}`}
+                      className="border-t border-border/30 text-muted-foreground/80"
+                    >
+                      <td className="py-2 pr-3 text-foreground">{m.leagueName || m.leagueId}</td>
+                      <td className="py-2 pr-3">{m.market}</td>
+                      <td className="py-2 pr-3">{m.totalPredictions}</td>
+                      <td className="py-2 pr-3">{(m.accuracy * 100).toFixed(1)}%</td>
+                      <td className="py-2 pr-3">{m.brierScore.toFixed(3)}</td>
+                      <td className="py-2 pr-3">{m.logLoss.toFixed(3)}</td>
+                      <td className="py-2">{m.calibrationError.toFixed(3)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>

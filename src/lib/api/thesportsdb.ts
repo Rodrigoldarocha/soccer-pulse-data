@@ -6,9 +6,7 @@ const BASE = "https://sports.bzzoiro.com/api/v2";
 const IMG_BASE = "https://sports.bzzoiro.com/img";
 
 function getToken(): string {
-  const t =
-    (typeof process !== "undefined" && process.env?.BZZOIRO_TOKEN) ||
-    "";
+  const t = (typeof process !== "undefined" && process.env?.BZZOIRO_TOKEN) || "";
   return t;
 }
 
@@ -23,7 +21,7 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function apiJson<T>(
+export async function apiJson<T>(
   path: string,
   opts: { ttlMs?: number; timeoutMs?: number; retries?: number } = {},
 ): Promise<T | null> {
@@ -119,6 +117,8 @@ export interface TsdbEvent {
   strEvent: string;
   strHomeTeam: string;
   strAwayTeam: string;
+  idHomeTeam: string | null;
+  idAwayTeam: string | null;
   intHomeScore: string | null;
   intAwayScore: string | null;
   strStatus: string; // "Not Started", "Match Finished", "1H", "2H", "HT", "FT", etc.
@@ -156,17 +156,17 @@ export const LEAGUE_IDS: Record<string, string> = {
   "premier-league": "1",
   "la-liga": "3",
   "serie-a": "4",
-  "bundesliga": "5",
+  bundesliga: "5",
   "ligue-1": "6",
-  "brasileirao": "9",
+  brasileirao: "9",
   "champions-league": "7",
   "europa-league": "8",
-  "eredivisie": "10",
+  eredivisie: "10",
   "primeira-liga": "2",
-  "championship": "12",
+  championship: "12",
   "super-lig": "11",
   "liga-mx": "19",
-  "mls": "18",
+  mls: "18",
   "a-league": "70",
   "saudi-pro-league": "17",
   "j-league": "49",
@@ -176,7 +176,7 @@ export const LEAGUE_IDS: Record<string, string> = {
   "belgian-pro-league": "14",
   "swiss-super-league": "15",
   "scottish-premiership": "13",
-  "allsvenskan": "26",
+  allsvenskan: "26",
   "danish-superliga": "84",
   "norwegian-eliteserien": "54",
   "brasileirao-serie-b": "34",
@@ -185,7 +185,7 @@ export const LEAGUE_IDS: Record<string, string> = {
   "bundesliga-2": "104",
   "ligue-2": "89",
   "usl-championship": "57",
-  "veikkausliiga": "55",
+  veikkausliiga: "55",
   "npl-queensland": "70",
 };
 
@@ -247,6 +247,8 @@ interface BzzoiroEvent {
   season_id: number;
   home_team: string;
   away_team: string;
+  home_team_id?: number | null;
+  away_team_id?: number | null;
   home_score: number | null;
   away_score: number | null;
   event_date: string;
@@ -290,12 +292,13 @@ function mapBzzoiroEvent(ev: BzzoiroEvent): TsdbEvent {
   const leagueName =
     dynamicLeagueNames.get(leagueId) ?? LEAGUE_NAMES[leagueId] ?? `League ${leagueId}`;
 
-
   return {
     idEvent: String(ev.id),
     strEvent: `${ev.home_team} vs ${ev.away_team}`,
     strHomeTeam: ev.home_team,
     strAwayTeam: ev.away_team,
+    idHomeTeam: ev.home_team_id != null ? String(ev.home_team_id) : null,
+    idAwayTeam: ev.away_team_id != null ? String(ev.away_team_id) : null,
     intHomeScore: ev.home_score != null ? String(ev.home_score) : null,
     intAwayScore: ev.away_score != null ? String(ev.away_score) : null,
     strStatus,
@@ -322,10 +325,9 @@ let leagueNamesLoadedAt = 0;
 
 async function ensureLeagueNames(): Promise<void> {
   if (dynamicLeagueNames.size > 0 && Date.now() - leagueNamesLoadedAt < 24 * 60 * 60 * 1000) return;
-  const data = await apiJson<BzzoiroPaginated<{ id: number; name: string }>>(
-    `leagues/?limit=200`,
-    { ttlMs: 24 * 60 * 60 * 1000 },
-  );
+  const data = await apiJson<BzzoiroPaginated<{ id: number; name: string }>>(`leagues/?limit=200`, {
+    ttlMs: 24 * 60 * 60 * 1000,
+  });
   if (!data?.results?.length) return;
   for (const l of data.results) dynamicLeagueNames.set(String(l.id), l.name);
   leagueNamesLoadedAt = Date.now();
@@ -334,7 +336,6 @@ async function ensureLeagueNames(): Promise<void> {
 export async function fetchEventsByDate(date: string): Promise<TsdbEvent[]> {
   return fetchEventsByDateRange(date, date);
 }
-
 
 export async function fetchEventsByDateRange(from: string, to: string): Promise<TsdbEvent[]> {
   await ensureLeagueNames();

@@ -15,6 +15,10 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as AnalyticsRouteImport } from './routes/analytics'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TeamTeamIdRouteImport } from './routes/team.$teamId'
+import { Route as PlayerPlayerIdRouteImport } from './routes/player.$playerId'
+import { Route as MatchMatchIdRouteImport } from './routes/match.$matchId'
+import { Route as LeagueLeagueIdRouteImport } from './routes/league.$leagueId'
 
 const TomorrowRoute = TomorrowRouteImport.update({
   id: '/tomorrow',
@@ -46,6 +50,26 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TeamTeamIdRoute = TeamTeamIdRouteImport.update({
+  id: '/team/$teamId',
+  path: '/team/$teamId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayerPlayerIdRoute = PlayerPlayerIdRouteImport.update({
+  id: '/player/$playerId',
+  path: '/player/$playerId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MatchMatchIdRoute = MatchMatchIdRouteImport.update({
+  id: '/match/$matchId',
+  path: '/match/$matchId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeagueLeagueIdRoute = LeagueLeagueIdRouteImport.update({
+  id: '/league/$leagueId',
+  path: '/league/$leagueId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +78,10 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/today': typeof TodayRoute
   '/tomorrow': typeof TomorrowRoute
+  '/league/$leagueId': typeof LeagueLeagueIdRoute
+  '/match/$matchId': typeof MatchMatchIdRoute
+  '/player/$playerId': typeof PlayerPlayerIdRoute
+  '/team/$teamId': typeof TeamTeamIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +90,10 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/today': typeof TodayRoute
   '/tomorrow': typeof TomorrowRoute
+  '/league/$leagueId': typeof LeagueLeagueIdRoute
+  '/match/$matchId': typeof MatchMatchIdRoute
+  '/player/$playerId': typeof PlayerPlayerIdRoute
+  '/team/$teamId': typeof TeamTeamIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,12 +103,36 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/today': typeof TodayRoute
   '/tomorrow': typeof TomorrowRoute
+  '/league/$leagueId': typeof LeagueLeagueIdRoute
+  '/match/$matchId': typeof MatchMatchIdRoute
+  '/player/$playerId': typeof PlayerPlayerIdRoute
+  '/team/$teamId': typeof TeamTeamIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/analytics' | '/live' | '/settings' | '/today' | '/tomorrow'
+  fullPaths:
+    | '/'
+    | '/analytics'
+    | '/live'
+    | '/settings'
+    | '/today'
+    | '/tomorrow'
+    | '/league/$leagueId'
+    | '/match/$matchId'
+    | '/player/$playerId'
+    | '/team/$teamId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analytics' | '/live' | '/settings' | '/today' | '/tomorrow'
+  to:
+    | '/'
+    | '/analytics'
+    | '/live'
+    | '/settings'
+    | '/today'
+    | '/tomorrow'
+    | '/league/$leagueId'
+    | '/match/$matchId'
+    | '/player/$playerId'
+    | '/team/$teamId'
   id:
     | '__root__'
     | '/'
@@ -85,6 +141,10 @@ export interface FileRouteTypes {
     | '/settings'
     | '/today'
     | '/tomorrow'
+    | '/league/$leagueId'
+    | '/match/$matchId'
+    | '/player/$playerId'
+    | '/team/$teamId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -94,6 +154,10 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   TodayRoute: typeof TodayRoute
   TomorrowRoute: typeof TomorrowRoute
+  LeagueLeagueIdRoute: typeof LeagueLeagueIdRoute
+  MatchMatchIdRoute: typeof MatchMatchIdRoute
+  PlayerPlayerIdRoute: typeof PlayerPlayerIdRoute
+  TeamTeamIdRoute: typeof TeamTeamIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -140,6 +204,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/team/$teamId': {
+      id: '/team/$teamId'
+      path: '/team/$teamId'
+      fullPath: '/team/$teamId'
+      preLoaderRoute: typeof TeamTeamIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/player/$playerId': {
+      id: '/player/$playerId'
+      path: '/player/$playerId'
+      fullPath: '/player/$playerId'
+      preLoaderRoute: typeof PlayerPlayerIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/match/$matchId': {
+      id: '/match/$matchId'
+      path: '/match/$matchId'
+      fullPath: '/match/$matchId'
+      preLoaderRoute: typeof MatchMatchIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/league/$leagueId': {
+      id: '/league/$leagueId'
+      path: '/league/$leagueId'
+      fullPath: '/league/$leagueId'
+      preLoaderRoute: typeof LeagueLeagueIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -150,6 +242,10 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   TodayRoute: TodayRoute,
   TomorrowRoute: TomorrowRoute,
+  LeagueLeagueIdRoute: LeagueLeagueIdRoute,
+  MatchMatchIdRoute: MatchMatchIdRoute,
+  PlayerPlayerIdRoute: PlayerPlayerIdRoute,
+  TeamTeamIdRoute: TeamTeamIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

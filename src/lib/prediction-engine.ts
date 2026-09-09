@@ -2,6 +2,8 @@ import type { LeagueId } from "./types";
 import {
   fetchEventsByDate,
   fetchLeaguePastEvents,
+  fetchTeamId,
+  fetchTeamLastResults,
   LEAGUE_IDS,
   type TsdbEvent,
 } from "./api/thesportsdb";
@@ -233,6 +235,59 @@ export async function generatePredictions(dateISO?: string): Promise<PredictionI
   return results;
 }
 
+// ─── Team-form cache (Fase 4) ──────────────────────────────────────────
+// Médias de gols dos últimos jogos de cada time, aquecidas em lote pelo
+// data-pipeline dentro da janela de warm-up. computePrediction só usa o que
+// já está em cache — nunca adiciona chamadas de rede ao caminho crítico.
+
+interface TeamFormAvg {
+  scored: number;
+  conceded: number;
+  games: number;
+}
+
+const teamFormCache = new Map<string, TeamFormAvg>();
+
+/** Pré-carrega médias de forma dos times (chamar dentro de timeout). */
+export async function warmTeamForms(teamNames: string[]): Promise<void> {
+  const unique = [...new Set(teamNames.map((t) => t.trim()).filter(Boolean))].filter(
+    (t) => !teamFormCache.has(normalizeTeamName(t)),
+  );
+  await Promise.allSettled(
+    unique.map(async (name) => {
+      try {
+        const id = await fetchTeamId(name);
+        if (!id) return;
+        const results = await fetchTeamLastResults(id);
+        const key = normalizeTeamName(name);
+        let scored = 0;
+        let conceded = 0;
+        let games = 0;
+        for (const ev of results.slice(0, 10)) {
+          const hs = parseInt(ev.intHomeScore ?? "", 10);
+          const as = parseInt(ev.intAwayScore ?? "", 10);
+          if (Number.isNaN(hs) || Number.isNaN(as)) continue;
+          const isHome = normalizeTeamName(ev.strHomeTeam) === key;
+          const isAway = normalizeTeamName(ev.strAwayTeam) === key;
+          if (!isHome && !isAway) continue;
+          scored += isHome ? hs : as;
+          conceded += isHome ? as : hs;
+          games++;
+        }
+        if (games >= 3) {
+          teamFormCache.set(key, { scored: scored / games, conceded: conceded / games, games });
+        }
+      } catch {
+        // forma indisponível: mantém modelo da liga
+      }
+    }),
+  );
+}
+
+export function invalidateTeamForms(): void {
+  teamFormCache.clear();
+}
+
 // ─── Main: compute prediction for a single match ─────────────────────
 
 export async function computePrediction(
@@ -256,7 +311,7 @@ export async function computePrediction(
   const hasData = homeStats.gamesPlayed >= 3 && awayStats.gamesPlayed >= 3;
 
   const effectiveHome: TeamStats = hasData
-    ? homeStats
+    ? { ...homeStats }
     : {
         gamesPlayed: 0,
         goalsScored: 0,
@@ -266,7 +321,7 @@ export async function computePrediction(
       };
 
   const effectiveAway: TeamStats = hasData
-    ? awayStats
+    ? { ...awayStats }
     : {
         gamesPlayed: 0,
         goalsScored: 0,
@@ -274,6 +329,19 @@ export async function computePrediction(
         avgGoalsScored: 1.1,
         avgGoalsConceded: 1.3,
       };
+
+  // Fase 4: combina médias da liga com forma recente do time (50/50).
+  // Sem cache de forma, comportamento idêntico ao anterior.
+  const homeForm = teamFormCache.get(normalizeTeamName(homeTeam));
+  if (homeForm && homeForm.games >= 3) {
+    effectiveHome.avgGoalsScored = (effectiveHome.avgGoalsScored + homeForm.scored) / 2;
+    effectiveHome.avgGoalsConceded = (effectiveHome.avgGoalsConceded + homeForm.conceded) / 2;
+  }
+  const awayForm = teamFormCache.get(normalizeTeamName(awayTeam));
+  if (awayForm && awayForm.games >= 3) {
+    effectiveAway.avgGoalsScored = (effectiveAway.avgGoalsScored + awayForm.scored) / 2;
+    effectiveAway.avgGoalsConceded = (effectiveAway.avgGoalsConceded + awayForm.conceded) / 2;
+  }
 
   // Compute xG
   const { xgHome, xgAway } = computeXg(effectiveHome, effectiveAway);

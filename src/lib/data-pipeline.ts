@@ -1,4 +1,4 @@
-import { generatePredictions, computePrediction } from "./prediction-engine";
+import { generatePredictions, computePrediction, warmTeamForms } from "./prediction-engine";
 import { buildPrediction } from "./ml/pipeline";
 import { enrichMatchLogos } from "./team-logos";
 import { LEAGUE_IDS } from "./api/thesportsdb";
@@ -85,9 +85,13 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
 
   const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
 
-  // Warm cache with a tight timeout — 8 seconds max
+  // Warm cache with a tight timeout — 8 seconds max (ligas + forma dos times)
+  const teamNames = events.flatMap((ev) => [ev.homeTeam, ev.awayTeam]);
   await withTimeout(
-    Promise.allSettled(uniqueLeagueIds.map((lid) => fetchLeaguePastEvents(lid))),
+    Promise.allSettled([
+      ...uniqueLeagueIds.map((lid) => fetchLeaguePastEvents(lid)),
+      warmTeamForms(teamNames),
+    ]),
     8_000,
   ).catch(() => console.log("[data-pipeline] Cache warm-up timed out, using defaults"));
 
@@ -130,8 +134,59 @@ export async function fetchTodayMatches(): Promise<MatchPrediction[]> {
 }
 
 export async function fetchLiveMatches(): Promise<MatchPrediction[]> {
+  // Ao vivo real primeiro; cai para o filtro por data em qualquer falha.
+  const real = await withTimeout(fetchLiveMatchesReal(), 30_000).catch(
+    () => [] as MatchPrediction[],
+  );
+  if (real.length > 0) return real;
   const all = await fetchMatchesForDate();
   return all.filter((m: MatchPrediction) => m.status === "live");
+}
+
+async function fetchLiveMatchesReal(): Promise<MatchPrediction[]> {
+  const { fetchLiveEvents } = await import("./api/match-details");
+  const { computePrediction: computePred } = await import("./prediction-engine");
+  const { buildPrediction: buildPred } = await import("./ml/pipeline");
+
+  const live = await fetchLiveEvents();
+  if (!live || live.length === 0) return [];
+
+  const results = await Promise.allSettled(
+    live.slice(0, 20).map(async (ev) => {
+      const league = Object.entries(LEAGUE_IDS).find(([, id]) => id === ev.leagueId);
+      const leagueId = league ? (league[0] as LeagueId) : ("premier-league" as LeagueId);
+      const leagueLabel = ev.leagueName ?? "Liga";
+      const prediction = await withTimeout(
+        computePred(ev.homeTeam, ev.awayTeam, leagueId, ev.leagueId ?? undefined),
+        6_000,
+      ).catch(() => FALLBACK_PREDICTION);
+      const built = await buildPred(
+        {
+          id: ev.id,
+          league: leagueId,
+          leagueLabel,
+          homeTeam: ev.homeTeam,
+          awayTeam: ev.awayTeam,
+          eventDate: ev.kickoff ?? new Date().toISOString(),
+          status: "live",
+          homeScore: ev.homeScore ?? undefined,
+          awayScore: ev.awayScore ?? undefined,
+        },
+        prediction,
+        { id: ev.leagueId ?? leagueId, name: leagueLabel },
+      );
+      return {
+        ...built,
+        minute: ev.minute ?? undefined,
+        oddsUpdatedAt: built.oddsUpdatedAt ?? new Date().toISOString(),
+      };
+    }),
+  );
+
+  const preds = results
+    .filter((r): r is PromiseFulfilledResult<MatchPrediction> => r.status === "fulfilled")
+    .map((r) => r.value);
+  return withTimeout(enrichMatchLogos(preds), 12_000).catch(() => preds);
 }
 
 export async function fetchUpcomingMatches(
@@ -235,7 +290,7 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Matc
 // ─── Status helpers ────────────────────────────────────────────────────
 
 /** Detecta jogo encerrado em qualquer variante da API (Finished, FT, AET, Full Time...). */
-function isFinishedStatus(s: string | null | undefined): boolean {
+export function isFinishedStatus(s: string | null | undefined): boolean {
   const v = (s ?? "").toLowerCase().trim();
   return (
     v.includes("finished") ||

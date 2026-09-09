@@ -9,7 +9,11 @@ Dashboard de probabilidades esportivas (BTTS, 1X2, Over/Under 2.5) com modelo Po
 - **Hoje (`/today`)**: partidas de hoje (America/Sao_Paulo) com busca por time/liga
 - **Amanhã (`/tomorrow`)**: partidas de amanhã (America/Sao_Paulo)
 - **`/`**: redireciona para `/today`
-- **Ao vivo (`/live`)**: placar + mesmas probabilidades (atualiza a cada 30s)
+- **Jogo (`/match/$matchId`)**: confronto direto, forma V/E/D, escalações (oficial/provável), stats, linha do tempo, TV, estádio/árbitro + comparativo PulseLab × CatBoost API
+- **Liga (`/league/$leagueId`)**: classificação, artilharia
+- **Time (`/team/$teamId`)**: elenco, forma, próximos jogos
+- **Jogador (`/player/$playerId`)**: perfil, stats, transferências
+- **Ao vivo (`/live`)**: placar + minuto reais via `events/live` (atualiza a cada 30s)
 - **Analytics (`/analytics`)**: métricas técnicas do modelo (Brier, Log Loss, Calibration Error, acurácia) + distribuições de hoje; estado vazio quando sem amostras
 - **Settings (`/settings`)**: fuso horário, info do modelo
 - **MatchCard somente leitura**: BTTS SIM/NÃO, 1X2 CASA/EMPATE/FORA, OVER/UNDER 2.5 em `%` inteiros + confiança do modelo (Alta/Média/Baixa)

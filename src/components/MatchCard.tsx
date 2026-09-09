@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Shield, Zap, Flame } from "lucide-react";
 import type { MatchPrediction } from "@/lib/types";
@@ -123,8 +124,12 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
         </div>
       </div>
 
-      {/* Confronto */}
-      <div className="mx-3 my-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:mx-4 sm:my-4 sm:gap-3">
+      {/* Confronto (abre a página do jogo) */}
+      <Link
+        to="/match/$matchId"
+        params={{ matchId: match.id }}
+        className="mx-3 my-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:mx-4 sm:my-4 sm:gap-3"
+      >
         <div className="text-right">
           <TeamCrest name={match.home.name} logo={match.home.logo} />
           <div className="mt-1 truncate font-display text-sm font-semibold text-foreground sm:text-base">
@@ -158,7 +163,7 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
             {match.away.name}
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* Probabilidades */}
       <div className="space-y-2.5 px-3 pb-3 sm:px-4 sm:pb-4">
