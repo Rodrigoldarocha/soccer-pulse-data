@@ -53,6 +53,23 @@ const ProbLine = memo(function ProbLine({ row }: { row: ProbRow }) {
   );
 });
 
+function TeamCrest({ name, logo }: { name: string; logo: string }) {
+  const isUrl = logo.startsWith("http");
+  return isUrl ? (
+    <img
+      src={logo}
+      alt={`Escudo ${name}`}
+      loading="lazy"
+      className="mx-auto h-9 w-9 object-contain sm:h-11 sm:w-11"
+      onError={(e) => {
+        e.currentTarget.style.display = "none";
+      }}
+    />
+  ) : (
+    <div className="text-2xl leading-none sm:text-3xl">{logo || "⚽"}</div>
+  );
+}
+
 function ProbGroup({ title, rows }: { title: string; rows: ProbRow[] }) {
   return (
     <section aria-label={title}>
@@ -109,7 +126,7 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
       {/* Confronto */}
       <div className="mx-3 my-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:mx-4 sm:my-4 sm:gap-3">
         <div className="text-right">
-          <div className="text-2xl leading-none sm:text-3xl">{match.home.logo}</div>
+          <TeamCrest name={match.home.name} logo={match.home.logo} />
           <div className="mt-1 truncate font-display text-sm font-semibold text-foreground sm:text-base">
             {match.home.name}
           </div>
@@ -136,7 +153,7 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
           )}
         </div>
         <div className="text-left">
-          <div className="text-2xl leading-none sm:text-3xl">{match.away.logo}</div>
+          <TeamCrest name={match.away.name} logo={match.away.logo} />
           <div className="mt-1 truncate font-display text-sm font-semibold text-foreground sm:text-base">
             {match.away.name}
           </div>

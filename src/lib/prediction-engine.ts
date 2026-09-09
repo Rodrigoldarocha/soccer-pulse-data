@@ -57,7 +57,11 @@ function poissonPMF(lambda: number, maxK = 6): number[] {
 function computePoissonProbs(xgH: number, xgA: number) {
   const H = poissonPMF(xgH);
   const A = poissonPMF(xgA);
-  let home = 0, draw = 0, away = 0, over25 = 0, btts = 0;
+  let home = 0,
+    draw = 0,
+    away = 0,
+    over25 = 0,
+    btts = 0;
   for (let i = 0; i < H.length; i++) {
     for (let j = 0; j < A.length; j++) {
       const p = H[i] * A[j];
@@ -73,7 +77,8 @@ function computePoissonProbs(xgH: number, xgA: number) {
 
 // ─── Normalize team name ─────────────────────────────────────────────
 
-function normalizeTeamName(name: string): string {
+// Exportado para reuso no matcher de escudos (team-logos). Lógica inalterada.
+export function normalizeTeamName(name: string): string {
   return name
     .toLowerCase()
     .normalize("NFD")
@@ -182,7 +187,7 @@ export async function generatePredictions(dateISO?: string): Promise<PredictionI
   for (const ev of allEvents) {
     // Find the matching LeagueId if it exists
     const league = Object.entries(LEAGUE_IDS).find(([, id]) => id === ev.idLeague);
-    const leagueId = league ? league[0] as LeagueId : "premier-league" as LeagueId;
+    const leagueId = league ? (league[0] as LeagueId) : ("premier-league" as LeagueId);
     const leagueLabel = league
       ? league[1].charAt(0).toUpperCase() + league[1].slice(1).replace(/-/g, " ")
       : ev.strLeague || "Liga";
@@ -195,10 +200,15 @@ export async function generatePredictions(dateISO?: string): Promise<PredictionI
     if (s.includes("finished") || s === "ft" || s === "match finished") {
       status = "finished";
     } else if (
-      s === "1h" || s === "2h" || s === "ht" ||
-      s.includes("1st_half") || s.includes("2nd_half") ||
-      s.includes("halftime") || s.includes("live") ||
-      s === "in progress" || s === "inprogress"
+      s === "1h" ||
+      s === "2h" ||
+      s === "ht" ||
+      s.includes("1st_half") ||
+      s.includes("2nd_half") ||
+      s.includes("halftime") ||
+      s.includes("live") ||
+      s === "in progress" ||
+      s === "inprogress"
     ) {
       status = "live";
     }
@@ -247,11 +257,23 @@ export async function computePrediction(
 
   const effectiveHome: TeamStats = hasData
     ? homeStats
-    : { gamesPlayed: 0, goalsScored: 0, goalsConceded: 0, avgGoalsScored: 1.3, avgGoalsConceded: 1.1 };
+    : {
+        gamesPlayed: 0,
+        goalsScored: 0,
+        goalsConceded: 0,
+        avgGoalsScored: 1.3,
+        avgGoalsConceded: 1.1,
+      };
 
   const effectiveAway: TeamStats = hasData
     ? awayStats
-    : { gamesPlayed: 0, goalsScored: 0, goalsConceded: 0, avgGoalsScored: 1.1, avgGoalsConceded: 1.3 };
+    : {
+        gamesPlayed: 0,
+        goalsScored: 0,
+        goalsConceded: 0,
+        avgGoalsScored: 1.1,
+        avgGoalsConceded: 1.3,
+      };
 
   // Compute xG
   const { xgHome, xgAway } = computeXg(effectiveHome, effectiveAway);

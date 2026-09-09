@@ -1,5 +1,6 @@
 import { generatePredictions, computePrediction } from "./prediction-engine";
 import { buildPrediction } from "./ml/pipeline";
+import { enrichMatchLogos } from "./team-logos";
 import { LEAGUE_IDS } from "./api/thesportsdb";
 import type { MatchPrediction, FootballEvent, PredictionData, LeagueId } from "./types";
 
@@ -69,13 +70,14 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
 
   // Step 2: Skip finished events — no point predicting completed games
   const activeEvents = allEvents.filter((ev) => ev.status !== "finished");
-  console.log(`[data-pipeline] ${activeEvents.length} active events (skipped ${allEvents.length - activeEvents.length} finished)`);
+  console.log(
+    `[data-pipeline] ${activeEvents.length} active events (skipped ${allEvents.length - activeEvents.length} finished)`,
+  );
 
   if (activeEvents.length === 0) return [];
 
   // Step 3: Limit for SSR performance
   const events = activeEvents.slice(0, 40);
-
 
   // Step 4: Pre-warm league events cache — fetch all unique leagues in one batch
   const uniqueLeagueIds = [...new Set(events.map((ev) => ev.apiLeagueId).filter(Boolean))];
@@ -85,9 +87,7 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
 
   // Warm cache with a tight timeout — 8 seconds max
   await withTimeout(
-    Promise.allSettled(
-      uniqueLeagueIds.map((lid) => fetchLeaguePastEvents(lid)),
-    ),
+    Promise.allSettled(uniqueLeagueIds.map((lid) => fetchLeaguePastEvents(lid))),
     8_000,
   ).catch(() => console.log("[data-pipeline] Cache warm-up timed out, using defaults"));
 
@@ -101,7 +101,10 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
       ).catch(() => FALLBACK_PREDICTION);
       const footballEvent = eventToFootballEvent(ev);
       const predictionData: PredictionData = prediction;
-      return buildPrediction(footballEvent, predictionData, { id: ev.apiLeagueId, name: ev.leagueLabel });
+      return buildPrediction(footballEvent, predictionData, {
+        id: ev.apiLeagueId,
+        name: ev.leagueLabel,
+      });
     }),
   );
 
@@ -109,12 +112,17 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
     (r): r is PromiseFulfilledResult<MatchPrediction> => r.status === "fulfilled",
   );
 
-  console.log(`[data-pipeline] Generated ${succeeded.length} predictions from ${events.length} events`);
+  console.log(
+    `[data-pipeline] Generated ${succeeded.length} predictions from ${events.length} events`,
+  );
 
-  return succeeded.map((r) => ({
+  const preds = succeeded.map((r) => ({
     ...r.value,
     oddsUpdatedAt: r.value.oddsUpdatedAt ?? new Date().toISOString(),
   }));
+
+  // Escudos (ESPN, sem token). Nunca quebra o pipeline.
+  return withTimeout(enrichMatchLogos(preds), 12_000).catch(() => preds);
 }
 
 export async function fetchTodayMatches(): Promise<MatchPrediction[]> {
@@ -126,7 +134,10 @@ export async function fetchLiveMatches(): Promise<MatchPrediction[]> {
   return all.filter((m: MatchPrediction) => m.status === "live");
 }
 
-export async function fetchUpcomingMatches(fromISO: string, toISO: string): Promise<MatchPrediction[]> {
+export async function fetchUpcomingMatches(
+  fromISO: string,
+  toISO: string,
+): Promise<MatchPrediction[]> {
   return withTimeout(runUpcomingPipeline(fromISO, toISO), 40_000).catch(() => {
     console.log(`[data-pipeline] Upcoming pipeline timed out`);
     return [] as MatchPrediction[];
@@ -153,22 +164,25 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Matc
     return true;
   });
 
-  // Filter out already-finished events
-  const upcoming = uniqueEvents.filter((ev) => ev.strStatus !== "Match Finished");
+  // Filter out already-finished events (todas as variantes: Finished, FT, AET, Full Time)
+  const upcoming = uniqueEvents.filter((ev) => !isFinishedStatus(ev.strStatus));
 
   // Limit for SSR performance
   const limited = upcoming.slice(0, 40);
 
-
   // Map TsdbEvent to PredictionInput-compatible format
   const predictionInputs = limited.map((ev) => {
     const league = Object.entries(LEAGUE_IDS).find(([, id]) => id === ev.idLeague);
-    const leagueId = league ? league[0] as LeagueId : "premier-league" as LeagueId;
+    const leagueId = league ? (league[0] as LeagueId) : ("premier-league" as LeagueId);
     const leagueLabel = league
       ? league[1].charAt(0).toUpperCase() + league[1].slice(1).replace(/-/g, " ")
       : ev.strLeague || "Liga";
 
-    const status: "scheduled" | "live" | "finished" = ev.strStatus === "Match Finished" ? "finished" : ev.strStatus.includes("1H") || ev.strStatus.includes("2H") || ev.strStatus.includes("HT") ? "live" : "scheduled";
+    const status: "scheduled" | "live" | "finished" = isFinishedStatus(ev.strStatus)
+      ? "finished"
+      : ev.strStatus.includes("1H") || ev.strStatus.includes("2H") || ev.strStatus.includes("HT")
+        ? "live"
+        : "scheduled";
 
     const homeScore = ev.intHomeScore ? parseInt(ev.intHomeScore, 10) : undefined;
     const awayScore = ev.intAwayScore ? parseInt(ev.intAwayScore, 10) : undefined;
@@ -188,7 +202,9 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Matc
   });
 
   // Pre-warm league cache with tight timeout
-  const uniqueLeagueIds = [...new Set(predictionInputs.map((ev) => ev.apiLeagueId).filter(Boolean))];
+  const uniqueLeagueIds = [
+    ...new Set(predictionInputs.map((ev) => ev.apiLeagueId).filter(Boolean)),
+  ];
   const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
   await withTimeout(
     Promise.allSettled(uniqueLeagueIds.map((lid) => fetchLeaguePastEvents(lid))),
@@ -206,10 +222,27 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Matc
     }),
   );
 
-
   const succeeded = results.filter(
     (r): r is PromiseFulfilledResult<MatchPrediction> => r.status === "fulfilled",
   );
 
-  return succeeded.map((r) => r.value);
+  const preds = succeeded.map((r) => r.value);
+
+  // Escudos (ESPN, sem token). Nunca quebra o pipeline.
+  return withTimeout(enrichMatchLogos(preds), 12_000).catch(() => preds);
+}
+
+// ─── Status helpers ────────────────────────────────────────────────────
+
+/** Detecta jogo encerrado em qualquer variante da API (Finished, FT, AET, Full Time...). */
+function isFinishedStatus(s: string | null | undefined): boolean {
+  const v = (s ?? "").toLowerCase().trim();
+  return (
+    v.includes("finished") ||
+    v === "ft" ||
+    v === "aet" ||
+    v === "pen" ||
+    v.includes("full time") ||
+    v.includes("fulltime")
+  );
 }

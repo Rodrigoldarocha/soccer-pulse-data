@@ -52,6 +52,8 @@ function LivePage() {
       refetchInterval: 30_000,
     }),
   );
+  // Defesa contra cache stale: só ao vivo de verdade.
+  const liveMatches = data.matches.filter((m) => m.status === "live");
   return (
     <div>
       <motion.header
@@ -74,7 +76,7 @@ function LivePage() {
         </span>
       </motion.header>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {data.matches.map((m, i) => (
+        {liveMatches.map((m, i) => (
           <motion.div
             key={m.id}
             initial={{ opacity: 0, y: 12 }}
@@ -85,7 +87,7 @@ function LivePage() {
           </motion.div>
         ))}
       </div>
-      {data.matches.length === 0 && (
+      {liveMatches.length === 0 && (
         <p className="py-12 text-center text-sm text-muted-foreground/40">
           Nenhuma partida ao vivo no momento.
         </p>

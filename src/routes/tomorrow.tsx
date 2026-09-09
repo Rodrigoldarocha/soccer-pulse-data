@@ -24,9 +24,11 @@ export const Route = createFileRoute("/tomorrow")({
 });
 
 function filterMatches(matches: MatchPrediction[], q: string) {
+  // Defesa contra cache stale: jogo encerrado sai da lista.
+  const active = matches.filter((m) => m.status !== "finished");
   const s = q.trim().toLowerCase();
-  if (!s) return matches;
-  return matches.filter((m) =>
+  if (!s) return active;
+  return active.filter((m) =>
     [m.home.name, m.away.name, m.leagueLabel].some((t) => t.toLowerCase().includes(s)),
   );
 }
