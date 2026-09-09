@@ -287,7 +287,9 @@ function mapBzzoiroEvent(ev: BzzoiroEvent): TsdbEvent {
   }
 
   const leagueId = String(ev.league_id);
-  const leagueName = LEAGUE_NAMES[leagueId] ?? `League ${leagueId}`;
+  const leagueName =
+    dynamicLeagueNames.get(leagueId) ?? LEAGUE_NAMES[leagueId] ?? `League ${leagueId}`;
+
 
   return {
     idEvent: String(ev.id),
@@ -314,12 +316,30 @@ interface BzzoiroPaginated<T> {
   results: T[];
 }
 
+// Nomes reais das ligas, carregados da API (evita rótulos "League 33")
+const dynamicLeagueNames = new Map<string, string>();
+let leagueNamesLoadedAt = 0;
+
+async function ensureLeagueNames(): Promise<void> {
+  if (dynamicLeagueNames.size > 0 && Date.now() - leagueNamesLoadedAt < 24 * 60 * 60 * 1000) return;
+  const data = await apiJson<BzzoiroPaginated<{ id: number; name: string }>>(
+    `leagues/?limit=200`,
+    { ttlMs: 24 * 60 * 60 * 1000 },
+  );
+  if (!data?.results?.length) return;
+  for (const l of data.results) dynamicLeagueNames.set(String(l.id), l.name);
+  leagueNamesLoadedAt = Date.now();
+}
+
 export async function fetchEventsByDate(date: string): Promise<TsdbEvent[]> {
   return fetchEventsByDateRange(date, date);
 }
 
+
 export async function fetchEventsByDateRange(from: string, to: string): Promise<TsdbEvent[]> {
+  await ensureLeagueNames();
   const seen = new Set<string>();
+
   const allEvents: TsdbEvent[] = [];
   let pageUrl: string | null = `events/?date_from=${from}&date_to=${to}&limit=200`;
 
