@@ -46,8 +46,10 @@ export const TEAM_ALIASES: Record<string, string> = {
 };
 
 function canonical(name: string): string {
-  const norm = normalizeTeamName(name);
-  return TEAM_ALIASES[norm] ? normalizeTeamName(TEAM_ALIASES[norm]) : norm;
+  // Pontuação (hífen, ponto, barra) separa palavras: "Atlético-MG" → "atletico mg".
+  const norm = normalizeTeamName((name ?? "").replace(/[-–_./]+/g, " "));
+  const alias = TEAM_ALIASES[norm];
+  return alias ? normalizeTeamName(alias.replace(/[-–_./]+/g, " ")) : norm;
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
