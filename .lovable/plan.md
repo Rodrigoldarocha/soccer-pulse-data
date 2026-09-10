@@ -1,54 +1,32 @@
-# Melhorias possíveis com a API que já temos
+# Escudos dos times faltando
 
-Hoje o app usa apenas uma pequena parte dos dados disponíveis: lista de jogos por data, classificação e resultados passados. A mesma API oferece muito mais (odds de várias casas, previsões prontas, escalações, incidentes, estatísticas de jogo e de jogadores, confrontos diretos, transmissão na TV, árbitro, estádio, elenco).
+Hoje o escudo só aparece quando o time está em um dos 9 campeonatos consultados e joga naquele mesmo dia. Fora disso o card mostra a bolinha ⚽. O plano amplia a cobertura e melhora o visual do caso sem escudo.
 
-Abaixo estão as melhorias organizadas por impacto. Cada fase pode ser feita separadamente.
+## O que muda
 
-## Fase 1 — Página do jogo (maior impacto)
+1. **Buscar os escudos por elenco, não por jogo do dia**
+   Em vez de olhar só os jogos de hoje, carregar a lista de times de cada campeonato (que já inclui o escudo) e guardar em cache por algumas horas. Assim um jogo de amanhã ou de uma rodada futura também recebe o escudo.
 
-Hoje o cartão do jogo não abre nada. Criar uma página por partida com:
+2. **Cobrir mais campeonatos**
+   Ampliar de 9 para cerca de 30 competições (Brasileirão A e B, Libertadores, Sul-Americana, Copa do Brasil, Portugal, Holanda, Bélgica, Turquia, México, Argentina, EUA, Escócia, Championship, Copas nacionais, seleções).
 
-- Confronto direto: últimos encontros entre os dois times, com placares.
-- Forma recente: últimos 5 jogos de cada time (V/E/D).
-- Escalações (ou escalação provável, quando o jogo ainda não começou).
-- Estatísticas do jogo: posse, finalizações, cantos, cartões.
-- Onde assistir: canais de TV / transmissão.
-- Estádio e árbitro.
+3. **Casar nomes com mais tolerância**
+   Lista de apelidos para casos frequentes (ex.: "Atlético-MG"/"Atletico Mineiro", "Man Utd"/"Manchester United", sufixos FC/SC/CF/AC, "Wolves", "PSG"). Guardar também a sigla do time como chave.
 
-## Fase 2 — Odds reais e valor da aposta
+4. **Substituto elegante quando não houver escudo**
+   Em vez da bolinha genérica, mostrar um círculo com as iniciais do time e uma cor derivada do nome — fica claro e consistente. A bolinha deixa de aparecer.
 
-- Mostrar as melhores odds do mercado por jogo, com o nome da casa.
-- Comparar as odds entre casas em vez de usar odds calculadas internamente.
-- Destacar "valor": onde a nossa probabilidade é maior que a implícita pela odd.
-- Página "Melhores oportunidades do dia" ordenada por valor.
+5. **Escudo quebrado não fica vazio**
+   Se a imagem falhar ao carregar, cai automaticamente no círculo com iniciais.
 
-## Fase 3 — Ao vivo de verdade
+## Onde aparece
 
-- Usar o recurso de jogos ao vivo da API para minuto, placar e eventos (gols, cartões, substituições) em tempo real.
-- Atualização automática a cada ~30 s apenas na página ao vivo.
-- Linha do tempo do jogo com os incidentes.
-
-## Fase 4 — Precisão do modelo
-
-- Combinar a nossa previsão com a previsão que a própria API fornece, e mostrar as duas.
-- Calcular forma e média de gols a partir dos últimos jogos de cada time (dados por time), em vez de só do histórico da liga — deixa de precisar do palpite médio de fallback.
-- Registrar acertos por mercado e mostrar a taxa real de acerto no painel de análise.
-
-## Fase 5 — Navegação e descoberta
-
-- Página por liga: classificação, próximos jogos, artilheiros.
-- Página por time: elenco, próximos jogos, forma, transferências.
-- Página por jogador: estatísticas da temporada e carreira.
-- Filtro por liga e busca por time nas listas de jogos.
+Cards de jogos em Hoje, Amanhã, Ao Vivo e nas telas de detalhe/análises que usam o mesmo card.
 
 ## Detalhes técnicos
 
-- Todos os novos dados passam por server functions no padrão atual (`src/lib/*.functions.ts` + `*.server.ts`), mantendo o token fora do navegador.
-- Reaproveitar o cliente em `src/lib/api/thesportsdb.ts` (fila serial, retry, cache) e o cache em banco para respostas mais caras (h2h, escalações, odds).
-- Novas rotas em `src/routes`: `events.$eventId.tsx`, `leagues.$leagueId.tsx`, `teams.$teamId.tsx`, cada uma com `head()` próprio.
-- Carregamento inicial via loader + `ensureQueryData`; atualização ao vivo via `refetchInterval` apenas na rota `/live`.
-- Endpoints a usar: `events/{id}/h2h`, `/lineups`, `/predicted-lineup`, `/stats`, `/player-stats`, `/incidents`, `/broadcasts`, `/odds/comparison`, `odds/best`, `events/live`, `teams/{id}/fixtures`, `teams/{id}/squad`, `leagues/{id}/standings`, `players/{id}/stats`.
-
-## Sugestão de ordem
-
-Fase 1 primeiro (é o que o usuário mais sente falta ao clicar num jogo), depois Fase 2 e 3.
+- `src/lib/api/espn.ts`: adicionar `getLeagueTeams(slug)` usando o endpoint `.../<slug>/teams`, e ampliar `LEAGUE_MAP`.
+- `src/lib/team-logos.ts`: montar o mapa a partir dos elencos (com fallback para os scoreboards atuais), cache em memória com TTL de 6h, tabela de apelidos aplicada em `normalizeTeamName`, e manter `applyLogos`/`findLogo` puros e testáveis. Sem escudo, o campo `logo` fica vazio (não `⚽`).
+- `src/components/MatchCard.tsx`: `TeamCrest` renderiza `<img>` com `onError` → monograma (iniciais + cor por hash do nome).
+- Timeouts e `catch` do pipeline permanecem: falha de escudo nunca derruba a lista de jogos.
+- Testes em `src/lib/*.test.ts` para o casamento por apelido e para o fallback de monograma.
