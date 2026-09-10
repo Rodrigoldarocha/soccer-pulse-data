@@ -27,7 +27,7 @@ const NavItems = memo(function NavItems({ onNavigate }: { onNavigate?: () => voi
   return (
     <nav className="flex flex-col gap-0.5 px-3">
       {NAV.map((item, i) => {
-        const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+        const active = pathname.startsWith(item.to);
         const Icon = item.icon;
         return (
           <Link
