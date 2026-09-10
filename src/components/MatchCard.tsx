@@ -54,20 +54,33 @@ const ProbLine = memo(function ProbLine({ row }: { row: ProbRow }) {
   );
 });
 
-function TeamCrest({ name, logo }: { name: string; logo: string }) {
-  const isUrl = logo.startsWith("http");
-  return isUrl ? (
-    <img
-      src={logo}
-      alt={`Escudo ${name}`}
-      loading="lazy"
-      className="mx-auto h-9 w-9 object-contain sm:h-11 sm:w-11"
-      onError={(e) => {
-        e.currentTarget.style.display = "none";
+function TeamCrest({ name, logo }: { name: string; logo?: string }) {
+  const [failed, setFailed] = useState(false);
+  const isUrl = !!logo && logo.startsWith("http") && !failed;
+  if (isUrl) {
+    return (
+      <img
+        src={logo}
+        alt={`Escudo ${name}`}
+        loading="lazy"
+        className="mx-auto h-9 w-9 object-contain sm:h-11 sm:w-11"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  const { initials, hue } = teamMonogram(name);
+  return (
+    <div
+      aria-label={`Escudo ${name}`}
+      role="img"
+      className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/10 font-display text-[11px] font-bold tracking-tight sm:h-11 sm:w-11 sm:text-xs"
+      style={{
+        backgroundColor: `hsl(${hue} 55% 22%)`,
+        color: `hsl(${hue} 85% 78%)`,
       }}
-    />
-  ) : (
-    <div className="text-2xl leading-none sm:text-3xl">{logo || "⚽"}</div>
+    >
+      {initials}
+    </div>
   );
 }
 
