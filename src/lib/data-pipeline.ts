@@ -183,9 +183,9 @@ async function fetchLiveMatchesReal(): Promise<MatchPrediction[]> {
     }),
   );
 
-  const preds = results
-    .filter((r): r is PromiseFulfilledResult<MatchPrediction> => r.status === "fulfilled")
-    .map((r) => r.value);
+  const preds: MatchPrediction[] = results.flatMap((r) =>
+    r.status === "fulfilled" ? [r.value as MatchPrediction] : [],
+  );
   return withTimeout(enrichMatchLogos(preds), 12_000).catch(() => preds);
 }
 
