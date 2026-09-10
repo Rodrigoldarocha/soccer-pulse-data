@@ -1,103 +1,50 @@
 import { describe, expect, it } from "vitest";
-import { applyLogos, buildLogoMap, findLogo } from "./team-logos";
-import type { EspnEvent } from "./api/espn";
+import { buildTeamLogoMap, findLogo, applyLogos } from "./team-logos";
+import { teamMonogram } from "./team-monogram";
 import type { MatchPrediction } from "./types";
 
-function espnEvent(home: string, away: string): EspnEvent {
-  const team = (name: string) => ({
-    id: name,
-    name,
-    short: name.slice(0, 3).toUpperCase(),
-    logo: `https://logo.test/${encodeURIComponent(name)}.png`,
-  });
-  return {
-    id: "e1",
-    date: "2026-09-09T19:00:00Z",
-    name: `${home} vs ${away}`,
-    shortName: `${home} vs ${away}`,
-    league: "bra.1",
-    leagueName: "Brasileirão Série A",
-    status: "scheduled",
-    clock: "",
-    homeTeam: team(home),
-    awayTeam: team(away),
-    venue: "",
-  };
-}
+const teams = [
+  { id: "1", name: "Atletico Mineiro", short: "Atletico MG", abbrev: "CAM", logo: "http://a/cam" },
+  { id: "2", name: "Manchester United", short: "Man Utd", abbrev: "MNU", logo: "http://a/mnu" },
+];
 
-function match(
-  home: string,
-  away: string,
-  status: MatchPrediction["status"] = "scheduled",
-): MatchPrediction {
-  const team = (name: string) => ({
-    name,
-    short: name.slice(0, 3).toUpperCase(),
-    logo: "⚽",
-    xg: 1.5,
-    xga: 1.2,
-  });
-  return {
-    id: "m1",
-    league: "brasileirao",
-    leagueLabel: "Brasileirão",
-    kickoff: "2026-09-09T19:00:00-03:00",
-    status,
-    home: team(home),
-    away: team(away),
-    probabilities: { home: 0.5, draw: 0.25, away: 0.25, over25: 0.5, btts: 0.5 },
-    odds: { home: 2, draw: 3, away: 4, over25: 2, btts: 2, doubleChance1X: 1.3 },
-    oddsUpdatedAt: new Date().toISOString(),
-    suggestedMarket: "1X2_HOME",
-    suggestedProbability: 0.5,
-    suggestedOdds: 2,
-    suggestedLabel: "Vitória",
-    confidence: "medium",
-  };
-}
+describe("team crest matching", () => {
+  const map = buildTeamLogoMap(teams);
 
-describe("buildLogoMap", () => {
-  it("indexa mandante e visitante por nome normalizado", () => {
-    const map = buildLogoMap([espnEvent("Flamengo", "Palmeiras")]);
-    expect(map.get("flamengo")).toContain("logo.test");
-    expect(map.get("palmeiras")).toContain("logo.test");
-  });
-});
-
-describe("findLogo", () => {
-  const map = buildLogoMap([espnEvent("Athletico-PR", "Coritiba")]);
-
-  it("casa exato ignorando acento/caixa", () => {
-    expect(findLogo("ATHLETICO-PR", map)).toContain("Athletico-PR");
+  it("casa apelido com o nome canônico", () => {
+    expect(findLogo("Atlético-MG", map)).toBe("http://a/cam");
+    expect(findLogo("Man United", map)).toBe("http://a/mnu");
   });
 
-  it("casa parcial (nome curto da API vs nome completo)", () => {
-    expect(findLogo("Athletico Paranaense", map)).toContain("Athletico-PR");
+  it("casa nome completo com acento", () => {
+    expect(findLogo("Manchester United FC", map)).toBe("http://a/mnu");
   });
 
   it("sem match retorna null", () => {
-    expect(findLogo("Time Inexistente FC", map)).toBeNull();
+    expect(findLogo("Time Inexistente XYZ", map)).toBeNull();
+  });
+
+  it("applyLogos limpa placeholders não-URL", () => {
+    const match = {
+      home: { name: "Atletico MG", logo: "⚽" },
+      away: { name: "Time Inexistente XYZ", logo: "⚽" },
+    } as unknown as MatchPrediction;
+    const [out] = applyLogos([match], map);
+    expect(out.home.logo).toBe("http://a/cam");
+    expect(out.away.logo).toBe("");
   });
 });
 
-describe("applyLogos", () => {
-  it("aplica escudo e mantém ⚽ quando sem match", () => {
-    const map = buildLogoMap([espnEvent("Flamengo", "Palmeiras")]);
-    const [out] = applyLogos([match("Flamengo", "Time Inexistente FC")], map);
-    expect(out.home.logo).toContain("logo.test");
-    expect(out.away.logo).toBe("⚽");
+describe("teamMonogram", () => {
+  it("usa iniciais das duas primeiras palavras", () => {
+    expect(teamMonogram("Real Madrid").initials).toBe("RM");
   });
 
-  it("não altera probabilidades nem status", () => {
-    const map = buildLogoMap([espnEvent("Flamengo", "Palmeiras")]);
-    const [out] = applyLogos([match("Flamengo", "Palmeiras", "live")], map);
-    expect(out.probabilities).toEqual({
-      home: 0.5,
-      draw: 0.25,
-      away: 0.25,
-      over25: 0.5,
-      btts: 0.5,
-    });
-    expect(out.status).toBe("live");
+  it("ignora sufixos e usa 3 letras em nome único", () => {
+    expect(teamMonogram("Palmeiras FC").initials).toBe("PAL");
+  });
+
+  it("cor é estável para o mesmo nome", () => {
+    expect(teamMonogram("Flamengo").hue).toBe(teamMonogram("Flamengo").hue);
   });
 });
