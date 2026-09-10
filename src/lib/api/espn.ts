@@ -172,6 +172,57 @@ export function createEspnClient() {
       const r = await fetchLeague(meta.slug);
       return r?.events ?? [];
     },
+
+    /** Elenco/lista de times de uma liga — inclui o escudo de cada clube. */
+    async getLeagueTeams(slug: string): Promise<EspnTeam[]> {
+      try {
+        const res = await fetch(`${BASE}/${slug}/teams`, {
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!res.ok) return [];
+        const data = (await res.json()) as {
+          sports?: Array<{
+            leagues?: Array<{
+              teams?: Array<{
+                team?: {
+                  id?: string;
+                  displayName?: string;
+                  shortDisplayName?: string;
+                  abbreviation?: string;
+                  logos?: Array<{ href?: string }>;
+                };
+              }>;
+            }>;
+          }>;
+        };
+        const raw = data.sports?.[0]?.leagues?.[0]?.teams ?? [];
+        return raw.flatMap((entry) => {
+          const t = entry.team;
+          const logo = t?.logos?.[0]?.href ?? "";
+          if (!t?.displayName || !logo) return [];
+          return [
+            {
+              id: t.id ?? "",
+              name: t.displayName,
+              short: t.shortDisplayName ?? t.displayName,
+              abbrev: t.abbreviation ?? "",
+              logo,
+            },
+          ];
+        });
+      } catch {
+        return [];
+      }
+    },
+
+    /** Times de todas as ligas usadas para escudos. */
+    async getAllTeams(): Promise<EspnTeam[]> {
+      const chunks = await Promise.all(
+        CREST_LEAGUE_SLUGS.map((slug) => this.getLeagueTeams(slug)),
+      );
+      return chunks.flat();
+    },
   };
 }
 
