@@ -35,6 +35,47 @@ const LEAGUE_MAP: Record<string, { slug: string; name: string }> = {
   "uefa.europa": { slug: "uefa.europa", name: "Europa League" },
 };
 
+/** Ligas usadas apenas para montar o mapa de escudos (endpoint /teams). */
+export const CREST_LEAGUE_SLUGS: readonly string[] = [
+  "bra.1",
+  "bra.2",
+  "bra.copa_do_brazil",
+  "conmebol.libertadores",
+  "conmebol.sudamericana",
+  "arg.1",
+  "mex.1",
+  "usa.1",
+  "eng.1",
+  "eng.2",
+  "eng.fa",
+  "eng.league_cup",
+  "esp.1",
+  "esp.2",
+  "ita.1",
+  "ita.2",
+  "ger.1",
+  "ger.2",
+  "fra.1",
+  "fra.2",
+  "por.1",
+  "ned.1",
+  "bel.1",
+  "tur.1",
+  "sco.1",
+  "sui.1",
+  "aut.1",
+  "gre.1",
+  "den.1",
+  "jpn.1",
+  "kor.1",
+  "uefa.champions",
+  "uefa.europa",
+  "uefa.europa.conf",
+  "fifa.world",
+];
+
+export type EspnTeam = { id: string; name: string; short: string; abbrev: string; logo: string };
+
 function mapStatus(s: { type: { state: string; completed: boolean; description: string }; displayClock: string }): { status: EspnEvent["status"]; clock: string } {
   if (s.type.completed) return { status: "finished", clock: "FT" };
   if (s.type.state === "pre") return { status: "scheduled", clock: "" };
