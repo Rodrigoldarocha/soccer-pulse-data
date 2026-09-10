@@ -1,10 +1,11 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Shield, Zap, Flame } from "lucide-react";
 import type { MatchPrediction } from "@/lib/types";
 import { fmtTimeSP } from "@/lib/match-dates";
 import { probGroupsFor, type ProbLevel, type ProbRow } from "@/lib/probability-view";
+import { teamMonogram } from "@/lib/team-monogram";
 import { cn } from "@/lib/utils";
 
 function confidenceConfig(c: MatchPrediction["confidence"]) {
