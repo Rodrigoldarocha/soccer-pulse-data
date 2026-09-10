@@ -17,7 +17,13 @@ export type EspnEvent = {
 };
 
 type EspnCompetitor = {
-  team: { id: string; displayName: string; shortDisplayName: string; logo: string; abbreviation: string };
+  team: {
+    id: string;
+    displayName: string;
+    shortDisplayName: string;
+    logo: string;
+    abbreviation: string;
+  };
   score?: string;
   homeAway: "home" | "away";
   winner?: boolean;
@@ -35,23 +41,74 @@ const LEAGUE_MAP: Record<string, { slug: string; name: string }> = {
   "uefa.europa": { slug: "uefa.europa", name: "Europa League" },
 };
 
-function mapStatus(s: { type: { state: string; completed: boolean; description: string }; displayClock: string }): { status: EspnEvent["status"]; clock: string } {
+/** Ligas usadas apenas para montar o mapa de escudos (endpoint /teams). */
+export const CREST_LEAGUE_SLUGS: readonly string[] = [
+  "bra.1",
+  "bra.2",
+  "bra.copa_do_brazil",
+  "conmebol.libertadores",
+  "conmebol.sudamericana",
+  "arg.1",
+  "mex.1",
+  "usa.1",
+  "eng.1",
+  "eng.2",
+  "eng.fa",
+  "eng.league_cup",
+  "esp.1",
+  "esp.2",
+  "ita.1",
+  "ita.2",
+  "ger.1",
+  "ger.2",
+  "fra.1",
+  "fra.2",
+  "por.1",
+  "ned.1",
+  "bel.1",
+  "tur.1",
+  "sco.1",
+  "sui.1",
+  "aut.1",
+  "gre.1",
+  "den.1",
+  "jpn.1",
+  "kor.1",
+  "uefa.champions",
+  "uefa.europa",
+  "uefa.europa.conf",
+  "fifa.world",
+];
+
+export type EspnTeam = { id: string; name: string; short: string; abbrev: string; logo: string };
+
+function mapStatus(s: {
+  type: { state: string; completed: boolean; description: string };
+  displayClock: string;
+}): { status: EspnEvent["status"]; clock: string } {
   if (s.type.completed) return { status: "finished", clock: "FT" };
   if (s.type.state === "pre") return { status: "scheduled", clock: "" };
   return { status: "inprogress", clock: s.displayClock ?? "" };
 }
 
-function parseEvent(e: {
-  id: string;
-  date: string;
-  name: string;
-  shortName: string;
-  status: { type: { state: string; completed: boolean; description: string }; displayClock: string };
-  competitions: Array<{
-    competitors: EspnCompetitor[];
-    venue?: { displayName: string };
-  }>;
-}, leagueSlug: string, leagueName: string): EspnEvent | null {
+function parseEvent(
+  e: {
+    id: string;
+    date: string;
+    name: string;
+    shortName: string;
+    status: {
+      type: { state: string; completed: boolean; description: string };
+      displayClock: string;
+    };
+    competitions: Array<{
+      competitors: EspnCompetitor[];
+      venue?: { displayName: string };
+    }>;
+  },
+  leagueSlug: string,
+  leagueName: string,
+): EspnEvent | null {
   const comp = e.competitions?.[0];
   if (!comp) return null;
   const home = comp.competitors?.find((c) => c.homeAway === "home");
@@ -87,18 +144,26 @@ function parseEvent(e: {
 }
 
 export function createEspnClient() {
-  async function fetchLeague(slug: string): Promise<{ events: EspnEvent[]; leagueName: string } | null> {
+  async function fetchLeague(
+    slug: string,
+  ): Promise<{ events: EspnEvent[]; leagueName: string } | null> {
     try {
       const res = await fetch(`${BASE}/${slug}/scoreboard`, {
-        headers: { "Accept": "application/json" },
+        headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) return null;
-      const data = await res.json() as {
+      const data = (await res.json()) as {
         leagues?: Array<{ name?: string }>;
         events?: Array<{
-          id: string; date: string; name: string; shortName: string;
-          status: { type: { state: string; completed: boolean; description: string }; displayClock: string };
+          id: string;
+          date: string;
+          name: string;
+          shortName: string;
+          status: {
+            type: { state: string; completed: boolean; description: string };
+            displayClock: string;
+          };
           competitions: Array<{
             competitors: EspnCompetitor[];
             venue?: { displayName: string };
@@ -117,9 +182,7 @@ export function createEspnClient() {
 
   return {
     async getAllScoreboards(): Promise<EspnEvent[]> {
-      const results = await Promise.all(
-        Object.keys(LEAGUE_MAP).map((slug) => fetchLeague(slug)),
-      );
+      const results = await Promise.all(Object.keys(LEAGUE_MAP).map((slug) => fetchLeague(slug)));
       return results
         .filter((r): r is { events: EspnEvent[]; leagueName: string } => r !== null)
         .flatMap((r) => r.events);
@@ -130,6 +193,55 @@ export function createEspnClient() {
       if (!meta) return [];
       const r = await fetchLeague(meta.slug);
       return r?.events ?? [];
+    },
+
+    /** Elenco/lista de times de uma liga — inclui o escudo de cada clube. */
+    async getLeagueTeams(slug: string): Promise<EspnTeam[]> {
+      try {
+        const res = await fetch(`${BASE}/${slug}/teams`, {
+          headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!res.ok) return [];
+        const data = (await res.json()) as {
+          sports?: Array<{
+            leagues?: Array<{
+              teams?: Array<{
+                team?: {
+                  id?: string;
+                  displayName?: string;
+                  shortDisplayName?: string;
+                  abbreviation?: string;
+                  logos?: Array<{ href?: string }>;
+                };
+              }>;
+            }>;
+          }>;
+        };
+        const raw = data.sports?.[0]?.leagues?.[0]?.teams ?? [];
+        return raw.flatMap((entry) => {
+          const t = entry.team;
+          const logo = t?.logos?.[0]?.href ?? "";
+          if (!t?.displayName || !logo) return [];
+          return [
+            {
+              id: t.id ?? "",
+              name: t.displayName,
+              short: t.shortDisplayName ?? t.displayName,
+              abbrev: t.abbreviation ?? "",
+              logo,
+            },
+          ];
+        });
+      } catch {
+        return [];
+      }
+    },
+
+    /** Times de todas as ligas usadas para escudos. */
+    async getAllTeams(): Promise<EspnTeam[]> {
+      const chunks = await Promise.all(CREST_LEAGUE_SLUGS.map((slug) => this.getLeagueTeams(slug)));
+      return chunks.flat();
     },
   };
 }
