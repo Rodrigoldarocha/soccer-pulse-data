@@ -24,7 +24,7 @@ export const TEAM_ALIASES: Record<string, string> = {
   inter: "internazionale",
   "inter milao": "internazionale",
   "inter de milao": "internazionale",
-  "milan": "ac milan",
+  milan: "ac milan",
   juve: "juventus",
   "bayern munique": "bayern munich",
   "bayern de munique": "bayern munich",

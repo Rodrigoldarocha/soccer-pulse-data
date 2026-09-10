@@ -17,7 +17,13 @@ export type EspnEvent = {
 };
 
 type EspnCompetitor = {
-  team: { id: string; displayName: string; shortDisplayName: string; logo: string; abbreviation: string };
+  team: {
+    id: string;
+    displayName: string;
+    shortDisplayName: string;
+    logo: string;
+    abbreviation: string;
+  };
   score?: string;
   homeAway: "home" | "away";
   winner?: boolean;
@@ -76,23 +82,33 @@ export const CREST_LEAGUE_SLUGS: readonly string[] = [
 
 export type EspnTeam = { id: string; name: string; short: string; abbrev: string; logo: string };
 
-function mapStatus(s: { type: { state: string; completed: boolean; description: string }; displayClock: string }): { status: EspnEvent["status"]; clock: string } {
+function mapStatus(s: {
+  type: { state: string; completed: boolean; description: string };
+  displayClock: string;
+}): { status: EspnEvent["status"]; clock: string } {
   if (s.type.completed) return { status: "finished", clock: "FT" };
   if (s.type.state === "pre") return { status: "scheduled", clock: "" };
   return { status: "inprogress", clock: s.displayClock ?? "" };
 }
 
-function parseEvent(e: {
-  id: string;
-  date: string;
-  name: string;
-  shortName: string;
-  status: { type: { state: string; completed: boolean; description: string }; displayClock: string };
-  competitions: Array<{
-    competitors: EspnCompetitor[];
-    venue?: { displayName: string };
-  }>;
-}, leagueSlug: string, leagueName: string): EspnEvent | null {
+function parseEvent(
+  e: {
+    id: string;
+    date: string;
+    name: string;
+    shortName: string;
+    status: {
+      type: { state: string; completed: boolean; description: string };
+      displayClock: string;
+    };
+    competitions: Array<{
+      competitors: EspnCompetitor[];
+      venue?: { displayName: string };
+    }>;
+  },
+  leagueSlug: string,
+  leagueName: string,
+): EspnEvent | null {
   const comp = e.competitions?.[0];
   if (!comp) return null;
   const home = comp.competitors?.find((c) => c.homeAway === "home");
@@ -128,18 +144,26 @@ function parseEvent(e: {
 }
 
 export function createEspnClient() {
-  async function fetchLeague(slug: string): Promise<{ events: EspnEvent[]; leagueName: string } | null> {
+  async function fetchLeague(
+    slug: string,
+  ): Promise<{ events: EspnEvent[]; leagueName: string } | null> {
     try {
       const res = await fetch(`${BASE}/${slug}/scoreboard`, {
-        headers: { "Accept": "application/json" },
+        headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) return null;
-      const data = await res.json() as {
+      const data = (await res.json()) as {
         leagues?: Array<{ name?: string }>;
         events?: Array<{
-          id: string; date: string; name: string; shortName: string;
-          status: { type: { state: string; completed: boolean; description: string }; displayClock: string };
+          id: string;
+          date: string;
+          name: string;
+          shortName: string;
+          status: {
+            type: { state: string; completed: boolean; description: string };
+            displayClock: string;
+          };
           competitions: Array<{
             competitors: EspnCompetitor[];
             venue?: { displayName: string };
@@ -158,9 +182,7 @@ export function createEspnClient() {
 
   return {
     async getAllScoreboards(): Promise<EspnEvent[]> {
-      const results = await Promise.all(
-        Object.keys(LEAGUE_MAP).map((slug) => fetchLeague(slug)),
-      );
+      const results = await Promise.all(Object.keys(LEAGUE_MAP).map((slug) => fetchLeague(slug)));
       return results
         .filter((r): r is { events: EspnEvent[]; leagueName: string } => r !== null)
         .flatMap((r) => r.events);
@@ -218,9 +240,7 @@ export function createEspnClient() {
 
     /** Times de todas as ligas usadas para escudos. */
     async getAllTeams(): Promise<EspnTeam[]> {
-      const chunks = await Promise.all(
-        CREST_LEAGUE_SLUGS.map((slug) => this.getLeagueTeams(slug)),
-      );
+      const chunks = await Promise.all(CREST_LEAGUE_SLUGS.map((slug) => this.getLeagueTeams(slug)));
       return chunks.flat();
     },
   };
