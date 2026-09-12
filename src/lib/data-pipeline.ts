@@ -79,36 +79,44 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
   // Step 3: Limit for SSR performance
   const events = activeEvents.slice(0, 40);
 
-  // Step 4: Pre-warm league events cache — fetch all unique leagues in one batch
-  const uniqueLeagueIds = [...new Set(events.map((ev) => ev.apiLeagueId).filter(Boolean))];
-  console.log(`[data-pipeline] Pre-warming cache for ${uniqueLeagueIds.length} leagues...`);
+  // Step 4: previsões originais do modelo da API — uma única chamada em lote.
+  const date = dateISO ?? new Date().toISOString().slice(0, 10);
+  const apiPreds = await fetchApiPredictionsSafe(date, date);
+  const missing = events.filter((ev) => !apiPreds.has(ev.id));
+  console.log(
+    `[data-pipeline] ${events.length - missing.length}/${events.length} previsões vindas da API`,
+  );
 
-  const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
+  // Step 5: só aquecemos o modelo próprio para os jogos sem previsão oficial.
+  if (missing.length > 0) {
+    const uniqueLeagueIds = [...new Set(missing.map((ev) => ev.apiLeagueId).filter(Boolean))];
+    const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
+    await withTimeout(
+      Promise.allSettled([
+        ...uniqueLeagueIds.slice(0, 8).map((lid) => fetchLeaguePastEvents(lid)),
+        warmTeamForms(missing.flatMap((ev) => [ev.homeTeam, ev.awayTeam]).slice(0, 20)),
+      ]),
+      6_000,
+    ).catch(() => console.log("[data-pipeline] Cache warm-up timed out, using defaults"));
+  }
 
-  // Warm cache with a tight timeout — 8 seconds max (ligas + forma dos times)
-  const teamNames = events.flatMap((ev) => [ev.homeTeam, ev.awayTeam]);
-  await withTimeout(
-    Promise.allSettled([
-      ...uniqueLeagueIds.map((lid) => fetchLeaguePastEvents(lid)),
-      warmTeamForms(teamNames),
-    ]),
-    8_000,
-  ).catch(() => console.log("[data-pipeline] Cache warm-up timed out, using defaults"));
-
-  // Step 5: Compute predictions for each event (league cache is now warm).
-  // Nunca deixar uma previsão lenta derrubar o pipeline: cai no modelo médio.
+  // Step 6: montar previsões (API primeiro, modelo próprio como reserva)
   const results = await Promise.allSettled(
     events.map(async (ev) => {
-      const prediction = await withTimeout(
-        computePrediction(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId),
-        6_000,
-      ).catch(() => FALLBACK_PREDICTION);
+      const fromApi = apiPreds.get(ev.id);
+      const prediction: PredictionData =
+        fromApi ??
+        (await withTimeout(
+          computePrediction(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId),
+          5_000,
+        ).catch(() => FALLBACK_PREDICTION));
       const footballEvent = eventToFootballEvent(ev);
-      const predictionData: PredictionData = prediction;
-      return buildPrediction(footballEvent, predictionData, {
-        id: ev.apiLeagueId,
-        name: ev.leagueLabel,
-      });
+      return buildPrediction(
+        footballEvent,
+        prediction,
+        { id: ev.apiLeagueId, name: ev.leagueLabel },
+        { trustSource: Boolean(fromApi) },
+      );
     }),
   );
 
