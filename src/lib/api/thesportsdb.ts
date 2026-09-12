@@ -439,9 +439,7 @@ export async function fetchApiPredictions(
         modelVersion: row.model?.version,
       });
     }
-    const next: string | null = Array.isArray(page) ? null : page.next;
-    pageUrl = next ? next.replace(`${BASE}/`, "") : null;
-    pages++;
+    if (rows.length < LIMIT) break;
   }
 
   return out;
