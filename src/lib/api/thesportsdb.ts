@@ -402,17 +402,22 @@ export async function fetchApiPredictions(
   to: string,
 ): Promise<Map<string, ApiPrediction>> {
   const out = new Map<string, ApiPrediction>();
-  let pageUrl: string | null =
-    `predictions/?date_from=${from}&date_to=${to}&limit=200&status=all`;
-  let pages = 0;
+  // date_to é tratado como início do dia pela API: somamos 1 dia para incluir a janela toda.
+  const end = new Date(`${to}T00:00:00Z`);
+  end.setUTCDate(end.getUTCDate() + 1);
+  const dateTo = end.toISOString().slice(0, 10);
+  const LIMIT = 200;
+  const MAX_PAGES = 5;
 
-  while (pageUrl && pages < 3) {
+  for (let p = 0; p < MAX_PAGES; p++) {
     const page: BzzoiroPredictionV2[] | BzzoiroPaginated<BzzoiroPredictionV2> | null =
-      await apiJson<BzzoiroPredictionV2[] | BzzoiroPaginated<BzzoiroPredictionV2>>(pageUrl, {
-        ttlMs: 10 * 60 * 1000,
-      });
+      await apiJson<BzzoiroPredictionV2[] | BzzoiroPaginated<BzzoiroPredictionV2>>(
+        `predictions/?date_from=${from}&date_to=${dateTo}&limit=${LIMIT}&offset=${p * LIMIT}`,
+        { ttlMs: 10 * 60 * 1000 },
+      );
     if (!page) break;
     const rows = Array.isArray(page) ? page : (page.results ?? []);
+    if (rows.length === 0) break;
     for (const row of rows) {
       const mr = row.markets?.match_result;
       const xg = row.markets?.expected_goals;
