@@ -362,6 +362,86 @@ export async function fetchEventsByDateRange(from: string, to: string): Promise<
   return allEvents;
 }
 
+// ─── Previsões oficiais da API (modelo dc-blend) ─────────────────────
+
+interface BzzoiroPredictionV2 {
+  id: number;
+  event: { id: number; event_date: string; league_id: number; league_name: string };
+  markets: {
+    match_result?: { prob_home: number; prob_draw: number; prob_away: number; predicted?: string };
+    expected_goals?: { home: number; away: number };
+    over_under?: { prob_over_15?: number; prob_over_25?: number; prob_over_35?: number };
+    btts?: { prob_yes?: number };
+    score?: { most_likely?: string };
+  };
+  model?: { confidence?: number; version?: string };
+}
+
+export interface ApiPrediction {
+  eventId: string;
+  xgHome: number;
+  xgAway: number;
+  probHome: number;
+  probDraw: number;
+  probAway: number;
+  probOver25: number;
+  probBtts: number;
+  mostLikelyScore?: string;
+  modelVersion?: string;
+}
+
+const pct = (v: number | undefined, fallback: number) =>
+  typeof v === "number" && v > 0 ? +(v / 100).toFixed(4) : fallback;
+
+/**
+ * Busca em lote as previsões originais do modelo da API para uma janela de datas.
+ * Uma única chamada cobre ~200 jogos, então é rápido e cada jogo tem números próprios.
+ */
+export async function fetchApiPredictions(
+  from: string,
+  to: string,
+): Promise<Map<string, ApiPrediction>> {
+  const out = new Map<string, ApiPrediction>();
+  let pageUrl: string | null =
+    `predictions/?date_from=${from}&date_to=${to}&limit=200&status=all`;
+  let pages = 0;
+
+  while (pageUrl && pages < 3) {
+    const page = await apiJson<BzzoiroPredictionV2[] | BzzoiroPaginated<BzzoiroPredictionV2>>(
+      pageUrl,
+      { ttlMs: 10 * 60 * 1000 },
+    );
+    if (!page) break;
+    const rows = Array.isArray(page) ? page : (page.results ?? []);
+    for (const row of rows) {
+      const mr = row.markets?.match_result;
+      const xg = row.markets?.expected_goals;
+      if (!mr) continue;
+      const probHome = pct(mr.prob_home, 0);
+      const probDraw = pct(mr.prob_draw, 0);
+      const probAway = pct(mr.prob_away, 0);
+      if (probHome + probDraw + probAway <= 0) continue;
+      out.set(String(row.event.id), {
+        eventId: String(row.event.id),
+        xgHome: xg?.home ?? 1.4,
+        xgAway: xg?.away ?? 1.1,
+        probHome,
+        probDraw,
+        probAway,
+        probOver25: pct(row.markets?.over_under?.prob_over_25, 0.5),
+        probBtts: pct(row.markets?.btts?.prob_yes, 0.5),
+        mostLikelyScore: row.markets?.score?.most_likely,
+        modelVersion: row.model?.version,
+      });
+    }
+    const next = Array.isArray(page) ? null : page.next;
+    pageUrl = next ? next.replace(`${BASE}/`, "") : null;
+    pages++;
+  }
+
+  return out;
+}
+
 // ─── League standings ────────────────────────────────────────────────
 
 interface BzzoiroStandingsResponse {
