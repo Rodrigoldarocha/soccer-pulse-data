@@ -169,15 +169,21 @@ async function fetchLiveMatchesReal(): Promise<MatchPrediction[]> {
   const live = await fetchLiveEvents();
   if (!live || live.length === 0) return [];
 
+  const todaySP = new Date().toISOString().slice(0, 10);
+  const apiPreds = await fetchApiPredictionsSafe(todaySP, todaySP);
+
   const results = await Promise.allSettled(
     live.slice(0, 20).map(async (ev) => {
       const league = Object.entries(LEAGUE_IDS).find(([, id]) => id === ev.leagueId);
       const leagueId = league ? (league[0] as LeagueId) : ("premier-league" as LeagueId);
       const leagueLabel = ev.leagueName ?? "Liga";
-      const prediction = await withTimeout(
-        computePred(ev.homeTeam, ev.awayTeam, leagueId, ev.leagueId ?? undefined),
-        6_000,
-      ).catch(() => FALLBACK_PREDICTION);
+      const fromApi = apiPreds.get(ev.id);
+      const prediction =
+        fromApi ??
+        (await withTimeout(
+          computePred(ev.homeTeam, ev.awayTeam, leagueId, ev.leagueId ?? undefined),
+          5_000,
+        ).catch(() => FALLBACK_PREDICTION));
       const built = await buildPred(
         {
           id: ev.id,
