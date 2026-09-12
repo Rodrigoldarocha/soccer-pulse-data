@@ -274,24 +274,38 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Matc
     };
   });
 
-  // Pre-warm league cache with tight timeout
-  const uniqueLeagueIds = [
-    ...new Set(predictionInputs.map((ev) => ev.apiLeagueId).filter(Boolean)),
-  ];
-  const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
-  await withTimeout(
-    Promise.allSettled(uniqueLeagueIds.map((lid) => fetchLeaguePastEvents(lid))),
-    8_000,
-  ).catch(() => {});
+  // Previsões oficiais da API para toda a janela (uma chamada só)
+  const apiPreds = await fetchApiPredictionsSafe(fromISO, toISO);
+  const missing = predictionInputs.filter((ev) => !apiPreds.has(ev.id));
+  console.log(
+    `[data-pipeline] ${predictionInputs.length - missing.length}/${predictionInputs.length} previsões vindas da API`,
+  );
+
+  if (missing.length > 0) {
+    const uniqueLeagueIds = [...new Set(missing.map((ev) => ev.apiLeagueId).filter(Boolean))];
+    const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
+    await withTimeout(
+      Promise.allSettled(uniqueLeagueIds.slice(0, 8).map((lid) => fetchLeaguePastEvents(lid))),
+      6_000,
+    ).catch(() => {});
+  }
 
   const results = await Promise.allSettled(
     predictionInputs.map(async (ev) => {
-      const prediction = await withTimeout(
-        computePred(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId),
-        6_000,
-      ).catch(() => FALLBACK_PREDICTION);
+      const fromApi = apiPreds.get(ev.id);
+      const prediction =
+        fromApi ??
+        (await withTimeout(
+          computePred(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId),
+          5_000,
+        ).catch(() => FALLBACK_PREDICTION));
       const footballEvent = eventToFootballEvent(ev);
-      return buildPred(footballEvent, prediction, { id: ev.apiLeagueId, name: ev.leagueLabel });
+      return buildPred(
+        footballEvent,
+        prediction,
+        { id: ev.apiLeagueId, name: ev.leagueLabel },
+        { trustSource: Boolean(fromApi) },
+      );
     }),
   );
 
