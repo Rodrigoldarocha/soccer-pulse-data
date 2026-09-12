@@ -407,10 +407,10 @@ export async function fetchApiPredictions(
   let pages = 0;
 
   while (pageUrl && pages < 3) {
-    const page = await apiJson<BzzoiroPredictionV2[] | BzzoiroPaginated<BzzoiroPredictionV2>>(
-      pageUrl,
-      { ttlMs: 10 * 60 * 1000 },
-    );
+    const page: BzzoiroPredictionV2[] | BzzoiroPaginated<BzzoiroPredictionV2> | null =
+      await apiJson<BzzoiroPredictionV2[] | BzzoiroPaginated<BzzoiroPredictionV2>>(pageUrl, {
+        ttlMs: 10 * 60 * 1000,
+      });
     if (!page) break;
     const rows = Array.isArray(page) ? page : (page.results ?? []);
     for (const row of rows) {
