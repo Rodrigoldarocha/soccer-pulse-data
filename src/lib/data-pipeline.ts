@@ -51,6 +51,16 @@ const FALLBACK_PREDICTION: PredictionData = {
   probBtts: 0.5137,
 };
 
+// ─── Previsões oficiais da API (nunca quebram o pipeline) ────────────
+
+async function fetchApiPredictionsSafe(from: string, to: string) {
+  const { fetchApiPredictions } = await import("./api/thesportsdb");
+  return withTimeout(fetchApiPredictions(from, to), 8_000).catch(() => {
+    console.log("[data-pipeline] Previsões da API indisponíveis, usando modelo próprio");
+    return new Map<string, import("./api/thesportsdb").ApiPrediction>();
+  });
+}
+
 // ─── Main pipeline ───────────────────────────────────────────────────
 
 export async function fetchMatchesForDate(dateISO?: string): Promise<MatchPrediction[]> {
