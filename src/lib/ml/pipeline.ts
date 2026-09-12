@@ -41,6 +41,7 @@ export async function buildPrediction(
   event: FootballEvent,
   pred: PredictionData | undefined,
   leagueMeta: { id: string; name: string },
+  opts?: { trustSource?: boolean },
 ): Promise<MatchPrediction> {
   const hShort = inferShort(event.homeTeam);
   const aShort = inferShort(event.awayTeam);
