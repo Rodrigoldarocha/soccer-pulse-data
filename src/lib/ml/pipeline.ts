@@ -41,6 +41,7 @@ export async function buildPrediction(
   event: FootballEvent,
   pred: PredictionData | undefined,
   leagueMeta: { id: string; name: string },
+  opts?: { trustSource?: boolean },
 ): Promise<MatchPrediction> {
   const hShort = inferShort(event.homeTeam);
   const aShort = inferShort(event.awayTeam);
@@ -76,7 +77,10 @@ export async function buildPrediction(
           case "DOUBLE_CHANCE_1X": poissonProb = probs.home + probs.draw; break;
         }
 
-        const weights = getEnsembleWeights(undefined); // default 70/30
+        // Quando os números vêm do modelo oficial da API, usamos direto (sem mistura).
+        const weights = opts?.trustSource
+          ? { modelWeight: 1, poissonWeight: 0, brierScore: 0.2, sampleSize: 0 }
+          : getEnsembleWeights(undefined); // default 70/30
         const ensemble = ensembleProbability(calResult, poissonProb, weights);
         let confidence = computeEnsembleConfidence(calResult, ensemble.probability, weights);
         // Sem histórico de calibração, derivar confiança da força da probabilidade

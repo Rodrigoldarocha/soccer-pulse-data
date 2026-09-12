@@ -51,6 +51,16 @@ const FALLBACK_PREDICTION: PredictionData = {
   probBtts: 0.5137,
 };
 
+// ─── Previsões oficiais da API (nunca quebram o pipeline) ────────────
+
+async function fetchApiPredictionsSafe(from: string, to: string) {
+  const { fetchApiPredictions } = await import("./api/thesportsdb");
+  return withTimeout(fetchApiPredictions(from, to), 8_000).catch(() => {
+    console.log("[data-pipeline] Previsões da API indisponíveis, usando modelo próprio");
+    return new Map<string, import("./api/thesportsdb").ApiPrediction>();
+  });
+}
+
 // ─── Main pipeline ───────────────────────────────────────────────────
 
 export async function fetchMatchesForDate(dateISO?: string): Promise<MatchPrediction[]> {
@@ -79,36 +89,44 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
   // Step 3: Limit for SSR performance
   const events = activeEvents.slice(0, 40);
 
-  // Step 4: Pre-warm league events cache — fetch all unique leagues in one batch
-  const uniqueLeagueIds = [...new Set(events.map((ev) => ev.apiLeagueId).filter(Boolean))];
-  console.log(`[data-pipeline] Pre-warming cache for ${uniqueLeagueIds.length} leagues...`);
+  // Step 4: previsões originais do modelo da API — uma única chamada em lote.
+  const date = dateISO ?? new Date().toISOString().slice(0, 10);
+  const apiPreds = await fetchApiPredictionsSafe(date, date);
+  const missing = events.filter((ev) => !apiPreds.has(ev.id));
+  console.log(
+    `[data-pipeline] ${events.length - missing.length}/${events.length} previsões vindas da API`,
+  );
 
-  const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
+  // Step 5: só aquecemos o modelo próprio para os jogos sem previsão oficial.
+  if (missing.length > 0) {
+    const uniqueLeagueIds = [...new Set(missing.map((ev) => ev.apiLeagueId).filter(Boolean))];
+    const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
+    await withTimeout(
+      Promise.allSettled([
+        ...uniqueLeagueIds.slice(0, 8).map((lid) => fetchLeaguePastEvents(lid)),
+        warmTeamForms(missing.flatMap((ev) => [ev.homeTeam, ev.awayTeam]).slice(0, 20)),
+      ]),
+      6_000,
+    ).catch(() => console.log("[data-pipeline] Cache warm-up timed out, using defaults"));
+  }
 
-  // Warm cache with a tight timeout — 8 seconds max (ligas + forma dos times)
-  const teamNames = events.flatMap((ev) => [ev.homeTeam, ev.awayTeam]);
-  await withTimeout(
-    Promise.allSettled([
-      ...uniqueLeagueIds.map((lid) => fetchLeaguePastEvents(lid)),
-      warmTeamForms(teamNames),
-    ]),
-    8_000,
-  ).catch(() => console.log("[data-pipeline] Cache warm-up timed out, using defaults"));
-
-  // Step 5: Compute predictions for each event (league cache is now warm).
-  // Nunca deixar uma previsão lenta derrubar o pipeline: cai no modelo médio.
+  // Step 6: montar previsões (API primeiro, modelo próprio como reserva)
   const results = await Promise.allSettled(
     events.map(async (ev) => {
-      const prediction = await withTimeout(
-        computePrediction(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId),
-        6_000,
-      ).catch(() => FALLBACK_PREDICTION);
+      const fromApi = apiPreds.get(ev.id);
+      const prediction: PredictionData =
+        fromApi ??
+        (await withTimeout(
+          computePrediction(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId),
+          5_000,
+        ).catch(() => FALLBACK_PREDICTION));
       const footballEvent = eventToFootballEvent(ev);
-      const predictionData: PredictionData = prediction;
-      return buildPrediction(footballEvent, predictionData, {
-        id: ev.apiLeagueId,
-        name: ev.leagueLabel,
-      });
+      return buildPrediction(
+        footballEvent,
+        prediction,
+        { id: ev.apiLeagueId, name: ev.leagueLabel },
+        { trustSource: Boolean(fromApi) },
+      );
     }),
   );
 
@@ -151,15 +169,21 @@ async function fetchLiveMatchesReal(): Promise<MatchPrediction[]> {
   const live = await fetchLiveEvents();
   if (!live || live.length === 0) return [];
 
+  const todaySP = new Date().toISOString().slice(0, 10);
+  const apiPreds = await fetchApiPredictionsSafe(todaySP, todaySP);
+
   const results = await Promise.allSettled(
     live.slice(0, 20).map(async (ev) => {
       const league = Object.entries(LEAGUE_IDS).find(([, id]) => id === ev.leagueId);
       const leagueId = league ? (league[0] as LeagueId) : ("premier-league" as LeagueId);
       const leagueLabel = ev.leagueName ?? "Liga";
-      const prediction = await withTimeout(
-        computePred(ev.homeTeam, ev.awayTeam, leagueId, ev.leagueId ?? undefined),
-        6_000,
-      ).catch(() => FALLBACK_PREDICTION);
+      const fromApi = apiPreds.get(ev.id);
+      const prediction =
+        fromApi ??
+        (await withTimeout(
+          computePred(ev.homeTeam, ev.awayTeam, leagueId, ev.leagueId ?? undefined),
+          5_000,
+        ).catch(() => FALLBACK_PREDICTION));
       const built = await buildPred(
         {
           id: ev.id,
@@ -174,6 +198,7 @@ async function fetchLiveMatchesReal(): Promise<MatchPrediction[]> {
         },
         prediction,
         { id: ev.leagueId ?? leagueId, name: leagueLabel },
+        { trustSource: Boolean(fromApi) },
       );
       return {
         ...built,
@@ -256,24 +281,38 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Matc
     };
   });
 
-  // Pre-warm league cache with tight timeout
-  const uniqueLeagueIds = [
-    ...new Set(predictionInputs.map((ev) => ev.apiLeagueId).filter(Boolean)),
-  ];
-  const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
-  await withTimeout(
-    Promise.allSettled(uniqueLeagueIds.map((lid) => fetchLeaguePastEvents(lid))),
-    8_000,
-  ).catch(() => {});
+  // Previsões oficiais da API para toda a janela (uma chamada só)
+  const apiPreds = await fetchApiPredictionsSafe(fromISO, toISO);
+  const missing = predictionInputs.filter((ev) => !apiPreds.has(ev.id));
+  console.log(
+    `[data-pipeline] ${predictionInputs.length - missing.length}/${predictionInputs.length} previsões vindas da API`,
+  );
+
+  if (missing.length > 0) {
+    const uniqueLeagueIds = [...new Set(missing.map((ev) => ev.apiLeagueId).filter(Boolean))];
+    const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
+    await withTimeout(
+      Promise.allSettled(uniqueLeagueIds.slice(0, 8).map((lid) => fetchLeaguePastEvents(lid))),
+      6_000,
+    ).catch(() => {});
+  }
 
   const results = await Promise.allSettled(
     predictionInputs.map(async (ev) => {
-      const prediction = await withTimeout(
-        computePred(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId),
-        6_000,
-      ).catch(() => FALLBACK_PREDICTION);
+      const fromApi = apiPreds.get(ev.id);
+      const prediction =
+        fromApi ??
+        (await withTimeout(
+          computePred(ev.homeTeam, ev.awayTeam, ev.league, ev.apiLeagueId),
+          5_000,
+        ).catch(() => FALLBACK_PREDICTION));
       const footballEvent = eventToFootballEvent(ev);
-      return buildPred(footballEvent, prediction, { id: ev.apiLeagueId, name: ev.leagueLabel });
+      return buildPred(
+        footballEvent,
+        prediction,
+        { id: ev.apiLeagueId, name: ev.leagueLabel },
+        { trustSource: Boolean(fromApi) },
+      );
     }),
   );
 
