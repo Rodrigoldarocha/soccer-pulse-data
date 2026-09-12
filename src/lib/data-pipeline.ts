@@ -198,6 +198,7 @@ async function fetchLiveMatchesReal(): Promise<MatchPrediction[]> {
         },
         prediction,
         { id: ev.leagueId ?? leagueId, name: leagueLabel },
+        { trustSource: Boolean(fromApi) },
       );
       return {
         ...built,
