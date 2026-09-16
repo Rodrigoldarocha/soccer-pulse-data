@@ -1,58 +1,42 @@
-# Identidade visual própria para o app de futebol
+# Confiança Alta/Média/Baixa por força da probabilidade
 
-O app hoje usa Inter + Space Grotesk, verde de destaque e blocos arredondados iguais — o
-conjunto padrão que qualquer app de estatística usa. A skill de design serve para dar ao
-app uma cara reconhecível, sem mexer nos dados nem nas previsões.
+Hoje, quando a previsão vem da API oficial (quase todos os jogos), o código grava
+`confidence: "low"` fixo em `src/lib/ml/pipeline.ts` — por isso a lista inteira mostra
+"Baixa". O selo deixa de ser fixo e passa a refletir a força da probabilidade do melhor
+mercado do jogo.
 
-## Direção proposta
+## Mudança
 
-Referência: caderno de resultados impresso e placar de estádio. Números grandes e
-precisos, fundo escuro de noite de jogo, um único destaque quente para o que está ao vivo.
+Em `buildPrediction`, no caminho `trustSource` (previsões oficiais da API), calcular a
+confiança a partir da probabilidade em vez de fixar `"low"`:
 
-- **Cores (6 tokens):** `#0C1116` fundo de noite, `#141C24` superfície, `#E8E4DA` texto
-  claro, `#8A99A8` texto secundário, `#F2542D` destaque único (ao vivo / maior confiança),
-  `#3F8F6B` verde discreto apenas para resultado confirmado.
-- **Tipografia:** uma família condensada de alto contraste para placares e números
-  (Archivo / Archivo Narrow), e uma humanista sóbria para texto corrido (Source Sans 3).
-  Números tabulares em toda tabela e placar.
-- **Layout:** lista densa em linhas, não cartões repetidos. Cada jogo é uma linha com
-  hora à esquerda, times ao centro, probabilidades alinhadas à direita em colunas fixas.
-  Divisores finos separam campeonatos; cartão só para o destaque do dia.
+- **Alta:** probabilidade ≥ 72%
+- **Média:** probabilidade entre 55% e 72%
+- **Baixa:** abaixo de 55%
 
-```text
-HOJE  domingo, 13 set                            18 jogos
+Os limites ficam em constantes nomeadas no topo do arquivo, fáceis de ajustar depois.
 
-19:30 ── Palmeiras          2.1 xG   58% ─┐
-      ── Grêmio            0.9 xG   19%  │ barra fina 1X2
-──────────────────────────────────────────┘
-21:00 ── Real Madrid ...
-```
+O caminho "local" (ensemble + calibração) não muda — continua usando
+`computeEnsembleConfidence`.
 
-- **Princípios:** um só elemento ousado (o destaque do dia, em laranja); tudo mais quieto.
-  Movimento apenas quando o placar muda ao vivo. Sem etiquetas em caixa alta, sem
-  "01 / 02 / 03", sem gradiente decorativo.
+## Efeito nas telas
 
-## Escopo do trabalho
+- Lista de jogos e detalhe da partida passam a mostrar Alta/Média/Baixa variados, com as
+  cores já existentes no tema.
+- A página "Melhor aposta de hoje" (que filtra por confiança/probabilidade) volta a ter
+  resultados úteis.
+- Nada muda nos números das probabilidades, odds, fontes de dados ou velocidade de
+  carregamento.
 
-1. Trocar os tokens de cor, raio e tipografia no tema global (claro e escuro).
-2. Redesenhar a linha de jogo e o destaque do dia com a nova hierarquia.
-3. Ajustar navegação, cabeçalhos de página e estados vazios/erro ao novo tom de voz:
-   frases curtas, em português, dizendo o que fazer.
-4. Revisar no celular, foco de teclado visível e movimento reduzido respeitado.
-5. Conferir cada tela com captura de tela antes de encerrar.
+## Observação honesta
 
-## Fora do escopo
-
-Nada de mudanças em previsões, cache, chamadas de API ou lógica de negócio. Só aparência,
-textos de interface e organização das telas.
+"Alta" aqui significa probabilidade alta segundo a fonte — não é medida de acerto
+comprovada. A medição de precisão real (contra resultados confirmados) continua como
+melhoria futura possível.
 
 ## Detalhes técnicos
 
-- Tokens em `src/styles.css` (`@theme inline` + `:root`/`.dark`); nenhum componente recebe
-  cor fixa como `text-white` ou `bg-[#...]`.
-- Fontes carregadas via `@fontsource` (import local no topo de `styles.css`), substituindo
-  Inter e Space Grotesk.
-- Componentes afetados: `src/components/AppLayout.tsx`, `src/components/MatchCard.tsx` e as
-  rotas `today`, `tomorrow`, `live`, `analytics`, `league.$leagueId`, `match.$matchId`.
-- `framer-motion` mantido, mas só nas transições de estado (entrada de placar, abertura de
-  menu), removendo as animações escalonadas de cada item.
+- Arquivo: `src/lib/ml/pipeline.ts` (ramo `opts?.trustSource`).
+- Teste: ajustar/estender testes existentes em `src/lib/ml/pipeline.test.ts` cobrindo os
+  três níveis nos limites (71.9%/72%, 54.9%/55%).
+- Verificação: rodar vitest e conferir `/today` e `/melhor-aposta` no preview.
