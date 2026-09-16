@@ -123,11 +123,13 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
 
       {/* Probabilidades 1X2 */}
       {match.predictionStatus !== "unavailable" && (
-        <div className="hidden shrink-0 items-center gap-3 sm:flex">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <div className="flex flex-col items-end gap-1">
             {groups.x12.map((r) => (
               <div key={r.label} className="flex items-center gap-2">
-                <ProbabilityBar value={r.p} level={r.level} />
+                <span className="hidden sm:block">
+                  <ProbabilityBar value={r.p} level={r.level} />
+                </span>
                 <ProbValue row={r} />
               </div>
             ))}
