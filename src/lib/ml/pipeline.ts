@@ -13,6 +13,16 @@ function inferShort(name: string): string {
   return name.substring(0, 3).toUpperCase();
 }
 
+// ─── Confiança por força da probabilidade (fonte oficial) ────────────
+const CONFIDENCE_HIGH_MIN = 0.72;
+const CONFIDENCE_MEDIUM_MIN = 0.55;
+
+export function confidenceFromProbability(p: number): "low" | "medium" | "high" {
+  if (p >= CONFIDENCE_HIGH_MIN) return "high";
+  if (p >= CONFIDENCE_MEDIUM_MIN) return "medium";
+  return "low";
+}
+
 const STATUS_MAP: Record<string, "scheduled" | "live" | "finished"> = {
   notstarted: "scheduled",
   inprogress: "live",
@@ -72,7 +82,7 @@ export async function buildPrediction(
             market: mc.market,
             probability,
             odds: marginOdds(probability),
-            confidence: "low" as const,
+            confidence: confidenceFromProbability(probability),
             label: mc.label(hShort, aShort),
           };
         })

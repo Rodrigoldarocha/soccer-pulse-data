@@ -43,9 +43,21 @@ describe("buildPrediction trustSource", () => {
     expect(m.probabilities.btts).toBe(0);
   });
 
-  it("probabilidade alta não vira confiança comprovada", async () => {
+  it("confiança deriva da probabilidade do melhor mercado", async () => {
+    // melhor mercado aqui é vitória do mandante com 0.7214 (dupla chance tem odd < 1.3)
     const m = await buildPrediction(event, api, meta, { trustSource: true });
-    expect(m.confidence).toBe("low");
+    expect(m.confidence).toBe("high");
+  });
+
+  it.each([
+    [0.719, "medium"],
+    [0.72, "high"],
+    [0.549, "low"],
+    [0.55, "medium"],
+  ] as const)("limite de confiança: %s → %s", async (probHome, expected) => {
+    const pred = { ...api, probHome, probOver25: 0, probDraw: (1 - probHome) / 2, probAway: (1 - probHome) / 2 };
+    const m = await buildPrediction(event, pred, meta, { trustSource: true });
+    expect(m.confidence).toBe(expected);
   });
 
   it("valor não-finito rejeitado", async () => {
