@@ -72,7 +72,7 @@ export async function buildPrediction(
             market: mc.market,
             probability,
             odds: marginOdds(probability),
-            confidence: "low" as const,
+            confidence: confidenceFromProbability(probability),
             label: mc.label(hShort, aShort),
           };
         })
