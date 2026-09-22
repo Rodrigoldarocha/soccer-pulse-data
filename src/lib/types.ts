@@ -89,6 +89,13 @@ export interface MatchPrediction {
   modelVersion?: string;
   predictionKind?: "pre" | "live";
   predictionStatus?: "ok" | "unavailable";
+
+  // Destaque de mercado para painel de palpites diários.
+  // Usado pela MatchCard e qualquer roteador que queira mostrar um “palpite de uma linha”.
+  headlineMarket?: MarketId;
+  headlineProbability?: number;
+  headlineOdds?: number;
+  headlineLabel?: string;
 }
 
 // NOTA: campos odds/suggested* continuam preenchidos pelo pipeline ML

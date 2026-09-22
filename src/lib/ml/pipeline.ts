@@ -14,6 +14,8 @@ function inferShort(name: string): string {
 }
 
 // ─── Confiança por força da probabilidade (fonte oficial) ────────────
+// Usado pelo MatchCard para o badge de confiança quando a previsão vira da API.
+// Mantido visível mesmo quando o ensemble local já calcula outra confiança.
 const CONFIDENCE_HIGH_MIN = 0.72;
 const CONFIDENCE_MEDIUM_MIN = 0.55;
 
@@ -21,6 +23,11 @@ export function confidenceFromProbability(p: number): "low" | "medium" | "high" 
   if (p >= CONFIDENCE_HIGH_MIN) return "high";
   if (p >= CONFIDENCE_MEDIUM_MIN) return "medium";
   return "low";
+}
+
+/** Números de mercado exibidos somente quando aceitáveis para leitura diária. */
+export function isProbableMarket(value: number): boolean {
+  return Number.isFinite(value) && value >= 0.45 && value <= 0.92;
 }
 
 const STATUS_MAP: Record<string, "scheduled" | "live" | "finished"> = {
@@ -119,11 +126,20 @@ export async function buildPrediction(
         );
 
     // Sugerir o melhor mercado com odd minimamente relevante (evita sempre dupla chance)
-    const nonDraw = processed.filter((p) => p.market !== "DRAW");
-    const withValue = nonDraw.filter((p) => p.odds >= 1.3);
-    const candidates = (withValue.length > 0 ? withValue : nonDraw).slice();
+    const nonDoubleChance = processed.filter(
+      (p) => p.market !== "DRAW" && p.market !== "DOUBLE_CHANCE_1X",
+    );
+    const withValue = nonDoubleChance.filter((p) => p.odds >= 1.3);
+    const candidates = (withValue.length > 0 ? withValue : nonDoubleChance).slice();
     candidates.sort((a, b) => b.probability - a.probability);
     const best = candidates[0];
+
+    // Destaque para o mercado com probabilidade mais forte e legível — útil para painel diário.
+    // Prefere mercados não-dupla para o headline, mas aceita dupla se não houver outro legível.
+    const headlineMarketCandidates = nonDoubleChance.filter((p) => isProbableMarket(p.probability)).slice();
+    headlineMarketCandidates.sort((a, b) => b.probability - a.probability);
+    const headlineMarket =
+      headlineMarketCandidates[0] ?? nonDoubleChance[0] ?? best;
 
 
     const pHome = processed.find((p) => p.market === "1X2_HOME")!;
@@ -137,6 +153,10 @@ export async function buildPrediction(
       id: event.id,
       league: leagueMeta.id as any,
       leagueLabel: leagueMeta.name,
+      headlineMarket: headlineMarket.market,
+      headlineProbability: +headlineMarket.probability.toFixed(3),
+      headlineOdds: headlineMarket.odds,
+      headlineLabel: headlineMarket.label,
       kickoff: event.eventDate,
       status,
       minute: undefined,
@@ -160,11 +180,11 @@ export async function buildPrediction(
         doubleChance1X: pDc1x.odds,
       },
       oddsUpdatedAt: new Date().toISOString(),
-      suggestedMarket: best.market,
-      suggestedProbability: +best.probability.toFixed(3),
-      suggestedOdds: best.odds,
-      suggestedLabel: best.label,
-      confidence: best.confidence,
+      suggestedMarket: headlineMarket.market,
+      suggestedProbability: +headlineMarket.probability.toFixed(3),
+      suggestedOdds: headlineMarket.odds,
+      suggestedLabel: headlineMarket.label,
+      confidence: headlineMarket.confidence,
       predictionSource: opts?.trustSource ? "api" : "local",
       modelVersion: opts?.modelVersion,
       predictionKind: status === "live" ? "live" : "pre",

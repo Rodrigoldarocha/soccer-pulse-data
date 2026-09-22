@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Shield, Zap, Flame } from "lucide-react";
 import type { MatchPrediction } from "@/lib/types";
 import { fmtTimeSP } from "@/lib/match-dates";
-import { probGroupsFor, type ProbRow } from "@/lib/probability-view";
+import { fmtPct, probGroupsFor, probLevel, type ProbRow } from "@/lib/probability-view";
 import { teamMonogram } from "@/lib/team-monogram";
 import { cn } from "@/lib/utils";
 
@@ -78,10 +78,21 @@ function TeamCrest({ name, logo }: { name: string; logo?: string }) {
   );
 }
 
+// Se o pipeline sugeriu um mercado mais forte para o dia, mostre isso em primeiro plano.
+function headlineBadge(match: MatchPrediction) {
+  if (match.predictionStatus === "unavailable") return null;
+  const hp = match.headlineProbability ?? match.suggestedProbability;
+  if (!Number.isFinite(hp) || hp <= 0) return null;
+  const label = match.headlineLabel ?? match.suggestedLabel;
+  const level = probLevel(hp);
+  return { label, pct: fmtPct(hp), level };
+}
+
 export function MatchCard({ match, live = false }: { match: MatchPrediction; live?: boolean }) {
   const confidence = confidenceConfig(match.confidence);
   const groups = probGroupsFor(match);
   const isLive = live || match.status === "live";
+  const headline = headlineBadge(match);
 
   return (
     <Link
@@ -142,7 +153,36 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
         </div>
       )}
 
-      {/* Badge status */}
+      {/* Linha de palpite diário (quando há um mercado com probabilidade legível) */}
+      {headline && (
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline text-[10px] uppercase tracking-wider text-muted-foreground/50">
+            Palpite
+          </span>
+          <span className={cn(
+            "font-display text-xs font-bold tabular-nums transition-colors",
+            headline.level === "strong"
+              ? "text-confirmed"
+              : headline.level === "moderate"
+                ? "text-chart-4"
+                : "text-muted-foreground",
+          )}>
+            {headline.label}
+          </span>
+          <span className={cn(
+            "font-display text-sm font-bold tabular-nums",
+            headline.level === "strong"
+              ? "text-confirmed"
+              : headline.level === "moderate"
+                ? "text-chart-4"
+                : "text-muted-foreground",
+          )}>
+            {headline.pct}
+          </span>
+        </div>
+      )}
+
+      {/* Badge de confiança do modelo */}
       <div className="flex shrink-0 flex-col items-end gap-1">
         {isLive && (
           <span className="flex items-center gap-1 rounded-full border border-live/20 bg-live/10 px-2 py-0.5 text-[10px] font-semibold text-live live-pulse">

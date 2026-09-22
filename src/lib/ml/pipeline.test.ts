@@ -54,9 +54,12 @@ describe("buildPrediction trustSource", () => {
     [0.72, "high"],
     [0.549, "low"],
     [0.55, "medium"],
-  ] as const)("limite de confiança: %s → %s", async (probHome, expected) => {
+  ] as const)("limite de confiança do melhor mercado: %s → %s", async (probHome, expected) => {
     const pred = { ...api, probHome, probOver25: 0, probDraw: (1 - probHome) / 2, probAway: (1 - probHome) / 2 };
     const m = await buildPrediction(event, pred, meta, { trustSource: true });
+    // O melhor mercado aqui é a vitória do mandante (1X2_HOME).
+    expect(m.headlineMarket).toBe("1X2_HOME");
+    expect(m.headlineProbability).toBeCloseTo(probHome, 3);
     expect(m.confidence).toBe(expected);
   });
 
