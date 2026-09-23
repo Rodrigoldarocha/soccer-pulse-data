@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Shield, Zap, Flame } from "lucide-react";
 import type { MatchPrediction } from "@/lib/types";
+import { bettingOptionsFor } from "@/lib/matches.server";
 import { fmtTimeSP } from "@/lib/match-dates";
 import { fmtPct, probGroupsFor, probLevel, type ProbRow } from "@/lib/probability-view";
 import { teamMonogram } from "@/lib/team-monogram";
@@ -78,21 +79,11 @@ function TeamCrest({ name, logo }: { name: string; logo?: string }) {
   );
 }
 
-// Se o pipeline sugeriu um mercado mais forte para o dia, mostre isso em primeiro plano.
-function headlineBadge(match: MatchPrediction) {
-  if (match.predictionStatus === "unavailable") return null;
-  const hp = match.headlineProbability ?? match.suggestedProbability;
-  if (!Number.isFinite(hp) || hp <= 0) return null;
-  const label = match.headlineLabel ?? match.suggestedLabel;
-  const level = probLevel(hp);
-  return { label, pct: fmtPct(hp), level };
-}
-
 export function MatchCard({ match, live = false }: { match: MatchPrediction; live?: boolean }) {
   const confidence = confidenceConfig(match.confidence);
   const groups = probGroupsFor(match);
   const isLive = live || match.status === "live";
-  const headline = headlineBadge(match);
+  const options = bettingOptionsFor(match);
 
   return (
     <Link
@@ -153,32 +144,36 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
         </div>
       )}
 
-      {/* Linha de palpite diário (quando há um mercado com probabilidade legível) */}
-      {headline && (
-        <div className="flex items-center gap-2">
-          <span className="hidden sm:inline text-[10px] uppercase tracking-wider text-muted-foreground/50">
-            Palpite
-          </span>
-          <span className={cn(
-            "font-display text-xs font-bold tabular-nums transition-colors",
-            headline.level === "strong"
-              ? "text-confirmed"
-              : headline.level === "moderate"
-                ? "text-chart-4"
-                : "text-muted-foreground",
-          )}>
-            {headline.label}
-          </span>
-          <span className={cn(
-            "font-display text-sm font-bold tabular-nums",
-            headline.level === "strong"
-              ? "text-confirmed"
-              : headline.level === "moderate"
-                ? "text-chart-4"
-                : "text-muted-foreground",
-          )}>
-            {headline.pct}
-          </span>
+      {/* Duas opções reais de aposta: 1X e BTTS */}
+      {options.length > 0 && (
+        <div className="hidden items-center gap-2 md:flex">
+          {options.map((option) => (
+            <div
+              key={option.market}
+              className="flex min-w-[120px] flex-col rounded border border-border/50 bg-white/[0.02] px-2 py-1.5 text-right"
+            >
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground/50">
+                {option.label}
+              </span>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <span
+                  className={cn(
+                    "font-display text-xs font-bold tabular-nums",
+                    probLevel(option.probability) === "strong"
+                      ? "text-confirmed"
+                      : probLevel(option.probability) === "moderate"
+                        ? "text-chart-4"
+                        : "text-muted-foreground",
+                  )}
+                >
+                  {fmtPct(option.probability)}
+                </span>
+                <span className="font-display text-[11px] font-semibold tabular-nums text-foreground/80">
+                  {option.odds.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

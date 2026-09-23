@@ -220,10 +220,21 @@ async function runPipeline(dateISO?: string): Promise<MatchPrediction[]> {
     `[data-pipeline] Generated ${succeeded.length} predictions from ${events.length} events`,
   );
 
-  const preds = succeeded.map((r) => ({
-    ...r.value,
-    oddsUpdatedAt: r.value.oddsUpdatedAt ?? new Date().toISOString(),
-  }));
+  const preds = succeeded
+    .map((r) => ({
+      ...r.value,
+      oddsUpdatedAt: r.value.oddsUpdatedAt ?? new Date().toISOString(),
+    }))
+    .filter(
+      (match) =>
+        match.predictionStatus !== "unavailable" &&
+        Number.isFinite(match.probabilities.home) &&
+        Number.isFinite(match.probabilities.draw) &&
+        Number.isFinite(match.probabilities.away) &&
+        Number.isFinite(match.probabilities.btts) &&
+        match.odds.btts > 1 &&
+        match.odds.doubleChance1X > 1,
+    );
 
   void snapshotPredictions(preds).catch(() => {});
 
@@ -314,7 +325,17 @@ async function fetchLiveMatchesReal(): Promise<MatchPrediction[]> {
   const preds: MatchPrediction[] = results.flatMap((r) =>
     r.status === "fulfilled" ? [r.value as MatchPrediction] : [],
   );
-  return withTimeout(enrichMatchLogos(preds), 12_000).catch(() => preds);
+  const real = preds.filter(
+    (match) =>
+      match.predictionStatus !== "unavailable" &&
+      Number.isFinite(match.probabilities.home) &&
+      Number.isFinite(match.probabilities.draw) &&
+      Number.isFinite(match.probabilities.away) &&
+      Number.isFinite(match.probabilities.btts) &&
+      match.odds.btts > 1 &&
+      match.odds.doubleChance1X > 1,
+  );
+  return withTimeout(enrichMatchLogos(real), 12_000).catch(() => real);
 }
 
 export async function fetchUpcomingMatches(

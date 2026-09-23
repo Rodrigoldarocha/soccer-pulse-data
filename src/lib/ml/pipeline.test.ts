@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildPrediction } from "./pipeline";
+import { bettingOptionsFor } from "../matches.server";
 import type { FootballEvent, PredictionData } from "../types";
 
 const event: FootballEvent = {
@@ -82,6 +83,16 @@ describe("buildPrediction trustSource", () => {
       trustSource: true,
     });
     expect(m.predictionKind).toBe("live");
+  });
+
+  it("oferece apenas duas opções reais de aposta: vitória/empate e BTTS", async () => {
+    const pred = { ...api, probBtts: 0.62 };
+    const m = await buildPrediction(event, pred, meta, { trustSource: true });
+    const bets = bettingOptionsFor(m);
+
+    expect(bets).toHaveLength(2);
+    expect(bets.map((b) => b.market)).toEqual(["DOUBLE_CHANCE_1X", "BTTS"]);
+    expect(bets.every((b) => b.odds > 1)).toBe(true);
   });
 });
 

@@ -75,13 +75,45 @@ export async function getUpcomingMatches(fromISO: string, toISO: string): Promis
   return fetchUpcomingMatches(fromISO, toISO);
 }
 
+export type BettingOption = {
+  market: MarketId;
+  label: string;
+  odds: number;
+  probability: number;
+};
+
+export function bettingOptionsFor(match: MatchPrediction): BettingOption[] {
+  const options: BettingOption[] = [];
+  const homeOrDraw = match.probabilities.home + match.probabilities.draw;
+
+  if (Number.isFinite(homeOrDraw) && homeOrDraw > 0 && match.odds.doubleChance1X > 1) {
+    options.push({
+      market: "DOUBLE_CHANCE_1X",
+      label: `Vitória ou empate (${match.home.short}/Empate)`,
+      odds: match.odds.doubleChance1X,
+      probability: homeOrDraw,
+    });
+  }
+
+  if (Number.isFinite(match.probabilities.btts) && match.probabilities.btts > 0 && match.odds.btts > 1) {
+    options.push({
+      market: "BTTS",
+      label: "BTTS Sim",
+      odds: match.odds.btts,
+      probability: match.probabilities.btts,
+    });
+  }
+
+  return options.slice(0, 2);
+}
+
 export function marketLabelFor(match: MatchPrediction, market: MarketId): { label: string; odds: number; probability: number } {
   switch (market) {
     case "1X2_HOME": return { label: `Vitória ${match.home.short}`, odds: match.odds.home, probability: match.probabilities.home };
     case "1X2_AWAY": return { label: `Vitória ${match.away.short}`, odds: match.odds.away, probability: match.probabilities.away };
     case "DRAW": return { label: "Empate", odds: match.odds.draw, probability: match.probabilities.draw };
     case "OVER_2_5": return { label: "Over 2.5 gols", odds: match.odds.over25, probability: match.probabilities.over25 };
-    case "BTTS": return { label: "Ambas marcam", odds: match.odds.btts, probability: match.probabilities.btts };
-    case "DOUBLE_CHANCE_1X": return { label: `Dupla chance 1X (${match.home.short}/Empate)`, odds: match.odds.doubleChance1X, probability: match.probabilities.home + match.probabilities.draw };
+    case "BTTS": return { label: "BTTS Sim", odds: match.odds.btts, probability: match.probabilities.btts };
+    case "DOUBLE_CHANCE_1X": return { label: `Vitória ou empate (${match.home.short}/Empate)`, odds: match.odds.doubleChance1X, probability: match.probabilities.home + match.probabilities.draw };
   }
 }
