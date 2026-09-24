@@ -1,6 +1,12 @@
-import type { MatchPrediction, MarketId } from "./types";
+import type { MatchPrediction } from "./types";
 import { fetchMatchesForDate, fetchLiveMatches, fetchUpcomingMatches } from "./data-pipeline";
 import { type SupabaseCacheInterface } from "./supabase-cache.interface";
+
+/**
+ * R3 — SWR: TTL curto perto do kickoff + stale-while-revalidate.
+ * Se cache expirou há < staleMs, retorna stale e revalida em background.
+ */
+const SWR_STALE_MS = 90_000;
 
 async function getSupabaseAdmin() {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
@@ -35,8 +41,23 @@ export async function getCachedOrGenerate<T>(
         .maybeSingle();
 
       const now = Date.now();
-      if (data && new Date(data.expires_at).getTime() > now) {
-        return data.payload as T;
+      if (data) {
+        const exp = new Date(data.expires_at).getTime();
+        if (exp > now) {
+          return data.payload as T;
+        }
+        // stale dentro da janela SWR → retorna e revalida em background
+        if (now - exp < SWR_STALE_MS) {
+          void (async () => {
+            try {
+              const fresh = await factory();
+              await writeCache(supabase, key, fresh, ttlSeconds);
+            } catch {
+              // revalidação falha: mantém stale
+            }
+          })();
+          return data.payload as T;
+        }
       }
     } catch {
       // cache read failed, fall through to factory
@@ -44,29 +65,27 @@ export async function getCachedOrGenerate<T>(
   }
 
   const fresh = await factory();
-  // ─── Cache helper with progressive TTL ──────────────────────────────────
-  //
-  // Strategy:
-  // - Non-empty results: full TTL (e.g. 15min) — good for normal operation
-  // - Empty results: short TTL (e.g. 60s) — tells users "data currently unavailable"
-  //   instead of "no data ever", allowing recovery when API comes back online.
-  //
-  // OBS: this is a best-effort cache; failures to write are silently ignored
-  // per design (the pipeline already handles upstream API limits gracefully).
+  // Empty → TTL 60s; senão full TTL. Best-effort write.
   const isEmpty = Array.isArray(fresh) && fresh.length === 0;
-  const cacheTtl = isEmpty ? 60 : ttlSeconds; // short TTL for empty, full TTL otherwise
+  const cacheTtl = isEmpty ? 60 : ttlSeconds;
   if (supabase) {
-    try {
-      const now = Date.now();
-      const expires_at = new Date(now + cacheTtl * 1000).toISOString();
-      await supabase
-        .from("api_cache")
-        .upsert({ key, payload: fresh as unknown as object, expires_at });
-    } catch {
-      // cache write failed, ignore
-    }
+    await writeCache(supabase, key, fresh, cacheTtl);
   }
   return fresh;
+}
+
+async function writeCache(
+  supabase: SupabaseCacheInterface,
+  key: string,
+  value: unknown,
+  ttlSeconds: number,
+): Promise<void> {
+  try {
+    const expires_at = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+    await supabase.from("api_cache").upsert({ key, payload: value as object, expires_at });
+  } catch {
+    // cache write failed, ignore
+  }
 }
 
 export async function getRealMatches(dateISO: string): Promise<MatchPrediction[]> {
@@ -84,102 +103,7 @@ export async function getUpcomingMatches(
   return fetchUpcomingMatches(fromISO, toISO);
 }
 
-export type BettingOption = {
-  market: MarketId;
-  label: string;
-  odds: number;
-  probability: number;
-};
+export type { BettingOption } from "./market-helpers";
+export { bettingOptionsFor, marketLabelFor } from "./market-helpers";
 
-export function bettingOptionsFor(match: MatchPrediction): BettingOption[] {
-  const options: BettingOption[] = [];
-  const homeOrDraw = match.probabilities.home + match.probabilities.draw;
-  // odds reais > 1; sem odd real não exibe aposta (fairOdds é só referência do modelo)
-  const dcOdd = match.odds.doubleChance1X;
-  const bttsOdd = match.odds.btts;
-
-  if (Number.isFinite(homeOrDraw) && homeOrDraw > 0 && dcOdd != null && dcOdd > 1) {
-    options.push({
-      market: "DOUBLE_CHANCE_1X",
-      label: `Vitória ou empate (${match.home.short}/Empate)`,
-      odds: dcOdd,
-      probability: homeOrDraw,
-    });
-  }
-
-  if (
-    Number.isFinite(match.probabilities.btts) &&
-    match.probabilities.btts > 0 &&
-    bttsOdd != null &&
-    bttsOdd > 1
-  ) {
-    options.push({
-      market: "BTTS",
-      label: "BTTS Sim",
-      odds: bttsOdd,
-      probability: match.probabilities.btts,
-    });
-  }
-
-  return options.slice(0, 2);
-}
-
-export function marketLabelFor(
-  match: MatchPrediction,
-  market: MarketId,
-): { label: string; odds: number | null; probability: number } {
-  const p = match.probabilities;
-  const o = match.odds;
-  const fair = match.fairOdds?.[market];
-  switch (market) {
-    case "1X2_HOME":
-      return { label: `Vitória ${match.home.short}`, odds: o.home, probability: p.home };
-    case "1X2_AWAY":
-      return { label: `Vitória ${match.away.short}`, odds: o.away, probability: p.away };
-    case "DRAW":
-      return { label: "Empate", odds: o.draw, probability: p.draw };
-    case "OVER_1_5":
-      return { label: "Over 1.5 gols", odds: o.over15, probability: p.over15 };
-    case "OVER_2_5":
-      return { label: "Over 2.5 gols", odds: o.over25, probability: p.over25 };
-    case "OVER_3_5":
-      return { label: "Over 3.5 gols", odds: o.over35, probability: p.over35 };
-    case "UNDER_1_5":
-      return { label: "Under 1.5 gols", odds: o.under15, probability: 1 - p.over15 };
-    case "UNDER_2_5":
-      return { label: "Under 2.5 gols", odds: o.under25, probability: 1 - p.over25 };
-    case "UNDER_3_5":
-      return { label: "Under 3.5 gols", odds: o.under35, probability: 1 - p.over35 };
-    case "BTTS":
-      return { label: "BTTS Sim", odds: o.btts, probability: p.btts };
-    case "BTTS_NO":
-      return { label: "BTTS Não", odds: o.bttsNo, probability: 1 - p.btts };
-    case "DOUBLE_CHANCE_1X":
-      return {
-        label: `Vitória ou empate (${match.home.short}/Empate)`,
-        odds: o.doubleChance1X,
-        probability: p.home + p.draw,
-      };
-    case "DOUBLE_CHANCE_X2":
-      return {
-        label: `Empate ou vitória (${match.away.short})`,
-        odds: o.doubleChanceX2,
-        probability: p.draw + p.away,
-      };
-    case "DOUBLE_CHANCE_12":
-      return {
-        label: `Sem empate (${match.home.short}/${match.away.short})`,
-        odds: o.doubleChance12,
-        probability: 1 - p.draw,
-      };
-    default: {
-      const edge = match.markets?.find((m) => m.market === market);
-      return {
-        label: market,
-        odds: edge?.odd ?? null,
-        probability: edge?.probability ?? 0,
-        ...(fair != null ? {} : {}),
-      };
-    }
-  }
-}
+// Re-export legado (MatchCard etc.); implementação em market-helpers (R7).

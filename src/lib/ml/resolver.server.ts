@@ -137,10 +137,10 @@ export async function resolveFinishedEvents(
     const rows = data as UnresolvedRow[];
     result.scanned = rows.length;
 
-    const from =
-      opts.dateFrom ??
-      new Date(Date.now() - (opts.daysBack ?? 14) * 86_400_000).toISOString().slice(0, 10);
-    const to = opts.dateTo ?? new Date().toISOString().slice(0, 10);
+    // L2: range em America/Sao_Paulo (não UTC)
+    const { spDateISO } = await import("@/lib/match-dates");
+    const from = opts.dateFrom ?? spDateISO(-(opts.daysBack ?? 14));
+    const to = opts.dateTo ?? spDateISO(0);
 
     const eventIds = [...new Set(rows.map((r) => r.event_id))];
     const scores = new Map<number, { h: number; a: number; status: string; period?: string }>();

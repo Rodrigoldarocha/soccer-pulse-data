@@ -31,25 +31,26 @@ Regras inegociáveis:
 
 ### 2. Dixon-Coles — `src/lib/ml/dixon-coles.ts`
 
-- Ratings attack/defense por liga (shrinkage por nº de jogos)
-- Matriz de placares 0..8, ρ corrige 0-0/1-1
-- `marketsFromMatrix` → 24 mercados; `jointProbabilitySameGame` para correlação
+- Ratings attack/defense por liga com `homeTeamId`/`awayTeamId` (shrinkage + ρ gradiente)
+- Matriz de placares 0..8, ρ corrige 0-0/1-1; `dcReliable` se n≥5
+- `marketsFromMatrix` → mercados; `jointProbabilitySameGame` para correlação; `ahPushProbability` (Q6)
+- `getLeagueRatings`: cache 6h + upsert `team_ratings`
 
 ### 3. Calibração — `src/lib/ml/calibration.ts`
 
 - Platt Newton-Raphson (≤25 it, L2); Isotonic PAV quando n≥300 e Brier melhor
-- ECE + reliability bins; pooling hierárquico liga→mercado global
+- ECE + reliability bins; pooling hierárquico liga→global com n≥max(nLiga, 0.5·nGlobal) (Q3)
 - Threshold: n≥30 por célula para fit; abaixo → raw
 
 ### 4. Ensemble — `src/lib/ml/ensemble.ts`
 
-- 3 vias: API calibrada · Dixon-Coles · market (só se odd real)
-- Pesos por Brier (prior 0.45/0.35/0.20)
-- `honestConfidence`: delta entre modelos + ECE + amostra (não só tamanho da %)
+- Vias: API calibrada · Dixon-Coles · market (só se odd real)
+- Pesos por Brier (prior 0.45/0.35/0.20) + `fitEnsembleWeights` grid log-loss (Q4)
+- `honestConfidence`: delta entre modelos + ECE + amostra + `dcReliable` override (Q3)
 
 ### 5. Pipeline — `src/lib/ml/pipeline.ts`
 
-`buildPrediction` → todos mercados → `fairOdds` + `markets[]` + `scoreMatrix` + `odds` real.
+`buildPrediction` → λ misto API+DC (ρ da liga) → mercado shrink 0.15 → `suspectEdge` >15 p.p. → `fairOdds` + `markets[]` + `scoreMatrix` + `odds` real + `pushProb` + `modelDelta` por mercado (Q2/Q6).
 
 ### 6. Resolver — `src/lib/ml/resolver.server.ts`
 
@@ -60,11 +61,11 @@ Regras inegociáveis:
 
 | Arquivo              | Papel                                        |
 | -------------------- | -------------------------------------------- |
-| `value.ts`           | EV, edge devig, ¼-Kelly, filtros             |
-| `singles.ts`         | máx 1/jogo, radar, exposição                 |
-| `parlays.ts`         | correlação matriz, 3 perfis, MC 20k          |
-| `picks.functions.ts` | server fns `getDailyPicks`, `recalibrateNow` |
-| `snapshot.server.ts` | ledger + odds_snapshots imutáveis            |
+| `value.ts`           | EV com push AH, edge devig, ¼-Kelly, filtros  |
+| `singles.ts`         | máx 1/jogo, radar, suspect fora, Q5 conf     |
+| `parlays.ts`         | matriz + whitelist mesmo jogo, 3 perfis, MC  |
+| `picks.functions.ts` | `getDailyPicks` (pipeline detalhado R4)      |
+| `snapshot.server.ts` | ledger insert + closing odds (R1/R2)         |
 
 ### 8. Analytics — `src/lib/analytics/`
 
@@ -78,17 +79,25 @@ ROI flat/Kelly, drawdown, CLV (odd_pick/odd_close−1), Wilson lower, baselines 
 | `/api/cron/recalibrate` | recompute calibração + invalida cache |
 | `/api/cron/snapshot`    | grava picks do dia no ledger          |
 
-Auth: header `x-cron-secret` == `CRON_SECRET`.
+Auth: header `x-cron-secret` == `CRON_SECRET` via `checkCronSecret` (`src/lib/cron-auth.ts`, timing-safe).
 
 ### 10. Tabelas — `supabase/migrations/20260923000001_value_engine.sql`
 
-`api_cache`, `odds_snapshots`, `team_ratings`, `pick_ledger`, `bankroll_settings`, colunas extras em `ml_predictions` / `ml_calibration_params`.
+`api_cache`, `odds_snapshots`, `team_ratings`, `pick_ledger` (unique expression coalesce), `bankroll_settings`, colunas extras em `ml_predictions` / `ml_calibration_params` (incl. `ensemble_weights`).
+
+### 11. Backtest — `scripts/backtest.ts`
+
+`npm run backtest` — ROI/hit/Brier/CLV + baselines always-home/always-draw a partir do ledger resolvido. Sem ledger → avisa e sai.
 
 ## Fora de escopo / dívida conhecida
 
-- `getTomorrowPicks` via server fn direta (sem cache api_cache de picks amanhã)
+- Q4 fit de pesos usa só `api=p, dc=null` (sem `source_probs jsonb` em `ml_predictions`)
+- Sem odd histórica Bzzoiro free → pValue/CLV parcial
+- Sem odd combinada histórica → parlays product/MC local
+- `getTomorrowPicks` sem cache de 10min igual hoje
 - isContradictory não cobre todos pares Over/Under parciais (1 perna/jogo mitiga)
 - resolve usa listagem por data (limit 200) com fallback id — pode faltar eventos antigos
+- Bet slip construtor: Π product (mesmo jogo sem matriz no client); sugestões do motor usam matriz
 
 ## Comandos
 

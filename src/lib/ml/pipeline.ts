@@ -7,21 +7,42 @@ import type {
 } from "../types";
 import { ALL_MARKETS, MARKET_LABELS, type MatchOdds } from "../types";
 import { calibrateProbability } from "./calibration";
-import { blendEnsemble, ensembleWeightsFromBrier, honestConfidence } from "./ensemble";
+import {
+  blendEnsemble,
+  ensembleWeightsFromBrier,
+  honestConfidence,
+  type EnsembleWeights3,
+} from "./ensemble";
 import { loadCalibration } from "./accuracy-store";
 import type { CalibrationParams } from "./types";
-import { marketsFromMatrix, predictMatrix, scoreMatrix, type DerivedMarkets } from "./dixon-coles";
+import {
+  marketsFromMatrix,
+  predictMatrix,
+  scoreMatrix,
+  ahPushProbability,
+  isDcReliable,
+  type DerivedMarkets,
+  type LeagueRatings,
+} from "./dixon-coles";
 import { emptyMatchOdds, type EventOdds } from "../api/odds";
-import { fairOdds as modelFairOdds } from "../picks/value";
+import {
+  fairOdds as modelFairOdds,
+  devigProportional,
+  fairMarketProbability,
+} from "../picks/value";
 
 /** Odd justa do modelo = 1/p (sem margem). NÃO é odd de mercado. */
 export { modelFairOdds as fairOdds };
+
+/** λ de shrinkagem do pModel em direção ao marketP (B2 nível 2). */
+const MARKET_SHRINK_LAMBDA = 0.15;
+/** Edge bruto vs mercado acima disso → suspectEdge (fora do ranking). */
+const SUSPECT_EDGE = 0.15;
 
 function inferShort(name: string): string {
   return name.substring(0, 3).toUpperCase();
 }
 
-// Mantido exportado p/ UI legada de badges; NÃO usado como confiança final.
 const CONFIDENCE_HIGH_MIN = 0.72;
 const CONFIDENCE_MEDIUM_MIN = 0.55;
 
@@ -58,6 +79,35 @@ async function getCalibration(
   return calCache.get(key);
 }
 
+/**
+ * Q3 pooling hierárquico: usa célula da liga; se amostra pequena,
+ * mistura com calibração global do mercado (league_id 0).
+ */
+function poolCalibration(
+  leagueCal: CalibrationParams | undefined,
+  globalCal: CalibrationParams | undefined,
+): { cal: CalibrationParams | undefined; sampleSize: number; ece: number } {
+  const nLeague = leagueCal?.sampleSize ?? 0;
+  const nGlobal = globalCal?.sampleSize ?? 0;
+  const sampleSize = Math.max(nLeague, Math.floor(nGlobal * 0.5));
+  const ece = leagueCal?.ece ?? globalCal?.ece ?? 1;
+  if (nLeague >= 30) return { cal: leagueCal, sampleSize, ece };
+  if (nGlobal >= 30 && globalCal) {
+    // Platt global com amostra efetiva combinada
+    return {
+      cal: {
+        ...globalCal,
+        leagueId: leagueCal?.leagueId ?? globalCal.leagueId,
+        sampleSize,
+        ece,
+      },
+      sampleSize,
+      ece,
+    };
+  }
+  return { cal: leagueCal ?? globalCal, sampleSize, ece };
+}
+
 export interface BuildPredictionOpts {
   /** Mantido p/ compat de testes/pipeline: marca fonte, mas NÃO faz passthrough cru. */
   trustSource?: boolean;
@@ -66,6 +116,8 @@ export interface BuildPredictionOpts {
   marketOdds?: EventOdds | MatchOdds | null;
   /** Força o caminho local/DC sem API */
   localOnly?: boolean;
+  /** Ratings Dixon-Coles da liga (B1) */
+  ratings?: LeagueRatings;
 }
 
 function isMatchOddsShape(o: unknown): o is MatchOdds {
@@ -92,17 +144,6 @@ function toMatchOdds(o: BuildPredictionOpts["marketOdds"]): MatchOdds {
     doubleChanceX2: eo.doubleChanceX2 ?? null,
     doubleChance12: eo.doubleChance12 ?? null,
   };
-}
-
-function dmarketsToDerived(m: ReturnType<typeof marketsFromMatrix>): DerivedMarkets {
-  return m;
-}
-
-function matrixFromPred(pred: PredictionData): ReturnType<typeof scoreMatrix> {
-  // Aproxima matriz via Poisson dos xG da API quando disponível
-  const lh = Math.max(0.1, pred.xgHome || 1.2);
-  const la = Math.max(0.1, pred.xgAway || 1.1);
-  return scoreMatrix(lh, la, -0.08);
 }
 
 function marketProbFromDerived(d: DerivedMarkets, market: MarketId): number {
@@ -195,8 +236,39 @@ function oddForMarket(odds: MatchOdds, market: MarketId): number | null {
   }
 }
 
+/** B2 — marketP via devig do conjunto completo quando ≥2 odds do mesmo market. */
+function marketProbabilityFor(
+  market: MarketId,
+  odds: MatchOdds,
+  odd: number | null,
+): number | null {
+  if (odd == null || odd <= 1) return null;
+  let related: Array<number | null> = [];
+  if (market === "1X2_HOME" || market === "DRAW" || market === "1X2_AWAY") {
+    related = [odds.home, odds.draw, odds.away];
+  } else if (market === "OVER_1_5" || market === "UNDER_1_5") {
+    related = [odds.over15, odds.under15];
+  } else if (market === "OVER_2_5" || market === "UNDER_2_5") {
+    related = [odds.over25, odds.under25];
+  } else if (market === "OVER_3_5" || market === "UNDER_3_5") {
+    related = [odds.over35, odds.under35];
+  } else if (market === "BTTS" || market === "BTTS_NO") {
+    related = [odds.btts, odds.bttsNo];
+  } else if (market.startsWith("DOUBLE_CHANCE_")) {
+    related = [odds.doubleChance1X, odds.doubleChanceX2, odds.doubleChance12];
+  }
+  const list = related.filter((x): x is number => x != null && x > 1);
+  if (list.length >= 2) {
+    const idx = list.indexOf(odd);
+    const fair = devigProportional(list);
+    if (idx >= 0 && fair[idx] != null && fair[idx] > 0) return fair[idx];
+  }
+  return fairMarketProbability(odd);
+}
+
 /**
- * Todo palpite passa por: raw → calibração → ensemble → EV.
+ * Todo palpite passa por: raw → calibração → ensemble nível 1 (api+dc)
+ * → shrink market nível 2 → EV.
  * `trustSource` vira metadado (`sources.api`), não desvio de lógica.
  */
 export async function buildPrediction(
@@ -216,12 +288,36 @@ export async function buildPrediction(
   const leagueIdNum = parseInt(String(leagueMeta.id).replace(/\D/g, ""), 10) || 0;
   const marketOdds = toMatchOdds(opts?.marketOdds);
   const oddsAvailable = Object.values(marketOdds).some((v) => v != null && v > 1);
+  const ratings = opts?.ratings;
+  const dcReliable = isDcReliable(
+    ratings,
+    event.homeTeam,
+    event.awayTeam,
+    event.homeTeamId,
+    event.awayTeamId,
+  );
 
-  // Score matrix: DC próprio + fallback Poisson dos xG
-  const dc = predictMatrix(event.homeTeam, event.awayTeam, undefined, pred.xgHome || 1.3);
-  const matrix = matrixFromPred(pred);
+  // B1: matriz DC com ratings reais; fallback Poisson dos xG
+  const dc = predictMatrix(
+    event.homeTeam,
+    event.awayTeam,
+    ratings,
+    (pred.xgHome + pred.xgAway) / 2 || 1.3,
+    event.homeTeamId,
+    event.awayTeamId,
+  );
+
+  // B1: λ misto λ = wApi·λ_api + (1−wApi)·λ_dc; ρ da liga
+  const wPrior = ensembleWeightsFromBrier(0.25, 0);
+  const wApiMix = opts?.localOnly ? 0 : wPrior.wApi;
+  const lhApi = Math.max(0.1, pred.xgHome || 1.2);
+  const laApi = Math.max(0.1, pred.xgAway || 1.1);
+  const mixH = wApiMix * lhApi + (1 - wApiMix) * dc.lambdaHome;
+  const mixA = wApiMix * laApi + (1 - wApiMix) * dc.lambdaAway;
+  const matrix = scoreMatrix(mixH, mixA, ratings?.rho ?? -0.08);
   const derivedApi = marketsFromMatrix(matrix);
-  const derivedDc = dmarketsToDerived(marketsFromMatrix(dc.matrix));
+  const derivedDc = marketsFromMatrix(dc.matrix);
+  const pushProb = ahPushProbability(matrix);
 
   // API probs diretas (quando existem) — voto 1
   const apiDirect: Partial<Record<MarketId, number>> = {
@@ -239,10 +335,20 @@ export async function buildPrediction(
   apiDirect.BTTS_NO = 1 - pred.probBtts;
   apiDirect.UNDER_2_5 = 1 - pred.probOver25;
 
-  const calCacheCell = new Map<MarketId, CalibrationParams | undefined>();
+  const calCacheCell = new Map<
+    MarketId,
+    {
+      cal: CalibrationParams | undefined;
+      sampleSize: number;
+      ece: number;
+      global: CalibrationParams | undefined;
+    }
+  >();
   const processed: Array<{
     market: MarketId;
     probability: number;
+    pModel: number;
+    pShrunk: number;
     odd: number | null;
     fair: number;
     confidence: "low" | "medium" | "high";
@@ -250,87 +356,124 @@ export async function buildPrediction(
     delta: number;
     label: string;
     sampleSize: number;
+    suspectEdge: boolean;
+    fairMarket: number | null;
   }> = [];
 
   for (const market of ALL_MARKETS) {
-    const rawApi = apiDirect[market] ?? (derivedApi && marketProbFromDerived(derivedApi, market));
+    const rawApi = apiDirect[market] ?? marketProbFromDerived(derivedApi, market);
     const pDc = marketProbFromDerived(derivedDc, market);
     const pMatrix = marketProbFromDerived(derivedApi, market);
 
-    const cal = calCacheCell.has(market)
-      ? calCacheCell.get(market)
-      : await getCalibration(leagueIdNum, market);
-    calCacheCell.set(market, cal);
+    let cell = calCacheCell.get(market);
+    if (!cell) {
+      const leagueCal = await getCalibration(leagueIdNum, market);
+      const globalCal = leagueIdNum !== 0 ? await getCalibration(0, market) : undefined;
+      const pooled = poolCalibration(leagueCal, globalCal);
+      cell = { ...pooled, global: globalCal };
+      calCacheCell.set(market, cell);
+    }
+    const { cal, sampleSize, ece } = cell;
 
     const useApi = !opts?.localOnly && rawApi != null && Number.isFinite(rawApi);
+
     // Extreme exato da API (0/1) manda sozinho — não diluir com DC.
     if (useApi && (rawApi === 0 || rawApi === 1)) {
       const oddExtreme = oddForMarket(marketOdds, market);
       const confExtreme = honestConfidence({
         delta: 0,
-        sampleSize: cal?.sampleSize ?? 0,
-        ece: cal?.ece ?? 1,
+        sampleSize,
+        ece,
         matrixUncertainty: 0,
+        dcReliable,
       });
+      const fairMarketExtreme = oddExtreme != null && oddExtreme > 1 ? 1 / oddExtreme : null;
       processed.push({
         market,
         probability: rawApi,
+        pModel: rawApi,
+        pShrunk: rawApi,
         odd: oddExtreme,
         fair: modelFairOdds(rawApi),
         confidence: confExtreme.level,
         confidenceReason: confExtreme.reason,
         delta: 0,
         label: marketLabel(market, hShort, aShort),
-        sampleSize: cal?.sampleSize ?? 0,
+        sampleSize,
+        suspectEdge:
+          fairMarketExtreme != null && Math.abs(rawApi - fairMarketExtreme) > SUSPECT_EDGE,
+        fairMarket: fairMarketExtreme,
       });
       continue;
     }
 
     const calApi = useApi ? calibrateProbability(rawApi as number, cal, leagueIdNum, market) : null;
 
-    // mercado devig (só se odd real)
     const odd = oddForMarket(marketOdds, market);
-    let marketP: number | null = null;
-    if (odd != null && odd > 1) {
-      // single-odd: sem lista completa, usa implícita sem margem simples
-      marketP = 1 / odd;
-    }
+    const marketP = marketProbabilityFor(market, marketOdds, odd);
+    const fairMarket = marketP ?? (odd != null && odd > 1 ? 1 / odd : null);
 
-    const blend = blendEnsemble(
+    const weights: EnsembleWeights3 =
+      cal?.ensembleWeights != null
+        ? cal.ensembleWeights
+        : ensembleWeightsFromBrier(cal?.brierScore ?? 0.25, sampleSize);
+
+    // Nível 1: API + DC (sem market)
+    const level1 = blendEnsemble(
       {
         api: calApi ? calApi.calibrated : useApi ? (rawApi as number) : null,
         dc: pDc,
-        market: marketP,
+        market: null,
       },
-      ensembleWeightsFromBrier(cal?.brierScore ?? 0.25, cal?.sampleSize ?? 0),
+      { ...weights, wMarket: 0, wApi: weights.wApi, wDc: weights.wDc },
     );
+    const pModel = level1 ? level1.probability : pMatrix || pDc || 0.001;
+    const delta = level1?.delta ?? Math.abs((rawApi ?? pDc) - pDc);
 
-    const probability = blend ? blend.probability : pMatrix || pDc || 0.001;
-    const delta = blend?.delta ?? Math.abs((rawApi ?? pDc) - pDc);
+    // Nível 2: shrink em direção ao marketP
+    let pShrunk = pModel;
+    if (marketP != null && Number.isFinite(marketP)) {
+      pShrunk = (1 - MARKET_SHRINK_LAMBDA) * pModel + MARKET_SHRINK_LAMBDA * marketP;
+    }
+    const probability = Math.max(0.001, Math.min(0.999, pShrunk));
+    const suspectEdge = fairMarket != null && Math.abs(pModel - fairMarket) > SUSPECT_EDGE;
+
+    // Q3: dcReliable permite média com amostra pequena
+    const modelsAgree = delta < 0.07;
     const conf = honestConfidence({
       delta,
-      sampleSize: cal?.sampleSize ?? 0,
-      ece: cal?.ece ?? 1,
+      sampleSize,
+      ece,
       matrixUncertainty: Math.abs(probability - pDc),
+      dcReliable,
+      modelsAgreeOverride: modelsAgree && dcReliable,
     });
 
     processed.push({
       market,
       probability,
+      pModel,
+      pShrunk: pShrunk,
       odd,
       fair: modelFairOdds(probability),
-      confidence: conf.level,
-      confidenceReason: conf.reason,
+      confidence: suspectEdge ? "low" : conf.level,
+      confidenceReason: suspectEdge
+        ? `Suspeita: edge bruto vs mercado >${SUSPECT_EDGE * 100} p.p. (pModel ${(pModel * 100).toFixed(0)}% vs mercado)`
+        : conf.reason,
       delta,
       label: marketLabel(market, hShort, aShort),
-      sampleSize: cal?.sampleSize ?? 0,
+      sampleSize,
+      suspectEdge,
+      fairMarket,
     });
   }
 
   const byMarket = new Map(processed.map((p) => [p.market, p]));
 
   // Headline: melhor EV×confiança com odd real; senão maior prob legível
-  const withOdd = processed.filter((p) => p.odd != null && p.odd >= 1.3 && p.market !== "DRAW");
+  const withOdd = processed.filter(
+    (p) => p.odd != null && p.odd >= 1.3 && p.market !== "DRAW" && !p.suspectEdge,
+  );
   const score = (p: (typeof processed)[number]) => {
     const ev = p.odd != null ? p.probability * p.odd - 1 : -1;
     const confW = p.confidence === "high" ? 1.3 : p.confidence === "medium" ? 1 : 0.5;
@@ -347,7 +490,10 @@ export async function buildPrediction(
   const headlineCandidates = processed
     .filter(
       (p) =>
-        p.market !== "DRAW" && p.market !== "DOUBLE_CHANCE_1X" && isProbableMarket(p.probability),
+        p.market !== "DRAW" &&
+        p.market !== "DOUBLE_CHANCE_1X" &&
+        isProbableMarket(p.probability) &&
+        !p.suspectEdge,
     )
     .slice();
   headlineCandidates.sort((a, b) => b.probability - a.probability);
@@ -371,10 +517,17 @@ export async function buildPrediction(
     probability: +p.probability.toFixed(4),
     odd: p.odd,
     fairOdds: p.fair,
-    fairMarketProb: p.odd != null && p.odd > 1 ? 1 / p.odd : null,
+    fairMarketProb: p.fairMarket,
+    pModel: +p.pModel.toFixed(4),
+    pShrunk: +p.pShrunk.toFixed(4),
+    suspectEdge: p.suspectEdge,
+    modelDelta: +p.delta.toFixed(4),
+    ...(p.market === "AH_HOME_M1" || p.market === "AH_AWAY_P1"
+      ? { pushProb: +pushProb.toFixed(4) }
+      : {}),
   }));
 
-  const modelsDiverge = processed.some((p) => p.delta > 0.15);
+  const modelsDiverge = processed.some((p) => p.delta > 0.15 && !dcReliable);
   const confSample = headline.sampleSize;
   const confDelta = headline.delta;
 
@@ -436,7 +589,7 @@ export async function buildPrediction(
       market: oddsAvailable,
     },
     modelsDiverge,
-    // silencia unused em confDelta/ConfSample quando só p/ debug
+    dcReliable,
     ...(confSample < 0 ? {} : {}),
     ...(confDelta < 0 ? {} : {}),
   };

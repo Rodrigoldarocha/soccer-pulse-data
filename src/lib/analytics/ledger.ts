@@ -61,18 +61,9 @@ export async function insertLedger(rows: Array<Record<string, unknown>>): Promis
   if (!rows.length) return;
   const client = await getClient();
   if (!client) return;
-  try {
-    await client.from("pick_ledger").upsert(rows, {
-      onConflict: "pick_kind,parlay_id,event_id,market,selection",
-      ignoreDuplicates: false,
-    });
-  } catch {
-    // unique parcial com coalesce pode falhar — best effort
-    try {
-      await client.from("pick_ledger").insert(rows);
-    } catch {
-      // silencioso
-    }
+  const { error } = await client.from("pick_ledger").insert(rows);
+  if (error && error.code !== "23505") {
+    console.error("[ledger] insert:", error.message);
   }
 }
 

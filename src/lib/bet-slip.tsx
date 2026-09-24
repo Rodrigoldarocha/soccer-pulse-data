@@ -16,7 +16,13 @@ interface SlipContextValue {
   clear: () => void;
   loadLegs: (legs: SlipLeg[]) => void;
   hasLeg: (matchId: string, market: MarketId) => boolean;
-  totals: { odds: number; probability: number; ret: number; profit: number };
+  totals: {
+    odds: number;
+    probability: number;
+    sameGame: boolean;
+    ret: number;
+    profit: number;
+  };
 }
 
 const SlipContext = createContext<SlipContextValue | null>(null);
@@ -52,11 +58,15 @@ export function BetSlipProvider({ children }: { children: ReactNode }) {
 
   const totals = useMemo(() => {
     const odds = legs.reduce((a, l) => a * l.odds, 1);
+    // Π product: pernas independentes (jogos distintos). Mesmo jogo no construtor
+    // não tem matriz aqui — usa produto e sinaliza via riskLevel/hint do card.
     const probability = legs.reduce((a, l) => a * l.probability, 1);
+    const sameGame = legs.length > 1 && new Set(legs.map((l) => l.matchId)).size < legs.length;
     const ret = odds * stake;
     return {
       odds: legs.length ? +odds.toFixed(2) : 0,
       probability: legs.length ? +probability.toFixed(4) : 0,
+      sameGame,
       ret: legs.length ? +ret.toFixed(2) : 0,
       profit: legs.length ? +(ret - stake).toFixed(2) : 0,
     };

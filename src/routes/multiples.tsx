@@ -18,7 +18,7 @@ export const Route = createFileRoute("/multiples")({
       { title: "Múltiplas Inteligentes — PulseLab" },
       {
         name: "description",
-        content: "Sugestões de parlays geradas por IA e construtor matemático de múltiplas.",
+        content: "Sugestões de múltiplas do motor de valor e construtor matemático.",
       },
     ],
   }),
@@ -149,15 +149,15 @@ function MultiplesPage() {
             Múltiplas inteligentes
           </h1>
           <p className="text-sm text-muted-foreground">
-            Combine sugestões de IA com um construtor matemático — todas as odds e probabilidades
-            são recalculadas no servidor.
+            Perfis reais do motor de valor (EV, correlação, Monte Carlo) — odds e probabilidades
+            recalculadas no servidor.
           </p>
         </header>
 
         <div className="mb-5 inline-flex rounded-xl border border-border bg-card p-1 shadow-sm">
           {(
             [
-              { id: "ai", label: "Sugestões da IA", icon: Sparkles },
+              { id: "ai", label: "Sugestões do motor", icon: Sparkles },
               { id: "builder", label: "Criar múltipla", icon: Layers3 },
             ] as const
           ).map((t) => {
@@ -190,7 +190,7 @@ function MultiplesPage() {
               className="grid gap-4 lg:grid-cols-1 xl:grid-cols-1"
             >
               {aiData.suggestions.map((s) => (
-                <SuggestionCard key={s.id} s={s} matches={aiData.matches} />
+                <SuggestionCard key={s.id} s={s} matches={todayData.matches} />
               ))}
             </motion.section>
           ) : (

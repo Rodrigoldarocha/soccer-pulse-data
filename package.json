@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
+    "backtest": "node --experimental-strip-types scripts/backtest.ts",
     "format": "prettier --write ."
   },
   "dependencies": {

@@ -70,8 +70,11 @@ function oddMapFor(m: MatchPrediction, market: MarketId): number[] | undefined {
     .map((x) => x.odd as number);
 }
 
+/**
+ * Q5 — rebaixa quando kickoff <90min (escalação/linha ainda incerta).
+ * Penalty real de ±5% na confiança fica no caller via confidence; aqui só flag.
+ */
 function lineupPenalty(m: MatchPrediction): boolean {
-  // kickoff < 90min e sem odd → rebaixa (feito pelo caller via confidence)
   const t = new Date(m.kickoff).getTime() - Date.now();
   return t > 0 && t < 90 * 60 * 1000;
 }
@@ -95,10 +98,15 @@ export function buildPicksFromMatches(
 
     for (const edge of m.markets) {
       if (edge.odd == null || edge.odd <= 1) continue;
+      // B2: suspeito (edge bruto > 15 p.p.) fora do ranking de valor
+      if (edge.suspectEdge) continue;
       const marketOdds = oddMapFor(m, edge.market);
       let conf = m.confidence;
-      // rebaixa se kickoff muito próximo e linha duvidosa
+      // Q5: kickoff <90min → rebaixa high→medium (±5% confiança implícita)
       if (lineupPenalty(m) && m.confidence === "high") conf = "medium";
+
+      // Q2: modelDelta por mercado (não só flag global)
+      const modelDelta = edge.modelDelta ?? (m.modelsDiverge ? 0.16 : 0);
 
       const metrics = evaluateValue(
         {
@@ -106,7 +114,9 @@ export function buildPicksFromMatches(
           odd: edge.odd,
           marketOdds,
           confidence: conf,
-          modelDelta: m.modelsDiverge ? 0.16 : 0,
+          modelDelta,
+          // Q6: push em AH não conta como loss
+          pushProb: edge.pushProb,
         },
         cfg,
       );

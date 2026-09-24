@@ -6,6 +6,10 @@ import { spTodayISO } from "./match-dates";
 import { fetchOddsBatch, eventOddsToMatchOdds, type EventOdds } from "./api/odds";
 import type { MatchPrediction, FootballEvent, LeagueId, PredictionData } from "./types";
 import type { ApiPrediction } from "./api/thesportsdb";
+import type { LeagueRatings, FinishedMatch } from "./ml/dixon-coles";
+import { getLeagueRatings, invalidateRatingCaches } from "./ml/dixon-coles";
+
+export { invalidateRatingCaches };
 
 /** Converte a previsão da API para PredictionData. */
 function toPd(p: ApiPrediction): PredictionData {
@@ -34,6 +38,8 @@ function eventToFootballEvent(ev: {
   status: "scheduled" | "live" | "finished";
   homeScore?: number;
   awayScore?: number;
+  homeTeamId?: string | null;
+  awayTeamId?: string | null;
 }): FootballEvent {
   return {
     id: ev.id,
@@ -45,6 +51,8 @@ function eventToFootballEvent(ev: {
     status: ev.status,
     homeScore: ev.homeScore,
     awayScore: ev.awayScore,
+    homeTeamId: ev.homeTeamId ?? null,
+    awayTeamId: ev.awayTeamId ?? null,
   };
 }
 
@@ -53,6 +61,70 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     promise,
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)),
   ]);
+}
+
+/** Concorrência controlada (R5/B1): no máximo N jobs em paralelo. */
+async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<Array<PromiseSettledResult<R>>> {
+  const results: Array<PromiseSettledResult<R>> = [];
+  let i = 0;
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++;
+      try {
+        results[idx] = { status: "fulfilled", value: await fn(items[idx]) };
+      } catch (reason) {
+        results[idx] = { status: "rejected", reason };
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, worker));
+  return results;
+}
+
+/**
+ * B1 — carrega ratings Dixon-Coles por liga (concorrência 3, cache 6h em fitCache).
+ * Histórico via fetchLeaguePastEvents (≥1 temporada).
+ */
+export async function loadRatingsForLeagues(
+  apiLeagueIds: string[],
+): Promise<Map<string, LeagueRatings>> {
+  const out = new Map<string, LeagueRatings>();
+  const unique = [...new Set(apiLeagueIds.filter(Boolean))];
+  if (!unique.length) return out;
+  const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
+  await mapLimit(unique, 3, async (lid) => {
+    try {
+      const events = await withTimeout(fetchLeaguePastEvents(lid), 8_000);
+      const finished: FinishedMatch[] = [];
+      for (const ev of events) {
+        const hs = Number(ev.intHomeScore);
+        const as = Number(ev.intAwayScore);
+        if (!Number.isFinite(hs) || !Number.isFinite(as)) continue;
+        if (!ev.dateEvent) continue;
+        finished.push({
+          homeTeam: ev.strHomeTeam,
+          awayTeam: ev.strAwayTeam,
+          homeScore: hs,
+          awayScore: as,
+          date: ev.dateEvent,
+          homeTeamId: ev.idHomeTeam,
+          awayTeamId: ev.idAwayTeam,
+        });
+      }
+      const leagueNum = parseInt(lid.replace(/\D/g, ""), 10) || 0;
+      if (leagueNum > 0 && finished.length > 0) {
+        const r = await getLeagueRatings(leagueNum, finished);
+        out.set(lid, r);
+      }
+    } catch {
+      // liga sem ratings: pipeline segue com fallback xG
+    }
+  });
+  return out;
 }
 
 function unavailablePrediction(
@@ -213,8 +285,7 @@ async function fetchOddsSafe(
   ids: string[],
 ): Promise<Map<string, EventOdds>> {
   try {
-    // 30s: consenso por evento serializa com gap 350ms (apiJson) —
-    // ~28 jogos ≈ 10s só de rate limit + latência de rede.
+    // R5: sem teto de 40; timeout 30s cobre feed+preenchimento
     return await withTimeout(fetchOddsBatch(from, to, ids), 30_000);
   } catch {
     console.log("[data-pipeline] Odds indisponíveis — modo probabilidade");
@@ -267,20 +338,28 @@ async function runPipelineDetailed(dateISO?: string): Promise<PipelineResult> {
 
   const events = activeEvents; // sem corte fixo
   const date = dateISO ?? spTodayISO();
-  const apiPreds = await fetchApiPredictionsSafe(date, date);
+  // R5: odds primeiro (feed + fill), depois predictions
   const oddsMap = await fetchOddsSafe(
     date,
     date,
     events.map((e) => e.id),
   );
+  const apiPreds = await fetchApiPredictionsSafe(date, date);
+
+  // B1: ratings por liga
+  const leagueIds = [...new Set(events.map((e) => e.apiLeagueId).filter(Boolean))];
+  const ratingsMap = await withTimeout(loadRatingsForLeagues(leagueIds), 10_000).catch(
+    () => new Map<string, LeagueRatings>(),
+  );
 
   const missing = events.filter((ev) => !apiPreds.has(ev.id));
   if (missing.length > 0) {
     const uniqueLeagueIds = [...new Set(missing.map((ev) => ev.apiLeagueId).filter(Boolean))];
-    const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
     await withTimeout(
       Promise.allSettled([
-        ...uniqueLeagueIds.slice(0, 8).map((lid) => fetchLeaguePastEvents(lid)),
+        ...uniqueLeagueIds
+          .slice(0, 8)
+          .map((lid) => import("./api/thesportsdb").then((m) => m.fetchLeaguePastEvents(lid))),
         warmTeamForms(missing.flatMap((ev) => [ev.homeTeam, ev.awayTeam]).slice(0, 20)),
       ]),
       6_000,
@@ -292,12 +371,14 @@ async function runPipelineDetailed(dateISO?: string): Promise<PipelineResult> {
     const footballEvent = eventToFootballEvent(ev);
     const leagueMeta = { id: ev.apiLeagueId, name: ev.leagueLabel };
     const eventOdds = oddsMap.get(ev.id);
+    const ratings = ev.apiLeagueId ? ratingsMap.get(ev.apiLeagueId) : undefined;
 
     if (fromApi) {
       return buildPrediction(footballEvent, toPd(fromApi), leagueMeta, {
         trustSource: true,
         modelVersion: fromApi.modelVersion,
         marketOdds: eventOdds ?? null,
+        ratings,
       });
     }
     try {
@@ -309,6 +390,7 @@ async function runPipelineDetailed(dateISO?: string): Promise<PipelineResult> {
         trustSource: false,
         localOnly: true,
         marketOdds: eventOdds ?? null,
+        ratings,
       });
     } catch {
       return unavailablePrediction(footballEvent, leagueMeta);
@@ -392,11 +474,15 @@ async function fetchLiveMatchesReal(): Promise<MatchPrediction[]> {
   if (!live || live.length === 0) return [];
 
   const todaySP = spTodayISO();
-  const apiPreds = await fetchApiPredictionsSafe(todaySP, todaySP);
   const oddsMap = await fetchOddsSafe(
     todaySP,
     todaySP,
     live.map((e) => e.id),
+  );
+  const apiPreds = await fetchApiPredictionsSafe(todaySP, todaySP);
+  const liveLeagueIds = [...new Set(live.map((e) => e.leagueId).filter(Boolean))];
+  const ratingsLive = await withTimeout(loadRatingsForLeagues(liveLeagueIds), 8_000).catch(
+    () => new Map<string, LeagueRatings>(),
   );
 
   const results = await processInBatches(live, 4, async (ev) => {
@@ -417,6 +503,7 @@ async function fetchLiveMatchesReal(): Promise<MatchPrediction[]> {
     };
     const leagueMeta = { id: ev.leagueId ?? leagueId, name: leagueLabel };
     const eventOdds = oddsMap.get(ev.id);
+    const ratings = ev.leagueId ? ratingsLive.get(ev.leagueId) : undefined;
 
     if (fromApi) {
       return {
@@ -424,6 +511,7 @@ async function fetchLiveMatchesReal(): Promise<MatchPrediction[]> {
           trustSource: true,
           modelVersion: fromApi.modelVersion,
           marketOdds: eventOdds ?? null,
+          ratings,
         })),
         minute: ev.minute ?? undefined,
         oddsUpdatedAt: new Date().toISOString(),
@@ -439,6 +527,7 @@ async function fetchLiveMatchesReal(): Promise<MatchPrediction[]> {
         trustSource: false,
         localOnly: true,
         marketOdds: eventOdds ?? null,
+        ratings,
       });
     } catch {
       return {
@@ -525,21 +614,31 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Pipe
       status,
       homeScore: Number.isNaN(homeScore) ? undefined : homeScore,
       awayScore: Number.isNaN(awayScore) ? undefined : awayScore,
+      homeTeamId: ev.idHomeTeam,
+      awayTeamId: ev.idAwayTeam,
     };
   });
 
   const apiPreds = await fetchApiPredictionsSafe(fromISO, toISO);
+  // R5: odds antes de predictions
   const oddsMap = await fetchOddsSafe(
     fromISO,
     toISO,
     predictionInputs.map((e) => e.id),
   );
+  const leagueIdsUp = [...new Set(predictionInputs.map((e) => e.apiLeagueId).filter(Boolean))];
+  const ratingsUp = await withTimeout(loadRatingsForLeagues(leagueIdsUp), 10_000).catch(
+    () => new Map<string, LeagueRatings>(),
+  );
   const missing = predictionInputs.filter((ev) => !apiPreds.has(ev.id));
   if (missing.length > 0) {
     const uniqueLeagueIds = [...new Set(missing.map((ev) => ev.apiLeagueId).filter(Boolean))];
-    const { fetchLeaguePastEvents } = await import("./api/thesportsdb");
     await withTimeout(
-      Promise.allSettled(uniqueLeagueIds.slice(0, 8).map((lid) => fetchLeaguePastEvents(lid))),
+      Promise.allSettled(
+        uniqueLeagueIds
+          .slice(0, 8)
+          .map((lid) => import("./api/thesportsdb").then((m) => m.fetchLeaguePastEvents(lid))),
+      ),
       6_000,
     ).catch(() => {});
   }
@@ -549,11 +648,13 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Pipe
     const footballEvent = eventToFootballEvent(ev);
     const leagueMeta = { id: ev.apiLeagueId, name: ev.leagueLabel };
     const eventOdds = oddsMap.get(ev.id);
+    const ratings = ev.apiLeagueId ? ratingsUp.get(ev.apiLeagueId) : undefined;
     if (fromApi) {
       return buildPred(footballEvent, toPd(fromApi), leagueMeta, {
         trustSource: true,
         modelVersion: fromApi.modelVersion,
         marketOdds: eventOdds ?? null,
+        ratings,
       });
     }
     try {
@@ -565,6 +666,7 @@ async function runUpcomingPipeline(fromISO: string, toISO: string): Promise<Pipe
         trustSource: false,
         localOnly: true,
         marketOdds: eventOdds ?? null,
+        ratings,
       });
     } catch {
       return unavailablePrediction(footballEvent, leagueMeta);

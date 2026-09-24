@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildPrediction } from "./pipeline";
-import { bettingOptionsFor } from "../matches.server";
+import { bettingOptionsFor } from "../market-helpers";
 import type { FootballEvent, PredictionData } from "../types";
 
 const event: FootballEvent = {
@@ -91,23 +91,38 @@ describe("buildPrediction ensemble unificado", () => {
     expect(m.predictionKind).toBe("live");
   });
 
-  it("com odds reais bettingOptions exibe DC1X e BTTS", async () => {
-    const pred = { ...api, probBtts: 0.62 };
+  it("com odds reais bettingOptions cobre 6 mercados núcleo", async () => {
+    const pred = { ...api, probBtts: 0.62, probOver25: 0.65 };
     const m = await buildPrediction(event, pred, meta, {
       trustSource: true,
-      marketOdds: { doubleChance1X: 1.45, btts: 2.1, home: 1.9, draw: 3.5, away: 4.2 },
+      marketOdds: {
+        home: 1.9,
+        draw: 3.5,
+        away: 4.2,
+        over25: 1.72,
+        btts: 2.1,
+        doubleChance1X: 1.45,
+      },
     });
     const bets = bettingOptionsFor(m);
-    expect(bets.map((b) => b.market)).toEqual(["DOUBLE_CHANCE_1X", "BTTS"]);
-    expect(bets.every((b) => b.odds > 1)).toBe(true);
+    expect(bets.map((b) => b.market)).toEqual([
+      "1X2_HOME",
+      "DRAW",
+      "1X2_AWAY",
+      "OVER_2_5",
+      "BTTS",
+      "DOUBLE_CHANCE_1X",
+    ]);
+    expect(bets.every((b) => b.odds != null && b.odds > 1)).toBe(true);
     expect(m.oddsAvailable).toBe(true);
   });
 
-  it("sem odds reais bettingOptions vazio (sem odd fabricada)", async () => {
+  it("sem odds reais: bettingOptions mantém 6 mercados com odds null (sem odd fabricada)", async () => {
     const pred = { ...api, probBtts: 0.62 };
     const m = await buildPrediction(event, pred, meta, { trustSource: true });
     const bets = bettingOptionsFor(m);
-    expect(bets).toHaveLength(0);
+    expect(bets).toHaveLength(6);
+    expect(bets.every((b) => b.odds === null)).toBe(true);
   });
 });
 

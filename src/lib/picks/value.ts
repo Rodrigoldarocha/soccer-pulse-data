@@ -14,6 +14,8 @@ export interface ValueInput {
   confidence?: "low" | "medium" | "high";
   /** |p_api − p_dc| para detectar divergência */
   modelDelta?: number;
+  /** Q6: probabilidade de push em AH (stake devolvida) */
+  pushProb?: number;
 }
 
 export interface ValueMetrics {
@@ -82,7 +84,7 @@ export function kellyFraction(p: number, odd: number, fraction = 0.25): number {
 }
 
 export function evaluateValue(input: ValueInput, cfg: PickConfig = PICK_CONFIG): ValueMetrics {
-  const { p, odd, marketOdds, confidence = "low", modelDelta = 0 } = input;
+  const { p, odd, marketOdds, confidence = "low", modelDelta = 0, pushProb } = input;
   const reasons: string[] = [];
 
   if (odd == null || !Number.isFinite(odd) || odd <= 1) {
@@ -103,7 +105,14 @@ export function evaluateValue(input: ValueInput, cfg: PickConfig = PICK_CONFIG):
   const impliedP = 1 / odd;
   const fairMarketP = fairMarketProbability(odd, marketOdds);
   const edge = p - fairMarketP;
-  const ev = p * odd - 1;
+  // Q6: EV com push — pWin*(o−1) − pLose; push devolve stake (não é loss)
+  let ev: number;
+  if (pushProb != null && pushProb > 0 && pushProb < 1) {
+    const pLose = Math.max(0, 1 - p - pushProb);
+    ev = p * (odd - 1) - pLose;
+  } else {
+    ev = p * odd - 1;
+  }
   const kelly = kellyFraction(p, odd, 1);
   const quarterKelly = kellyFraction(p, odd, cfg.kellyFraction);
 

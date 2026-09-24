@@ -108,6 +108,10 @@ export async function loadCalibration(
       isotonic: Array.isArray(data.isotonic_points)
         ? (data.isotonic_points as Array<{ x: number; y: number }>)
         : undefined,
+      ensembleWeights:
+        data.ensemble_weights && typeof data.ensemble_weights === "object"
+          ? (data.ensemble_weights as CalibrationParams["ensembleWeights"])
+          : undefined,
     };
   } catch (err) {
     console.error("[ML AccuracyStore] Failed to load calibration:", err);
@@ -131,6 +135,7 @@ export async function saveCalibration(params: CalibrationParams): Promise<void> 
         ece: params.ece ?? null,
         method: params.method ?? "platt",
         isotonic_points: params.isotonic ?? null,
+        ensemble_weights: params.ensembleWeights ?? null,
       },
       { onConflict: "league_id, market" },
     );
@@ -265,6 +270,25 @@ export async function recomputeAccuracyMetrics(): Promise<void> {
       );
 
       // ── Calibração de verdade ──
+      // Q4: ajusta pesos do ensemble por log-loss quando há suficientes amostras
+      let ensembleWeights: CalibrationParams["ensembleWeights"] | undefined;
+      if (n >= 30) {
+        try {
+          const { fitEnsembleWeights } = await import("./ensemble");
+          // Amostras resolvidas usam prob final vs outcome; pesos aprendidos
+          // a partir de p vs y (melhor approx disponível no store).
+          const samples = g.probabilities.map((p, i) => ({
+            api: p,
+            dc: null as number | null,
+            market: null as number | null,
+            y: (g.outcomes[i] ? 1 : 0) as 0 | 1,
+          }));
+          const fit = fitEnsembleWeights(samples);
+          if (fit.sampleSize >= 30) ensembleWeights = fit;
+        } catch {
+          // segue sem pesos aprendidos
+        }
+      }
       if (n >= 30) {
         const platt = fitPlatt(g.probabilities, g.outcomes);
         let method: "platt" | "isotonic" = "platt";
@@ -308,6 +332,7 @@ export async function recomputeAccuracyMetrics(): Promise<void> {
           ece,
           method,
           isotonic: iso,
+          ensembleWeights,
         });
       } else {
         // pooling hierárquico: calibração global do mercado

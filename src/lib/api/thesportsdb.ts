@@ -586,7 +586,8 @@ export async function fetchLeaguePastEvents(leagueId: string): Promise<TsdbEvent
   const seen = new Set<string>();
   const allEvents: TsdbEvent[] = [];
   const limit = 200;
-  const MAX_PAGES = 2; // histórico recente é suficiente para estimar força dos times
+  // ≥1 temporada para ratings Dixon-Coles confiáveis (B1)
+  const MAX_PAGES = 5;
   let offset = 0;
 
   for (let p = 0; p < MAX_PAGES; p++) {

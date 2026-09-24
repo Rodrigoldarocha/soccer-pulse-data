@@ -31,6 +31,8 @@ export interface FinishedMatch {
   awayScore: number;
   /** Data UTC do jogo */
   date: string;
+  homeTeamId?: number | string | null;
+  awayTeamId?: number | string | null;
 }
 
 export type ScoreMatrix = number[][];
@@ -117,9 +119,14 @@ function normalizeName(n: string): string {
     .trim();
 }
 
+function teamKey(id: number | string | null | undefined, name: string): string {
+  if (id != null && String(id).length > 0 && String(id) !== "0") return `id:${id}`;
+  return `name:${normalizeName(name)}`;
+}
+
 /**
  * Ajusta attack/defense por liga com decaimento temporal e shrinkage bayesiano.
- * prior = média da liga para times com poucos jogos.
+ * Indexa por id do time quando disponível; fallback por nome normalizado.
  */
 export function fitLeagueRatings(
   leagueId: number,
@@ -130,79 +137,80 @@ export function fitLeagueRatings(
   const iterations = opts.iterations ?? 40;
   const now = new Date();
 
-  const teamNames = new Set<string>();
   let goalsH = 0;
   let goalsA = 0;
   const weighted: Array<{
-    h: string;
-    a: string;
+    hKey: string;
+    aKey: string;
+    hName: string;
+    aName: string;
     gh: number;
     ga: number;
     w: number;
   }> = [];
 
+  const seen = new Set<string>();
   for (const m of matches) {
-    const h = normalizeName(m.homeTeam);
-    const a = normalizeName(m.awayTeam);
-    if (!h || !a) continue;
+    const hName = m.homeTeam || "";
+    const aName = m.awayTeam || "";
+    if (!hName && !aName) continue;
     const hs = Number(m.homeScore);
     const as = Number(m.awayScore);
     if (!Number.isFinite(hs) || !Number.isFinite(as)) continue;
     const w = Math.exp(-xi * daysBetween(new Date(m.date), now));
-    teamNames.add(h);
-    teamNames.add(a);
+    const hKey = teamKey(m.homeTeamId, hName);
+    const aKey = teamKey(m.awayTeamId, aName);
+    seen.add(hKey);
+    seen.add(aKey);
     goalsH += hs * w;
     goalsA += as * w;
-    weighted.push({ h, a, gh: hs, ga: as, w });
+    weighted.push({ hKey, aKey, hName, aName, gh: hs, ga: as, w });
   }
 
   const nMatches = Math.max(1, weighted.length);
   const leagueAvg = opts.leagueAvg ?? Math.max(0.3, (goalsH + goalsA) / (2 * nMatches));
   const teams = new Map<string, TeamRating>();
-  const names = [...teamNames];
-  names.forEach((name, i) => {
-    teams.set(name, {
+  const names = [...seen];
+  names.forEach((key, i) => {
+    const displayName = key.startsWith("name:") ? key.slice(5) : key;
+    teams.set(key, {
       teamId: i + 1,
-      teamName: name,
+      teamName: displayName,
       attack: 0,
       defense: 0,
       games: 0,
     });
   });
 
-  // contagem de jogos
   for (const m of weighted) {
-    const th = teams.get(m.h);
-    const ta = teams.get(m.a);
+    const th = teams.get(m.hKey);
+    const ta = teams.get(m.aKey);
     if (th) th.games++;
     if (ta) ta.games++;
   }
 
-  // init: attack ≈ gols marcados / média; defense ≈ sofridos / média
   let homeAdv = Math.log(1.2);
   let rho = -0.08;
 
   const homeAppear = new Map<string, { gf: number; ga: number; w: number }>();
   const awayAppear = new Map<string, { gf: number; ga: number; w: number }>();
   for (const m of weighted) {
-    const h = homeAppear.get(m.h) ?? { gf: 0, ga: 0, w: 0 };
+    const h = homeAppear.get(m.hKey) ?? { gf: 0, ga: 0, w: 0 };
     h.gf += m.gh * m.w;
     h.ga += m.ga * m.w;
     h.w += m.w;
-    homeAppear.set(m.h, h);
-    const a = awayAppear.get(m.a) ?? { gf: 0, ga: 0, w: 0 };
+    homeAppear.set(m.hKey, h);
+    const a = awayAppear.get(m.aKey) ?? { gf: 0, ga: 0, w: 0 };
     a.gf += m.ga * m.w;
     a.ga += m.gh * m.w;
     a.w += m.w;
-    awayAppear.set(m.a, a);
+    awayAppear.set(m.aKey, a);
   }
 
-  const prior = Math.log(Math.max(0.3, leagueAvg));
-  for (const [name, t] of teams) {
-    const ha = homeAppear.get(name);
-    const aa = awayAppear.get(name);
+  for (const [key, t] of teams) {
+    const ha = homeAppear.get(key);
+    const aa = awayAppear.get(key);
     const games = t.games;
-    // shrinkage: com muitos jogos ≈ observado; poucos → prior
     const shrink = games / (games + 6);
     const obsAttack =
       ((ha ? ha.gf / Math.max(ha.w, 0.5) : 0) + (aa ? aa.gf / Math.max(aa.w, 0.5) : 0)) / 2;
@@ -210,28 +218,29 @@ export function fitLeagueRatings(
       ((ha ? ha.ga / Math.max(ha.w, 0.5) : 0) + (aa ? aa.ga / Math.max(aa.w, 0.5) : 0)) / 2;
     const att = Math.log(Math.max(0.1, obsAttack || leagueAvg) / leagueAvg);
     const def = Math.log(Math.max(0.1, obsDefense || leagueAvg) / leagueAvg);
-    t.attack = shrink * att + (1 - shrink) * prior * 0 + (1 - shrink) * 0;
+    t.attack = shrink * att;
     t.defense = shrink * def;
-    // normalize mediana attack p/ 0
-    teams.set(name, t);
+    teams.set(key, t);
   }
 
-  // home advantage a partir do agregado
   const totalHomeGoals = weighted.reduce((s, m) => s + m.gh * m.w, 0);
   const totalAwayGoals = weighted.reduce((s, m) => s + m.ga * m.w, 0);
   if (totalAwayGoals > 0)
     homeAdv = Math.log(Math.max(0.5, totalHomeGoals) / Math.max(0.5, totalAwayGoals)) / 2;
 
-  // Newton leve para rho (só placares baixos)
   for (let it = 0; it < Math.min(iterations, 15); it++) {
     let grad = 0;
     for (const m of weighted) {
       const lh =
         leagueAvg *
-        Math.exp((teams.get(m.h)?.attack ?? 0) - (teams.get(m.a)?.defense ?? 0) + homeAdv / 2);
+        Math.exp(
+          (teams.get(m.hKey)?.attack ?? 0) - (teams.get(m.aKey)?.defense ?? 0) + homeAdv / 2,
+        );
       const la =
         leagueAvg *
-        Math.exp((teams.get(m.a)?.attack ?? 0) - (teams.get(m.h)?.defense ?? 0) - homeAdv / 2);
+        Math.exp(
+          (teams.get(m.aKey)?.attack ?? 0) - (teams.get(m.hKey)?.defense ?? 0) - homeAdv / 2,
+        );
       const i = Math.min(m.gh, MAX_GOALS);
       const j = Math.min(m.ga, MAX_GOALS);
       const tau = dcTau(i, j, lh, la, rho);
@@ -251,7 +260,6 @@ export function fitLeagueRatings(
     rho = Math.max(-0.3, Math.min(0.3, rho + 0.02 * grad * 0.1));
   }
 
-  // centraliza attack
   const attacks = [...teams.values()].map((t) => t.attack);
   const meanAtt = attacks.length ? attacks.reduce((a, b) => a + b, 0) / attacks.length : 0;
   for (const t of teams.values()) t.attack -= meanAtt;
@@ -269,10 +277,30 @@ export function fitLeagueRatings(
 function ratingOf(
   r: LeagueRatings | undefined,
   name: string,
-  side: "home" | "away",
+  teamId?: number | string | null,
 ): TeamRating | undefined {
   if (!r) return undefined;
-  return r.teams.get(normalizeName(name)) ?? r.teams.get(name);
+  if (teamId != null && String(teamId).length > 0 && String(teamId) !== "0") {
+    const byId = r.teams.get(`id:${teamId}`);
+    if (byId) return byId;
+  }
+  const n = normalizeName(name);
+  return r.teams.get(`name:${n}`) ?? r.teams.get(n) ?? r.teams.get(name);
+}
+
+/** Mínimo de jogos por lado para confiar no rating (dcReliable). */
+export const DC_RELIABLE_MIN_GAMES = 5;
+
+export function isDcReliable(
+  r: LeagueRatings | undefined,
+  home: string,
+  away: string,
+  homeId?: number | string | null,
+  awayId?: number | string | null,
+): boolean {
+  const rh = ratingOf(r, home, homeId);
+  const ra = ratingOf(r, away, awayId);
+  return !!rh && !!ra && rh.games >= DC_RELIABLE_MIN_GAMES && ra.games >= DC_RELIABLE_MIN_GAMES;
 }
 
 /**
@@ -284,10 +312,12 @@ export function expectedGoals(
   awayTeam: string,
   ratings: LeagueRatings | undefined,
   fallbackAvg = 1.3,
+  homeId?: number | string | null,
+  awayId?: number | string | null,
 ): { lambdaHome: number; lambdaAway: number } {
   const avg = ratings?.leagueAvgGoals ?? fallbackAvg;
-  const rh = ratingOf(ratings, homeTeam, "home");
-  const ra = ratingOf(ratings, awayTeam, "away");
+  const rh = ratingOf(ratings, homeTeam, homeId);
+  const ra = ratingOf(ratings, awayTeam, awayId);
   const ha = ratings?.homeAdvantage ?? Math.log(1.2);
   const attH = rh?.attack ?? 0;
   const defH = rh?.defense ?? 0;
@@ -308,8 +338,17 @@ export function predictMatrix(
   awayTeam: string,
   ratings: LeagueRatings | undefined,
   fallbackAvg = 1.3,
+  homeId?: number | string | null,
+  awayId?: number | string | null,
 ): { matrix: ScoreMatrix; lambdaHome: number; lambdaAway: number } {
-  const { lambdaHome, lambdaAway } = expectedGoals(homeTeam, awayTeam, ratings, fallbackAvg);
+  const { lambdaHome, lambdaAway } = expectedGoals(
+    homeTeam,
+    awayTeam,
+    ratings,
+    fallbackAvg,
+    homeId,
+    awayId,
+  );
   const matrix = scoreMatrix(lambdaHome, lambdaAway, ratings?.rho ?? -0.08);
   return { matrix, lambdaHome, lambdaAway };
 }
@@ -399,10 +438,8 @@ export function marketsFromMatrix(m: ScoreMatrix): DerivedMarkets {
   const dnbHome = home + draw > 0 ? home / (home + draw) : 0;
   const dnbAway = draw + away > 0 ? away / (draw + away) : 0;
 
-  // Handicap asiático −0.5/+0.5 ≈ 1X2 sem empate deslocado
   const ahHomeM05 = home;
   const ahAwayP05 = draw + away;
-  // AH −1: home ganha por 2+ (empate de handicap = stake devolvida → 50/50 no empate exato de 1)
   let ahHomeM1w = 0;
   let ahHomeM1p = 0;
   for (let i = 0; i < m.length; i++) {
@@ -444,6 +481,17 @@ export function marketsFromMatrix(m: ScoreMatrix): DerivedMarkets {
   };
 }
 
+/** Probabilidade de push em AH −1 (diferença exatamente 1). */
+export function ahPushProbability(m: ScoreMatrix): number {
+  let push = 0;
+  for (let i = 0; i < m.length; i++) {
+    for (let j = 0; j < (m[i]?.length ?? 0); j++) {
+      if (i - j === 1) push += m[i][j];
+    }
+  }
+  return push;
+}
+
 /**
  * P(A∧B) no MESMO jogo via matriz (não produto ingênuo).
  * `sat` recebe i,j e retorna true se ambos mercados satisfeitos.
@@ -478,7 +526,6 @@ export async function getLeagueRatings(
   const cached = fitCache.get(leagueId);
   if (cached && Date.now() - cached.ts < FIT_TTL) return cached.ratings;
 
-  // tenta hidratar do Supabase se houver matches vazios
   if (matches.length === 0 && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -489,7 +536,7 @@ export async function getLeagueRatings(
       if (data && data.length > 0) {
         const teams = new Map<string, TeamRating>();
         for (const row of data) {
-          teams.set(String(row.team_id), {
+          teams.set(`id:${row.team_id}`, {
             teamId: row.team_id,
             teamName: String(row.team_id),
             attack: row.attack,

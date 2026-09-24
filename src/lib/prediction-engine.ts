@@ -22,6 +22,8 @@ export interface PredictionInput {
   status: "scheduled" | "live" | "finished";
   homeScore?: number;
   awayScore?: number;
+  homeTeamId?: string | null;
+  awayTeamId?: string | null;
 }
 
 export interface TeamStats {
@@ -226,6 +228,8 @@ export async function generatePredictions(dateISO?: string): Promise<PredictionI
       status,
       homeScore: Number.isNaN(homeScore) ? undefined : homeScore,
       awayScore: Number.isNaN(awayScore) ? undefined : awayScore,
+      homeTeamId: ev.idHomeTeam,
+      awayTeamId: ev.idAwayTeam,
     });
   }
 

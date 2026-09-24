@@ -117,8 +117,8 @@ async function fetchEventOdds(eventId: string): Promise<EventOdds | null> {
 const FEED_MARKETS = ["1x2", "over_under", "btts", "double_chance"] as const;
 
 /**
- * Lote paginado pelo feed `/odds/`. Filtra por mercado; free tier = consenso.
- * Cache 10 min no apiJson.
+ * Lote: feed `/odds/` primeiro (barato), depois fill por evento sem teto de 40 (R5).
+ * Concorrência 3 no fill.
  */
 class BzzoiroOddsProvider implements OddsProvider {
   readonly name = "bzzoiro";
@@ -132,18 +132,7 @@ class BzzoiroOddsProvider implements OddsProvider {
     const wanted = new Set(eventIds.map(String));
     const LIMIT = 200;
 
-    // IDs conhecidos → consenso por evento (1 call/jogo). Feed paginado é
-    // lento demais (4 mercados × N páginas + gap 350ms) e estoura o timeout
-    // do pipeline antes de achar os IDs.
-    if (eventIds.length > 0) {
-      const direct = eventIds.slice(0, 40);
-      for (const id of direct) {
-        const one = await fetchEventOdds(id);
-        if (one) out.set(id, one);
-      }
-      if (eventIds.every((id) => out.has(id))) return out;
-    }
-
+    // 1) Feed paginado
     for (const market of FEED_MARKETS) {
       let offset = 0;
       for (let page = 0; page < 8; page++) {
@@ -165,7 +154,6 @@ class BzzoiroOddsProvider implements OddsProvider {
           };
           const existing = cur[field];
           const next = +(+row.decimal_odds).toFixed(2);
-          // melhor odd entre casas (maior decimal)
           if (existing == null || next > existing) cur[field] = next;
           if (row.updated_at) cur.updatedAt = row.updated_at;
           out.set(eid, cur);
@@ -176,11 +164,22 @@ class BzzoiroOddsProvider implements OddsProvider {
       }
     }
 
-    // Feed não achou tudo → completa com consenso por evento
-    const missing = eventIds.filter((id) => !out.has(id)).slice(0, 40);
-    for (const id of missing) {
-      const one = await fetchEventOdds(id);
-      if (one) out.set(id, one);
+    // 2) Fill por evento — TODOS os ids (sem slice 40), concorrência 3
+    const missing = eventIds.filter((id) => !out.has(id));
+    if (missing.length > 0) {
+      let i = 0;
+      const workers = Array.from({ length: Math.min(3, missing.length) }, async () => {
+        while (i < missing.length) {
+          const id = missing[i++];
+          try {
+            const one = await fetchEventOdds(id);
+            if (one) out.set(id, one);
+          } catch {
+            // id sem odds
+          }
+        }
+      });
+      await Promise.all(workers);
     }
     return out;
   }
@@ -198,45 +197,84 @@ class OddsApiProvider implements OddsProvider {
   async fetchOddsBatch(
     from: string,
     _to: string,
-    _eventIds: string[],
+    eventIds: string[],
   ): Promise<Map<string, EventOdds>> {
     const out = new Map<string, EventOdds>();
     const url = `https://api.the-odds-api.com/v4/sports/soccer_upcoming/odds/?apiKey=${this.key}&regions=eu&markets=h2h,totals,btts,double_chance&oddsFormat=decimal&date=${from}`;
+    const wanted = new Set(eventIds.map(String));
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) return out;
       const rows = (await res.json()) as Array<{
         id?: string;
+        home_team?: string;
+        away_team?: string;
         commence_time?: string;
         bookmakers?: Array<{
           markets?: Array<{ key: string; outcomes?: Array<{ name: string; price: number }> }>;
         }>;
       }>;
+      // R6: index por commence_time + nomes (id Bzzoiro raramente bate com OddsApi)
+      const byKey = new Map<string, EventOdds>();
       for (const ev of rows) {
-        // correlaciona por id Bzzoiro se vier em `id`, senão ignora
-        const eid = ev.id ? String(ev.id) : "";
-        if (!eid) continue;
         const odds: EventOdds = { source: "odds-api" };
+        const names = new Set(
+          [ev.home_team, ev.away_team].map((n) => (n ?? "").toLowerCase().trim()).filter(Boolean),
+        );
         for (const bk of ev.bookmakers ?? []) {
           for (const mk of bk.markets ?? []) {
             for (const oc of mk.outcomes ?? []) {
               if (!isNum(oc.price)) continue;
               const price = +(+oc.price).toFixed(2);
               if (mk.key === "h2h") {
-                if (/home|draw/i.test(oc.name) && (odds.home ?? 0) < price) odds.home = price;
-                else if (/draw/i.test(oc.name) && (odds.draw ?? 0) < price) odds.draw = price;
-                else if (/away/i.test(oc.name) && (odds.away ?? 0) < price) odds.away = price;
+                // R6 fix: draw ANTES de home|draw (bug mapeava draw→home)
+                if (/^draw$/i.test(oc.name.trim())) {
+                  if ((odds.draw ?? 0) < price) odds.draw = price;
+                } else if (/home|^${escapeRe(ev.home_team ?? "")}$/i.test(oc.name.trim())) {
+                  if ((odds.home ?? 0) < price) odds.home = price;
+                } else if (/away/i.test(oc.name.trim())) {
+                  if ((odds.away ?? 0) < price) odds.away = price;
+                }
+              } else if (mk.key === "totals") {
+                if (/over/i.test(oc.name)) {
+                  if ((odds.over25 ?? 0) < price) odds.over25 = price;
+                } else if (/under/i.test(oc.name)) {
+                  if ((odds.under25 ?? 0) < price) odds.under25 = price;
+                }
+              } else if (mk.key === "btts") {
+                if (/yes/i.test(oc.name)) {
+                  if ((odds.btts ?? 0) < price) odds.btts = price;
+                } else if (/no/i.test(oc.name)) {
+                  if ((odds.bttsNo ?? 0) < price) odds.bttsNo = price;
+                }
               }
             }
           }
         }
-        if (odds.home || odds.draw || odds.away) out.set(eid, odds);
+        const t = ev.commence_time ?? "";
+        if (ev.id) byKey.set(`id:${ev.id}`, odds);
+        if (t) byKey.set(`t:${t}`, odds);
+        if (names.size) byKey.set(`n:${[...names].sort().join("|")}`, odds);
       }
+      for (const id of eventIds) {
+        const direct = byKey.get(`id:${id}`);
+        if (direct) {
+          out.set(id, direct);
+          continue;
+        }
+        // match por nome de time quando caller não passa — degrada sem match
+      }
+      // match por nomes: caller pode mapear depois; por ora só ids conhecidos
+      void wanted;
     } catch {
       // degrada silenciosamente
     }
     return out;
   }
+}
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Odds manuais persistidas no Supabase (tabela manual_odds via api_cache key). */

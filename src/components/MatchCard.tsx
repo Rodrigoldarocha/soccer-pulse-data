@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Shield, Zap, Flame } from "lucide-react";
 import type { MatchPrediction } from "@/lib/types";
-import { bettingOptionsFor } from "@/lib/matches.server";
+import { bettingOptionsFor } from "@/lib/market-helpers";
 import { fmtTimeSP } from "@/lib/match-dates";
 import { fmtPct, probGroupsFor, probLevel, type ProbRow } from "@/lib/probability-view";
 import { teamMonogram } from "@/lib/team-monogram";
@@ -95,111 +95,113 @@ export function MatchCard({ match, live = false }: { match: MatchPrediction; liv
     <Link
       to="/match/$matchId"
       params={{ matchId: match.id }}
-      className="group card-interactive flex items-center gap-3 rounded border border-border/50 bg-card px-3 py-2.5 sm:px-4 sm:py-3 focus-ring"
+      className="group card-interactive flex flex-col gap-2 rounded border border-border/50 bg-card px-3 py-2.5 sm:px-4 sm:py-3 focus-ring"
     >
-      {/* Hora */}
-      <div className="w-12 shrink-0 text-center">
-        <span className="font-display text-sm font-bold tabular-nums text-muted-foreground">
-          {fmtTimeSP(match.kickoff)}
-        </span>
-      </div>
-
-      {/* Times */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <TeamCrest name={match.home.name} logo={match.home.logo} />
-          <span className="truncate text-sm font-medium text-foreground">{match.home.name}</span>
-        </div>
-        <div className="mt-1 flex items-center gap-2">
-          <TeamCrest name={match.away.name} logo={match.away.logo} />
-          <span className="truncate text-sm font-medium text-foreground">{match.away.name}</span>
-        </div>
-      </div>
-
-      {/* Placar ao vivo */}
-      {isLive && (
-        <div className="flex shrink-0 flex-col items-center rounded bg-live/10 px-2 py-1">
-          <span className="font-display text-base font-bold tabular-nums text-live">
-            {match.scoreHome ?? "-"}
-          </span>
-          <span className="text-[10px] text-muted-foreground/40">×</span>
-          <span className="font-display text-base font-bold tabular-nums text-live">
-            {match.scoreAway ?? "-"}
+      <div className="flex items-center gap-3">
+        {/* Hora */}
+        <div className="w-12 shrink-0 text-center">
+          <span className="font-display text-sm font-bold tabular-nums text-muted-foreground">
+            {fmtTimeSP(match.kickoff)}
           </span>
         </div>
-      )}
 
-      {/* Probabilidades 1X2 */}
-      {match.predictionStatus !== "unavailable" && (
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-          <div className="flex flex-col items-end gap-1">
-            {groups.x12.map((r) => (
-              <div key={r.label} className="flex items-center gap-2">
-                <span className="hidden sm:block">
-                  <ProbabilityBar value={r.p} level={r.level} />
-                </span>
-                <ProbValue row={r} />
-              </div>
-            ))}
+        {/* Times */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <TeamCrest name={match.home.name} logo={match.home.logo} />
+            <span className="truncate text-sm font-medium text-foreground">{match.home.name}</span>
           </div>
-          <div className="flex flex-col items-end gap-1 text-[10px] text-muted-foreground/40">
-            <span>C</span>
-            <span>E</span>
-            <span>F</span>
+          <div className="mt-1 flex items-center gap-2">
+            <TeamCrest name={match.away.name} logo={match.away.logo} />
+            <span className="truncate text-sm font-medium text-foreground">{match.away.name}</span>
           </div>
         </div>
-      )}
 
-      {/* Duas opções reais de aposta: 1X e BTTS */}
-      {options.length > 0 && (
-        <div className="hidden items-center gap-2 md:flex">
+        {/* Placar ao vivo */}
+        {isLive && (
+          <div className="flex shrink-0 flex-col items-center rounded bg-live/10 px-2 py-1">
+            <span className="font-display text-base font-bold tabular-nums text-live">
+              {match.scoreHome ?? "-"}
+            </span>
+            <span className="text-[10px] text-muted-foreground/40">×</span>
+            <span className="font-display text-base font-bold tabular-nums text-live">
+              {match.scoreAway ?? "-"}
+            </span>
+          </div>
+        )}
+
+        {/* Probabilidades 1X2 */}
+        {match.predictionStatus !== "unavailable" && (
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            <div className="flex flex-col items-end gap-1">
+              {groups.x12.map((r) => (
+                <div key={r.label} className="flex items-center gap-2">
+                  <span className="hidden sm:block">
+                    <ProbabilityBar value={r.p} level={r.level} />
+                  </span>
+                  <ProbValue row={r} />
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col items-end gap-1 text-[10px] text-muted-foreground/40">
+              <span>C</span>
+              <span>E</span>
+              <span>F</span>
+            </div>
+          </div>
+        )}
+
+        {/* Badge de confiança do modelo */}
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {isLive && (
+            <span className="flex items-center gap-1 rounded-full border border-live/20 bg-live/10 px-2 py-0.5 text-[10px] font-semibold text-live live-pulse">
+              <span className="h-1.5 w-1.5 rounded-full bg-live" />
+              AO VIVO
+            </span>
+          )}
+          {match.predictionStatus === "unavailable" ? (
+            <span className="text-[10px] text-muted-foreground/40">Sem dados</span>
+          ) : (
+            <span
+              className={cn("flex items-center gap-1 text-[10px] font-medium", confidence.color)}
+            >
+              <confidence.icon className="h-3 w-3" />
+              {confidence.label}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* 6 mercados núcleo — sempre visíveis (mobile + desktop), sem odd inventada */}
+      {match.predictionStatus !== "unavailable" && options.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-border/40 pt-2 sm:gap-2">
           {options.map((option) => (
-            <div
+            <span
               key={option.market}
-              className="flex min-w-[120px] flex-col rounded border border-border/50 bg-white/[0.02] px-2 py-1.5 text-right"
+              className="flex items-center gap-1.5 rounded border border-border/50 bg-white/[0.02] px-2 py-1"
             >
               <span className="text-[9px] uppercase tracking-wider text-muted-foreground/50">
                 {option.label}
               </span>
-              <div className="mt-1 flex items-center justify-between gap-2">
-                <span
-                  className={cn(
-                    "font-display text-xs font-bold tabular-nums",
-                    probLevel(option.probability) === "strong"
-                      ? "text-confirmed"
-                      : probLevel(option.probability) === "moderate"
-                        ? "text-chart-4"
-                        : "text-muted-foreground",
-                  )}
-                >
-                  {fmtPct(option.probability)}
-                </span>
-                <span className="font-display text-[11px] font-semibold tabular-nums text-foreground/80">
-                  {option.odds.toFixed(2)}
-                </span>
-              </div>
-            </div>
+              <span
+                className={cn(
+                  "font-display text-[11px] font-bold tabular-nums",
+                  probLevel(option.probability) === "strong"
+                    ? "text-confirmed"
+                    : probLevel(option.probability) === "moderate"
+                      ? "text-chart-4"
+                      : "text-muted-foreground",
+                )}
+              >
+                {fmtPct(option.probability)}
+              </span>
+              <span className="font-display text-[11px] font-semibold tabular-nums text-foreground/80">
+                {option.odds != null ? option.odds.toFixed(2) : "—"}
+              </span>
+            </span>
           ))}
         </div>
       )}
-
-      {/* Badge de confiança do modelo */}
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        {isLive && (
-          <span className="flex items-center gap-1 rounded-full border border-live/20 bg-live/10 px-2 py-0.5 text-[10px] font-semibold text-live live-pulse">
-            <span className="h-1.5 w-1.5 rounded-full bg-live" />
-            AO VIVO
-          </span>
-        )}
-        {match.predictionStatus === "unavailable" ? (
-          <span className="text-[10px] text-muted-foreground/40">Sem dados</span>
-        ) : (
-          <span className={cn("flex items-center gap-1 text-[10px] font-medium", confidence.color)}>
-            <confidence.icon className="h-3 w-3" />
-            {confidence.label}
-          </span>
-        )}
-      </div>
     </Link>
   );
 }

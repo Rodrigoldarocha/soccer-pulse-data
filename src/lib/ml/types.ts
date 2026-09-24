@@ -12,6 +12,13 @@ export interface CalibrationParams {
   ece?: number;
   method?: "platt" | "isotonic";
   isotonic?: Array<{ x: number; y: number }>;
+  /** Q4 — pesos aprendidos do ensemble 3-vias */
+  ensembleWeights?: {
+    wApi: number;
+    wDc: number;
+    wMarket: number;
+    sampleSize: number;
+  };
 }
 
 export interface AccuracyMetrics {

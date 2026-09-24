@@ -2,7 +2,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { spTodayISO, spDateISO } from "@/lib/match-dates";
-import { fetchMatchesForDate } from "@/lib/data-pipeline";
+import { fetchMatchesForDateDetailed } from "@/lib/data-pipeline";
 import { getCachedOrGenerate } from "@/lib/matches.server";
 import { buildPicksFromMatches, type DailyPicksResult } from "./singles";
 import { buildDailyParlays, type ParlayProfile, type ParlayDayResult } from "./parlays";
@@ -17,8 +17,13 @@ export interface PicksDayPayload {
 }
 
 async function generatePicks(date: string): Promise<PicksDayPayload> {
-  const matches = await fetchMatchesForDate(date);
-  const singles = buildPicksFromMatches(matches, date, PICK_CONFIG);
+  // R4: pipeline detalhado preserva partial/notes
+  const detailed = await fetchMatchesForDateDetailed(date);
+  const matches = detailed.matches;
+  const singles = buildPicksFromMatches(matches, date, PICK_CONFIG, {
+    partial: detailed.partial,
+    notes: detailed.notes,
+  });
   const parlays = buildDailyParlays(singles.picks, singles.radar, matches, PICK_CONFIG);
   return {
     date,

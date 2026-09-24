@@ -62,10 +62,10 @@ describe("isContradictory", () => {
 });
 
 describe("combinedProbability", () => {
-  it("jogos distintos → produto × 0.98^(n-1)", () => {
+  it("jogos distintos → produto puro (sem 0.98)", () => {
     const legs = [pick({ eventId: "1", p: 0.6 }), pick({ eventId: "2", p: 0.5 })];
     const { p } = combinedProbability(legs, new Map());
-    expect(p).toBeCloseTo(0.6 * 0.5 * 0.98, 5);
+    expect(p).toBeCloseTo(0.6 * 0.5, 5);
   });
 
   it("sem matriz usa produto dos legs do grupo", () => {
@@ -75,7 +75,7 @@ describe("combinedProbability", () => {
     ];
     const { usedMatrix, p } = combinedProbability(legs, new Map());
     expect(usedMatrix).toBe(false);
-    expect(p).toBeCloseTo(0.7 * 0.55 * 0.98, 5);
+    expect(p).toBeCloseTo(0.7 * 0.55, 5);
   });
 });
 

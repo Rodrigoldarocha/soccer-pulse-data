@@ -1,17 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-
-function checkSecret(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = request.headers.get("x-cron-secret") ?? request.headers.get("X-Cron-Secret");
-  return header === secret;
-}
+import { checkCronSecret } from "@/lib/cron-auth";
 
 export const Route = createFileRoute("/api/cron/snapshot")({
   server: {
     handlers: {
       POST: async ({ request }: { request: Request }) => {
-        if (!checkSecret(request)) {
+        if (!checkCronSecret(request)) {
           return Response.json({ error: "unauthorized" }, { status: 401 });
         }
         const { spTodayISO, spDateISO } = await import("@/lib/match-dates");

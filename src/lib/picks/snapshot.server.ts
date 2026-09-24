@@ -28,6 +28,7 @@ export async function generatePicksSnapshot(date: string): Promise<SnapshotResul
   const parlays = buildDailyParlays(singles.picks, singles.radar, matches, PICK_CONFIG);
   await persistLedger(singles, parlays, matches);
   await captureOddsSnapshots(matches);
+  await captureClosingOdds(matches);
   return { ...singles, parlays };
 }
 
@@ -94,16 +95,9 @@ async function persistLedger(
   }
 
   if (!rows.length) return;
-  try {
-    await client
-      .from("pick_ledger")
-      .upsert(rows, { onConflict: "event_id,market,selection,pick_kind" });
-  } catch {
-    try {
-      await client.from("pick_ledger").insert(rows);
-    } catch {
-      // silencioso
-    }
+  const { error } = await client.from("pick_ledger").insert(rows);
+  if (error && error.code !== "23505") {
+    console.error("[snapshot] pick_ledger insert:", error.message);
   }
 }
 
@@ -133,5 +127,63 @@ async function captureOddsSnapshots(
     await client.from("odds_snapshots").insert(rows);
   } catch {
     // silencioso
+  }
+}
+
+/**
+ * R2 — closing odds ~10min antes do kickoff.
+ * Grava is_closing=true + atualiza pick_ledger.closing_odd (para CLV).
+ */
+async function captureClosingOdds(
+  matches: Array<{
+    id: string;
+    kickoff: string;
+    markets?: Array<{ market: string; odd: number | null }>;
+  }>,
+): Promise<void> {
+  const client = await getClient();
+  if (!client) return;
+  const now = Date.now();
+  const snapRows: Array<Record<string, unknown>> = [];
+  const ledgerUpdates: Array<{ eventId: number; market: string; odd: number }> = [];
+
+  for (const m of matches) {
+    const t = new Date(m.kickoff).getTime() - now;
+    // janela: 0 < kickoff−now ≤ 15min (job roda ~10–15min antes)
+    if (!(t > 0 && t <= 15 * 60 * 1000)) continue;
+    const eventId = Number(m.id);
+    if (!Number.isFinite(eventId)) continue;
+    for (const mk of m.markets ?? []) {
+      if (mk.odd == null || mk.odd <= 1) continue;
+      snapRows.push({
+        event_id: eventId,
+        market: mk.market,
+        selection: mk.market,
+        bookmaker: "consensus",
+        odd: mk.odd,
+        is_closing: true,
+      });
+      ledgerUpdates.push({ eventId, market: mk.market, odd: mk.odd });
+    }
+  }
+
+  if (snapRows.length) {
+    try {
+      await client.from("odds_snapshots").insert(snapRows);
+    } catch {
+      // silencioso
+    }
+  }
+  for (const u of ledgerUpdates) {
+    try {
+      await client
+        .from("pick_ledger")
+        .update({ closing_odd: u.odd })
+        .eq("event_id", u.eventId)
+        .eq("market", u.market)
+        .is("closing_odd", null);
+    } catch {
+      // silencioso
+    }
   }
 }

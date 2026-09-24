@@ -22,13 +22,14 @@ Bzzoiro odds + prediction → calibração → ensemble (API/DC/market) → EV/e
                          resolver + recalibrate (cron) → ledger → ROI/CLV
 ```
 
-1. **Odds** (`src/lib/api/odds.ts`): Bzzoiro `/odds/` + `/events/{id}/odds/` (consenso). Campo ausente = `null` (nunca `1/p`).
-2. **Dixon-Coles** (`src/lib/ml/dixon-coles.ts`): ratings por liga, matriz de placares, correlação ρ.
-3. **Pipeline** (`src/lib/ml/pipeline.ts`): raw → Platt/Isotonic → blend 3-vias → `fairOdds=1/p` separado de `odds`.
-4. **Picks** (`src/lib/picks/`): EV/edge/¼-Kelly, filtros (odd 1.40–4.50, trap &lt;1.25, divergência), máx 1/jogo.
-5. **Múltiplas**: correlação mesmo jogo via matriz; jogos distintos ×0.98/perna; perfis segura/equilibrada/ousada; MC 20k valida P.
-6. **Resolver** (`src/lib/ml/resolver.server.ts`): outcome por mercado pós-jogo; void postponed/AET/PEN.
-7. **Cron** (`/api/cron/{resolve,recalibrate,snapshot}`): header `x-cron-secret` vs `CRON_SECRET`.
+1. **Odds** (`src/lib/api/odds.ts`): Bzzoiro `/odds/` + `/events/{id}/odds/` (consenso), sem teto de 40 ids, fill concorrência 3. Campo ausente = `null` (nunca `1/p`).
+2. **Dixon-Coles** (`src/lib/ml/dixon-coles.ts`): ratings por liga com ids de time, shrinkage, matriz de placares, ρ, cache/persist `team_ratings`.
+3. **Pipeline** (`src/lib/ml/pipeline.ts`): API+DC λ misto → calibração → blend com mercado (shrink 0.15) → `suspectEdge` >15 p.p. → `fairOdds=1/p` separado de `odds`.
+4. **Picks** (`src/lib/picks/`): EV/edge/¼-Kelly, filtros (odd 1.40–4.50, trap &lt;1.25, divergência, suspect), máx 1/jogo.
+5. **Múltiplas**: correlação mesmo jogo via matriz (whitelist 2 pernas); jogos distintos = produto puro (sem ×0.98); perfis segura/equilibrada/ousada; MC 20k determinístico valida P.
+6. **Resolver** (`src/lib/ml/resolver.server.ts`): outcome por mercado pós-jogo; void postponed/AET/PEN; datas em America/Sao_Paulo.
+7. **Cron** (`/api/cron/{resolve,recalibrate,snapshot}`): header `x-cron-secret` vs `CRON_SECRET` (`checkCronSecret`, timing-safe). Snapshot grava ledger + closing odds ~10min antes do kickoff.
+8. **Backtest**: `npm run backtest` (`scripts/backtest.ts`) — só com ledger resolvido no Supabase; sem números inventados.
 
 ## Stack
 

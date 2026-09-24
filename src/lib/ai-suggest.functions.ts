@@ -1,109 +1,87 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRealMatches, marketLabelFor } from "./matches.server";
-import type { MatchPrediction, MarketId, ParlayLeg, ParlaySuggestion } from "./types";
+import { spTodayISO } from "@/lib/match-dates";
+import { getDailyPicks, type PicksDayPayload } from "@/lib/picks/picks.functions";
+import type { MarketId, ParlayLeg, ParlaySuggestion } from "@/lib/types";
+import type { ParlayDayResult } from "@/lib/picks/parlays";
 
-function todayISO() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
-}
+/**
+ * L1 — substitui motor "IA" legado.
+ * Sugestões = perfis reais do motor de múltiplas (parlays), não Π probability.
+ * Datas em America/Sao_Paulo (L2).
+ */
 
-function buildLegs(
-  matches: MatchPrediction[],
-  picks: { matchId: string; market: MarketId }[],
-): ParlayLeg[] {
-  return picks
-    .map((p) => {
-      const m = matches.find((x) => x.id === p.matchId);
-      if (!m) return null;
-      const info = marketLabelFor(m, p.market);
-      return {
-        matchId: m.id,
-        market: p.market,
-        marketLabel: info.label,
-        odds: info.odds,
-        probability: info.probability,
-      } satisfies ParlayLeg;
-    })
-    .filter((x): x is ParlayLeg => x !== null);
-}
+const PROFILE_UI: Array<{
+  id: ParlaySuggestion["id"];
+  profile: "segura" | "equilibrada" | "ousada";
+  title: string;
+  riskText: string;
+  explanation: string;
+}> = [
+  {
+    id: "safe",
+    profile: "segura",
+    title: "Dupla Conservadora",
+    riskText: "Segura",
+    explanation:
+      "2–3 pernas com odd total 1.9–3.2, P mínima 35%, correlação via matriz quando mesmo jogo.",
+  },
+  {
+    id: "moderate",
+    profile: "equilibrada",
+    title: "Tripla de Valor",
+    riskText: "Moderada",
+    explanation:
+      "2–3 pernas com EV positivo, odd 4–8, diversificação de ligas, validação por Monte Carlo.",
+  },
+  {
+    id: "aggressive",
+    profile: "ousada",
+    title: "Múltipla Ousada",
+    riskText: "Ousada",
+    explanation: "3–4 pernas de alto retorno (odd 10–20). Risco alto — no máximo 4 pernas.",
+  },
+];
 
-function totals(legs: ParlayLeg[]) {
-  const totalOdds = legs.reduce((a, l) => a * l.odds, 1);
-  const totalProbability = legs.reduce((a, l) => a * l.probability, 1);
-  return { totalOdds: +totalOdds.toFixed(2), totalProbability: +totalProbability.toFixed(4) };
-}
+function toSuggestions(payload: PicksDayPayload): ParlaySuggestion[] {
+  const out: ParlaySuggestion[] = [];
+  for (const ui of PROFILE_UI) {
+    const day: ParlayDayResult | undefined = payload.parlays?.[ui.profile];
+    const pl = day?.parlays?.[0];
+    if (!pl) continue;
 
-function buildCombos(matches: MatchPrediction[]): ParlaySuggestion[] {
-  const sorted = [...matches].sort((a, b) => b.suggestedProbability - a.suggestedProbability);
-  const top = sorted.slice(0, 2);
-  const mid = sorted.slice(0, 3);
-  const wild = [
-    ...sorted.slice(0, 3),
-    sorted[Math.floor(sorted.length / 2)],
-    sorted[sorted.length - 2],
-  ].filter(Boolean);
+    const legs: ParlayLeg[] = pl.legs.map((l) => ({
+      matchId: l.pick.eventId,
+      market: l.pick.market as MarketId,
+      marketLabel: l.pick.selectionLabel,
+      odds: l.pick.odd > 1 ? l.pick.odd : null,
+      probability: l.pick.p,
+    }));
 
-  const configs: {
-    id: ParlaySuggestion["id"];
-    title: string;
-    riskText: ParlaySuggestion["riskText"];
-    explanation: string;
-    items: MatchPrediction[];
-  }[] = [
-    {
-      id: "safe",
-      title: "Dupla Conservadora",
-      riskText: "Segura",
-      explanation:
-        "Selecionamos os dois mercados com maior probabilidade calculada via xG, priorizando favoritos com defesa sólida.",
-      items: top,
-    },
-    {
-      id: "moderate",
-      title: "Tripla de Valor",
-      riskText: "Moderada",
-      explanation:
-        "Três eventos com bom equilíbrio entre probabilidade e retorno, misturando 1X2 e Over 2.5.",
-      items: mid,
-    },
-    {
-      id: "aggressive",
-      title: "Múltipla Ousada",
-      riskText: "Ousada",
-      explanation:
-        "Cinco pernas para caçar odds altas — inclui jogos abertos com projeção de gols e um outsider tático.",
-      items: wild.slice(0, 5),
-    },
-  ];
+    const totalOdds = legs.reduce((a, l) => a * (l.odds ?? 1), 1);
 
-  return configs.map((c) => {
-    const legs = buildLegs(
-      matches,
-      c.items.map((m) => ({ matchId: m.id, market: m.suggestedMarket })),
-    );
-    const { totalOdds, totalProbability } = totals(legs);
-    return {
-      id: c.id,
-      type: c.title,
-      title: c.title,
-      riskText: c.riskText,
-      explanation: c.explanation,
-      totalOdds,
-      totalProbability,
+    out.push({
+      id: ui.id,
+      type: ui.title,
+      title: ui.title,
+      riskText: ui.riskText,
+      explanation: `${ui.explanation} ${day.honestMessage ?? ""}`.trim(),
+      totalOdds: +totalOdds.toFixed(2),
+      totalProbability: pl.pTotal,
       selectionIds: legs.map((l) => l.matchId),
       legs,
-    } satisfies ParlaySuggestion;
-  });
+      fairCombinedOdds: pl.fairCombinedOdds,
+      combinedOddsReal: pl.combinedOddsReal ? totalOdds : null,
+    });
+  }
+  return out;
 }
 
 export const getAiSuggestions = createServerFn({ method: "GET" }).handler(async () => {
   try {
-    const date = todayISO();
-    const matches = await getRealMatches(date);
-    return { suggestions: buildCombos(matches), matches };
+    const payload = (await getDailyPicks({ data: spTodayISO() })) as PicksDayPayload;
+    return { suggestions: toSuggestions(payload) };
   } catch (error) {
     console.error("[getAiSuggestions]", error);
-    return { suggestions: [], matches: [] };
+    return { suggestions: [] as ParlaySuggestion[] };
   }
 });

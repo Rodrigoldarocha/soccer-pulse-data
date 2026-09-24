@@ -29,6 +29,9 @@ export interface FootballEvent {
   status: "scheduled" | "live" | "finished";
   homeScore?: number;
   awayScore?: number;
+  /** IDs de time (Bzzoiro) p/ indexar ratings Dixon-Coles por id. */
+  homeTeamId?: string | number | null;
+  awayTeamId?: string | number | null;
 }
 
 // ─── Prediction data (replaces BzPrediction markets) ─────────────────
@@ -155,10 +158,21 @@ export interface MatchOdds {
 
 export interface MarketEdge {
   market: MarketId;
+  /** Probabilidade final (pShrunk quando há marketP). */
   probability: number;
   odd: number | null;
   fairOdds: number;
   fairMarketProb: number | null;
+  /** Blend API+DC sem market (nível 1). */
+  pModel?: number;
+  /** pShrunk = (1−λ)pModel + λ·marketP (nível 2, λ=0.15). */
+  pShrunk?: number;
+  /** |pModel − fairMarket| > 0.15 → suspeito (fora do ranking). */
+  suspectEdge?: boolean;
+  /** |p_api − p_dc| por mercado (Q2). */
+  modelDelta?: number;
+  /** Probabilidade de push em AH (Q6). */
+  pushProb?: number;
 }
 
 export interface MatchPrediction {
@@ -210,4 +224,34 @@ export interface MatchPrediction {
   headlineProbability?: number;
   headlineOdds?: number;
   headlineLabel?: string;
+  /** Ratings Dixon-Coles usados (debug/teste). */
+  dcReliable?: boolean;
+  pipelinePartial?: boolean;
+}
+
+/** Perna de múltipla no construtor/bilhete (UI). */
+export interface ParlayLeg {
+  matchId: string;
+  market: MarketId;
+  marketLabel: string;
+  /** Odd real > 1; null = sem odd (não entra em EV). */
+  odds: number | null;
+  probability: number;
+}
+
+/** Sugestão de múltipla pronta (substitui motor "IA" legado — L1). */
+export interface ParlaySuggestion {
+  id: "safe" | "moderate" | "aggressive";
+  type: string;
+  title: string;
+  riskText: string;
+  explanation: string;
+  totalOdds: number;
+  totalProbability: number;
+  selectionIds: string[];
+  legs: ParlayLeg[];
+  /** fair combinado 1/p — referência, não odd de aposta. */
+  fairCombinedOdds?: number;
+  /** odd combinada = produto de odds reais; null se alguma sem odd. */
+  combinedOddsReal?: number | null;
 }

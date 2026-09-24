@@ -1,5 +1,5 @@
 // ─── Ensemble 3-vias: API + Dixon-Coles + mercado (devig) ────────────
-// Pesos aprendidos por Brier; prior 0.45/0.35/0.20 com n < 30.
+// Pesos aprendidos por Brier/log-loss; prior 0.45/0.35/0.20 com n < 30.
 
 import type { CalibratedProbability, EnsembleWeights } from "./types";
 
@@ -29,7 +29,7 @@ export const DEFAULT_ENSEMBLE3: EnsembleWeights3 = {
 /** Pesos por Brier do blend (quanto menor Brier, maior o peso do vencedor dominante). */
 export function ensembleWeightsFromBrier(brier: number, n: number): EnsembleWeights3 {
   if (n < 30) return { ...DEFAULT_ENSEMBLE3, sampleSize: n };
-  const quality = 1 - Math.max(0.08, Math.min(0.35, brier)) / 0.35; // 0..0.77
+  const quality = 1 - Math.max(0.08, Math.min(0.35, brier)) / 0.35;
   const wApi = Math.min(0.7, 0.4 + 0.3 * quality);
   const rest = 1 - wApi;
   const wDc = rest * 0.6;
@@ -82,17 +82,73 @@ export function blendEnsemble(
 }
 
 /**
+ * Q4 — aprende pesos (wApi, wDc, wMarket) por grid que minimiza log-loss
+ * sobre amostras resolvidas. n < 30 → prior.
+ */
+export function fitEnsembleWeights(
+  samples: Array<{ api: number | null; dc: number | null; market: number | null; y: 0 | 1 }>,
+): EnsembleWeights3 {
+  const n = samples.length;
+  if (n < 30) return { ...DEFAULT_ENSEMBLE3, sampleSize: n };
+
+  const logLoss = (wa: number, wd: number, wm: number) => {
+    let sum = 0;
+    let used = 0;
+    for (const s of samples) {
+      const parts: Array<{ p: number; w: number }> = [];
+      if (s.api != null && Number.isFinite(s.api)) parts.push({ p: s.api, w: wa });
+      if (s.dc != null && Number.isFinite(s.dc)) parts.push({ p: s.dc, w: wd });
+      if (s.market != null && Number.isFinite(s.market)) parts.push({ p: s.market, w: wm });
+      if (!parts.length) continue;
+      const wSum = parts.reduce((a, x) => a + x.w, 0);
+      if (wSum <= 0) continue;
+      let p = 0;
+      for (const x of parts) p += (x.p * x.w) / wSum;
+      p = Math.max(1e-6, Math.min(1 - 1e-6, p));
+      sum += -(s.y * Math.log(p) + (1 - s.y) * Math.log(1 - p));
+      used++;
+    }
+    return used > 0 ? sum / used : Infinity;
+  };
+
+  let best = {
+    wa: DEFAULT_ENSEMBLE3.wApi,
+    wd: DEFAULT_ENSEMBLE3.wDc,
+    wm: DEFAULT_ENSEMBLE3.wMarket,
+    ll: Infinity,
+  };
+  const step = 0.05;
+  for (let wa = 0; wa <= 1.0001; wa += step) {
+    for (let wd = 0; wd <= 1.0001 - wa; wd += step) {
+      const wm = 1 - wa - wd;
+      if (wm < -0.0001) continue;
+      const ll = logLoss(wa, wd, Math.max(0, wm));
+      if (ll < best.ll) best = { wa, wd, wm: Math.max(0, wm), ll };
+    }
+  }
+  return {
+    wApi: +best.wa.toFixed(3),
+    wDc: +best.wd.toFixed(3),
+    wMarket: +best.wm.toFixed(3),
+    sampleSize: n,
+  };
+}
+
+/**
  * Confiança honesta: concordância + amostra calibrada + ECE + incerteza.
- * Rótulos documentados em confidenceReason.
+ * Q3: pooling hierárquico — sampleSize pode ser max(liga, global×0.5).
+ * Média quando modelos concordam sem exigir 100 de amostra se dcReliable.
  */
 export function honestConfidence(input: {
   delta: number;
   sampleSize: number;
   ece?: number;
   matrixUncertainty?: number;
+  dcReliable?: boolean;
+  modelsAgreeOverride?: boolean;
 }): { level: "low" | "medium" | "high"; reason: string } {
-  const { delta, sampleSize, ece = 1, matrixUncertainty = 0 } = input;
-  const modelsAgree = delta < 0.07;
+  const { delta, sampleSize, ece = 1, matrixUncertainty = 0, dcReliable = false } = input;
+  const modelsAgree = input.modelsAgreeOverride ?? delta < 0.07;
   const modelsOk = delta < 0.15;
 
   if (sampleSize >= 100 && ece < 0.04 && modelsAgree && matrixUncertainty < 0.05) {
@@ -107,11 +163,11 @@ export function honestConfidence(input: {
       reason: `Média: ${sampleSize} amostras, Δ ${(delta * 100).toFixed(1)} p.p. entre modelos`,
     };
   }
-  if (modelsAgree && sampleSize < 30) {
-    return {
-      level: "medium",
-      reason: `Média: modelos concordam (Δ ${(delta * 100).toFixed(1)} p.p.), amostra calibrada ${sampleSize} (<30)`,
-    };
+  if (modelsAgree && (sampleSize < 30 || dcReliable)) {
+    const why = dcReliable
+      ? `modelos concordam (Δ ${(delta * 100).toFixed(1)} p.p.), DC confiável ≥5 jogos`
+      : `modelos concordam (Δ ${(delta * 100).toFixed(1)} p.p.), amostra calibrada ${sampleSize} (<30)`;
+    return { level: "medium", reason: `Média: ${why}` };
   }
   if (!modelsOk) {
     return {

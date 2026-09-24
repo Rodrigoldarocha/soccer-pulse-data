@@ -77,6 +77,18 @@ alter table public.ml_predictions add column if not exists void boolean not null
 alter table public.ml_calibration_params add column if not exists ece real;
 alter table public.ml_calibration_params add column if not exists method text not null default 'platt';
 alter table public.ml_calibration_params add column if not exists isotonic_points jsonb;
+alter table public.ml_calibration_params add column if not exists ensemble_weights jsonb;
+
+-- R1: unique do ledger usa coalesce; upsert com ignoreDuplicates é mais seguro
+-- (constraint já existe acima; garante índice nominal p/ onConflict alternativo)
+create unique index if not exists pick_ledger_unique_idx
+  on public.pick_ledger (
+    pick_kind,
+    coalesce(parlay_id, '00000000-0000-0000-0000-000000000000'),
+    event_id,
+    market,
+    selection
+  );
 
 grant all on all tables in schema public to service_role;
 alter table public.api_cache enable row level security;
