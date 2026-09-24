@@ -213,7 +213,9 @@ async function fetchOddsSafe(
   ids: string[],
 ): Promise<Map<string, EventOdds>> {
   try {
-    return await withTimeout(fetchOddsBatch(from, to, ids), 12_000);
+    // 30s: consenso por evento serializa com gap 350ms (apiJson) —
+    // ~28 jogos ≈ 10s só de rate limit + latência de rede.
+    return await withTimeout(fetchOddsBatch(from, to, ids), 30_000);
   } catch {
     console.log("[data-pipeline] Odds indisponíveis — modo probabilidade");
     return new Map();

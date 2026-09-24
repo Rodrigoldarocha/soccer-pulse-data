@@ -132,6 +132,18 @@ class BzzoiroOddsProvider implements OddsProvider {
     const wanted = new Set(eventIds.map(String));
     const LIMIT = 200;
 
+    // IDs conhecidos → consenso por evento (1 call/jogo). Feed paginado é
+    // lento demais (4 mercados × N páginas + gap 350ms) e estoura o timeout
+    // do pipeline antes de achar os IDs.
+    if (eventIds.length > 0) {
+      const direct = eventIds.slice(0, 40);
+      for (const id of direct) {
+        const one = await fetchEventOdds(id);
+        if (one) out.set(id, one);
+      }
+      if (eventIds.every((id) => out.has(id))) return out;
+    }
+
     for (const market of FEED_MARKETS) {
       let offset = 0;
       for (let page = 0; page < 8; page++) {
@@ -164,7 +176,7 @@ class BzzoiroOddsProvider implements OddsProvider {
       }
     }
 
-    // Completa o que faltou com consenso por evento (limitado p/ rate limit)
+    // Feed não achou tudo → completa com consenso por evento
     const missing = eventIds.filter((id) => !out.has(id)).slice(0, 40);
     for (const id of missing) {
       const one = await fetchEventOdds(id);
