@@ -12,6 +12,7 @@ import { Suspense, useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppLayout } from "@/components/AppLayout";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 function NotFoundComponent() {
   return (
@@ -90,7 +91,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "PulseLab — Probabilidades de Futebol" },
       {
         name: "description",
@@ -138,28 +139,28 @@ function LoadingSkeleton() {
   return (
     <div className="space-y-5 animate-pulse">
       <div className="space-y-2">
-        <div className="h-8 w-48 rounded-lg bg-white/[0.06]" />
-        <div className="h-4 w-72 rounded bg-white/[0.04]" />
+        <div className="h-8 w-48 rounded-lg bg-surface-subtle" />
+        <div className="h-4 w-72 rounded bg-surface-base/50" />
       </div>
       <div className="relative mb-5">
-        <div className="h-10 w-full rounded-lg border border-border/50 bg-white/[0.04]" />
+        <div className="h-10 w-full rounded-lg border border-border-subtle bg-surface-base/50" />
       </div>
       <div className="space-y-4">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="stagger-item">
-            <div className="mb-2 h-3 w-24 rounded bg-white/[0.04]" />
+            <div className="mb-2 h-3 w-24 rounded bg-surface-base/50" />
             <div className="space-y-1.5">
               {[1, 2].map((j) => (
                 <div
                   key={j}
-                  className="flex items-center gap-3 rounded border border-border/50 bg-card px-3 py-2.5"
+                  className="flex items-center gap-3 rounded border border-border-subtle bg-surface-base px-3 py-2.5"
                 >
-                  <div className="h-5 w-12 rounded bg-white/[0.06]" />
+                  <div className="h-5 w-12 rounded bg-surface-subtle" />
                   <div className="flex-1 space-y-1.5">
-                    <div className="h-4 w-24 rounded bg-white/[0.06]" />
-                    <div className="h-4 w-20 rounded bg-white/[0.06]" />
+                    <div className="h-4 w-24 rounded bg-surface-subtle" />
+                    <div className="h-4 w-20 rounded bg-surface-subtle" />
                   </div>
-                  <div className="h-5 w-16 rounded bg-white/[0.04]" />
+                  <div className="h-5 w-16 rounded bg-surface-base/50" />
                 </div>
               ))}
             </div>
@@ -175,11 +176,13 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppLayout>
-        <Suspense fallback={<LoadingSkeleton />}>
-          <Outlet />
-        </Suspense>
-      </AppLayout>
+      <ErrorBoundary>
+        <AppLayout>
+          <Suspense fallback={<LoadingSkeleton />}>
+            <Outlet />
+          </Suspense>
+        </AppLayout>
+      </ErrorBoundary>
     </QueryClientProvider>
   );
 }
